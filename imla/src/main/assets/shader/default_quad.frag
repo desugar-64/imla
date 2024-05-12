@@ -22,9 +22,9 @@ void main()
     vec2 texCoord = flipTexture ? vec2(TexCoord.x, 1. - TexCoord.y) : TexCoord;
 
     baseColor = texture(u_Texture, texCoord);
-    if (baseColor.w == 0.0) { // debug mark transparency
-                              color = vec4(0.0, 1.0, 0.0, 1.0);
-    } else {
-        color = baseColor;
-    }
+    //    if (baseColor.w == 0.0) { // debug mark transparency
+    //                              color = vec4(0.0, 1.0, 0.0, 1.0);
+    //    } else {
+    //    }
+    color = baseColor;
 }

@@ -24,7 +24,7 @@ import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import java.util.UUID
 
 @Composable
-public fun BlurBehindView(
+public fun BackdropBlurView(
     modifier: Modifier,
     uiLayerRenderer: UiLayerRenderer,
     content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit
@@ -59,16 +59,21 @@ public fun BlurBehindView(
                 }
             }
         }
-
+        val contentOffset = remember {
+            mutableStateOf(IntOffset.Zero)
+        }
         val surface = behindSurfaceState.value
         val renderObject by uiLayerRenderer.attachRenderSurfaceAsState(
             id = id,
             surface = surface,
             size = contentBoundingBox.size.toIntSize()
         )
+        val topOffset =
+            IntOffset(x = contentBoundingBox.left.toInt(), y = contentBoundingBox.top.toInt())
+        renderObject?.updateOffset(topOffset + contentOffset.value)
+        content { offset ->
+            contentOffset.value = offset
 
-        content { contentOffset ->
-            renderObject?.updateOffset(contentOffset)
         }
     }
 }

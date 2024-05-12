@@ -2,7 +2,7 @@
 #extension GL_OES_EGL_image_external_essl3: enable
 precision mediump float;
 
-#define USE_GAMMA_CORRECTION 0
+#define USE_GAMMA_CORRECTION 1
 #define GAMMA 2.0
 
 struct VertexOutput
@@ -51,16 +51,16 @@ void main() {
         vec4 texColor = texture(u_Texture, loc + float(i) * dir);
         #ifdef USE_GAMMA_CORRECTION
         acc += linear_from_srgb(texColor) * coeff;
-        #elif
+        #else
         acc += texColor * coeff;
         #endif
         norm += coeff;
     }
     #ifdef USE_GAMMA_CORRECTION
     acc = srgb_from_linear(acc * (1.0 / norm));
-    #elif
+    #else
     acc = acc * 1.0 / norm;
     #endif
     //    acc.rgb = pow(acc.rgb, vec3(0.85));
-    color = acc;
+    color = mix(acc, vec4(0.1, 0.1, 0.1, 1.0), 0.24);
 }

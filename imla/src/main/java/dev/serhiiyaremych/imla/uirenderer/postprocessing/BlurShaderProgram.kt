@@ -27,9 +27,9 @@ internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
     override val vertexBufferLayout: BufferLayout = defaultQuadBufferLayout
     override val componentsCount: Int = vertexBufferLayout.elements.sumOf { it.type.components }
 
-    fun setBlurRadius(@FloatRange(from = 1.0, to = 24.0) radius: Float) {
+    fun setBlurRadius(@FloatRange(from = 1.0, to = 72.0) radius: Float) {
         shader.bind()
-        val clampedRadius = radius.coerceIn(1f, 24f)
+        val clampedRadius = radius.coerceIn(1f, 72f)
         shader.setFloat("u_BlurSigma", clampedRadius)
     }
 

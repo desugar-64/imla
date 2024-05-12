@@ -10,87 +10,71 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.border
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.modifier.blurSource
-import dev.serhiiyaremych.imla.ui.BlurBehindView
+import dev.serhiiyaremych.imla.ui.BackdropBlurView
 import dev.serhiiyaremych.imla.ui.theme.ImlaTheme
+import dev.serhiiyaremych.imla.ui.userpost.SimpleImageViewer
+import dev.serhiiyaremych.imla.ui.userpost.UserPostView
+import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import dev.serhiiyaremych.imla.uirenderer.rememberUiLayerRenderer
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
-    private val longText: String = """
-        
-        0. What is Lorem Ipsum?
-
-        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-        Why do we use it?
-
-        It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal distribution of letters, as opposed to using 'Content here, content here', making it look like readable English. Many desktop publishing packages and web page editors now use Lorem Ipsum as their default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).
-
-        1. Where does it come from?
-
-        Contrary to popular belief, Lorem Ipsum is not simply random text. It has roots in a piece of classical Latin literature from 45 BC, making it over 2000 years old. Richard McClintock, a Latin professor at Hampden-Sydney College in Virginia, looked up one of the more obscure Latin words, consectetur, from a Lorem Ipsum passage, and going through the cites of the word in classical literature, discovered the undoubtable source. Lorem Ipsum comes from sections 1.10.32 and 1.10.33 of "de Finibus Bonorum et Malorum" (The Extremes of Good and Evil) by Cicero, written in 45 BC. This book is a treatise on the theory of ethics, very popular during the Renaissance. The first line of Lorem Ipsum, "Lorem ipsum dolor sit amet..", comes from a line in section 1.10.32.
-
-    """.trimIndent()
-
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(
-                android.graphics.Color.LTGRAY,
-                android.graphics.Color.BLACK
+            statusBarStyle = SystemBarStyle.dark(
+                android.graphics.Color.TRANSPARENT
             ),
             navigationBarStyle = SystemBarStyle.light(
-                android.graphics.Color.LTGRAY,
-                android.graphics.Color.BLACK
+                android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
             )
         )
         setContent {
@@ -101,56 +85,41 @@ class MainActivity : ComponentActivity() {
                         uiRenderer.destroy()
                     }
                 }
-                Scaffold(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding()
-                ) { _ ->
-                    Content(
+                val viewingImage = remember {
+                    mutableStateOf("")
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Layer 0 above full height content
+                    BlurryTopAppBar(uiRenderer)
+                    // Full height content
+                    Surface(
                         Modifier
                             .fillMaxSize()
-                            .blurSource(uiRenderer)
-                            .background(Color.LightGray),
-                        onScroll = { uiRenderer.onUiLayerUpdated() }
-                    )
+                            .blurSource(uiRenderer),
+                    ) {
+                        Content(modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = TopAppBarDefaults.MediumAppBarExpandedHeight),
+                            onImageClick = { viewingImage.value = it },
+                            onScroll = { uiRenderer.onUiLayerUpdated() })
+                    }
+                    // Layer 1 full height content
+                    BlurryBottomNavBar(uiRenderer)
 
-                    val travelDistance = with(LocalDensity.current) { 500.dp.toPx() }
-                    val infiniteAnimation =
-                        rememberInfiniteTransition(label = "infiniteAnimation")
-                    val offsetAnim = infiniteAnimation.animateFloat(
-                        initialValue = 0f,
-                        targetValue = travelDistance,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(4000),
-                            repeatMode = RepeatMode.Reverse
-                        ), label = "offsetAnim"
-                    )
-                    BlurBehindView(modifier = Modifier
-                        .fillMaxWidth()
-                        .offset {
-                            uiRenderer.onUiLayerUpdated()
-                            IntOffset(0, offsetAnim.value.toInt())
-                        }
-                        .height(156.dp)
-                        .border(1.dp, Color.DarkGray),
-                        uiLayerRenderer = uiRenderer) { offsetUpdater ->
-                        LaunchedEffect(key1 = offsetUpdater) {
-                            snapshotFlow { offsetAnim.value }
-                                .distinctUntilChanged()
-                                .collect { offsetUpdater(IntOffset(x = 0, y = it.roundToInt())) }
-
-                        }
-                        Box(
-                            modifier = Modifier.matchParentSize()
+                    AnimatedVisibility(
+                        modifier = Modifier
+                            .zIndex(2f)
+                            .matchParentSize(),
+                        visible = viewingImage.value.isNotEmpty(),
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        BackdropBlurView(
+                            modifier = Modifier.matchParentSize(),
+                            uiLayerRenderer = uiRenderer
                         ) {
-                            Text(
-                                modifier = Modifier.align(Alignment.Center),
-                                text = "😊 Hello Blur!\nПривіт Blur!😍",
-                                fontSize = 34.sp,
-                                lineHeight = 40.sp,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                            SimpleImageViewer(modifier = Modifier.fillMaxSize(),
+                                imageUrl = viewingImage.value,
+                                onDismiss = { viewingImage.value = "" })
                         }
                     }
                 }
@@ -159,91 +128,93 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun Content(modifier: Modifier, onScroll: (Int) -> Unit) {
-        val scrollState = rememberScrollState()
+    private fun BoxScope.BlurryBottomNavBar(uiRenderer: UiLayerRenderer) {
+        BackdropBlurView(
+            modifier = Modifier
+                .zIndex(1f)
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .shadow(8.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                .border(
+                    Dp.Hairline,
+                    Color.DarkGray,
+                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                ),
+            uiLayerRenderer = uiRenderer
+        ) {
+            NavigationBar(Modifier.fillMaxWidth(), containerColor = Color.Transparent) {
+                NavigationBarItem(selected = false, onClick = { /*TODO*/ }, icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Home, contentDescription = null
+                    )
+                })
+                NavigationBarItem(selected = false, onClick = { /*TODO*/ }, icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search, contentDescription = null
+                    )
+                })
+                NavigationBarItem(selected = false, onClick = { /*TODO*/ }, icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Notifications, contentDescription = null
+                    )
+                })
+                NavigationBarItem(selected = false, onClick = { /*TODO*/ }, icon = {
+                    Icon(
+                        imageVector = Icons.Filled.Settings, contentDescription = null
+                    )
+                })
+
+            }
+        }
+    }
+
+    @Composable
+    @OptIn(ExperimentalMaterial3Api::class)
+    private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer) {
+        BackdropBlurView(
+            modifier = Modifier
+                .zIndex(1f)
+                .wrapContentHeight(align = Alignment.Top)
+                .shadow(2.dp)
+                .border(Dp.Hairline, Color.DarkGray),
+            uiLayerRenderer = uiRenderer
+        ) {
+            TopAppBar(title = {
+                Text("Blur Demo")
+            },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                navigationIcon = {
+                    IconButton(onClick = { /* "Open nav drawer" */ }) {
+                        Icon(Icons.Filled.Menu, contentDescription = null)
+                    }
+                })
+        }
+    }
+
+    @Composable
+    private fun Content(
+        modifier: Modifier,
+        contentPadding: PaddingValues,
+        onImageClick: (String) -> Unit,
+        onScroll: (Int) -> Unit
+    ) {
+        val scrollState = rememberLazyListState()
         val currentOnScroll = rememberUpdatedState(onScroll).value
         LaunchedEffect(key1 = scrollState, key2 = onScroll) {
-            snapshotFlow { scrollState.value }
-                .distinctUntilChanged()
+            snapshotFlow { scrollState.firstVisibleItemScrollOffset }.distinctUntilChanged()
                 .collect {
                     currentOnScroll(it)
                 }
         }
-
-        Column(modifier = modifier.verticalScroll(scrollState)) {
-            Text(text = longText)
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                repeat(5) {
-                    Button(onClick = { /*TODO*/ }) {
-                        Text(text = "Button $it")
-                    }
-                }
-            }
-            Row {
-                Image(
-                    imageVector = Icons.Filled.Build,
-                    contentDescription = null
-                )
-                Image(
-                    imageVector = Icons.Filled.AccountBox,
-                    contentDescription = null
-                )
-                Image(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = null
-                )
-                Image(
-                    imageVector = Icons.Filled.Face,
-                    contentDescription = null
+        val posts =
+            ApiClient.getPosts().collectAsStateWithLifecycle(initialValue = persistentListOf())
+        LazyColumn(modifier = modifier, state = scrollState, contentPadding = contentPadding) {
+            items(posts.value, key = { it.id }) { item ->
+                UserPostView(
+                    modifier = Modifier.fillMaxWidth(), post = item, onImageClick = onImageClick
                 )
             }
-            Row {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_background),
-                    contentDescription = null
-                )
-                Column {
-                    val infinite = rememberInfiniteTransition("infinite")
-                    val width = infinite.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            tween(2000),
-                            repeatMode = RepeatMode.Reverse
-                        ), label = "rotation"
-                    )
-                    Box(modifier = Modifier
-                        .size(40.dp)
-                        .graphicsLayer {
-                            scaleX = width.value * 4f
-                            transformOrigin = TransformOrigin(0f, 0.5f)
-                            onScroll((width.value * 100f).roundToInt())
-                        }
-                        .background(Color.Green))
-                    Box(
-                        modifier = Modifier
-                            .requiredHeight(68.dp)
-                            .fillMaxWidth()
-                            .border(1.dp, Color.Blue)
-                            .drawWithCache {
-                                val gradient = Brush.horizontalGradient(
-                                    listOf(
-                                        Color.Magenta,
-                                        Color.Blue,
-                                        Color.Green
-                                    )
-                                )
-                                onDrawBehind {
-                                    drawRect(gradient)
-                                }
-                            }
-                    )
-                }
-            }
-            Text(text = longText)
         }
+
     }
 }

@@ -1,13 +1,17 @@
 [versions]
 agp = "8.3.2"
+coilCompose = "2.6.0"
 collection = "1.4.0"
 composeBomAlpha = "2024.05.00-alpha01"
+desugar_jdk_libs = "2.0.4"
 graphicsCore = "1.0.0-rc01"
 kotlin = "1.9.23"
 coreKtx = "1.13.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
+kotlinxCollectionsImmutable = "0.3.7"
+kotlinxSerializationJson = "1.6.3"
 lifecycleRuntimeKtx = "2.7.0"
 activityCompose = "1.9.0"
 #composeBom = "2024.04.01"
@@ -20,7 +24,10 @@ androidx-collection = { module = "androidx.collection:collection", version.ref =
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-foundation = { module = "androidx.compose.foundation:foundation" }
 androidx-graphics-core = { module = "androidx.graphics:graphics-core", version.ref = "graphicsCore" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 compose-bom = { module = "dev.chrisbanes.compose:compose-bom", version.ref = "composeBomAlpha" }
+desugar_jdk_libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -34,6 +41,8 @@ androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "kotlinxCollectionsImmutable" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 #material3 = { module = "androidx.compose.material3:material3" }
 kotlin-math = { module = "dev.romainguy:kotlin-math", version.ref = "kotlinMath" }
@@ -41,5 +50,5 @@ kotlin-math = { module = "dev.romainguy:kotlin-math", version.ref = "kotlinMath"
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-

@@ -62,7 +62,7 @@ public class UiLayerRenderer(
     private val renderingPipeline: RenderingPipeline = RenderingPipeline()
 
     private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
-        layerDownsampleFactor = 3,
+        layerDownsampleFactor = 2,
         density = density,
         graphicsLayer = graphicsLayer,
         onLayerTextureUpdated = {
@@ -107,7 +107,7 @@ public class UiLayerRenderer(
                 renderableLayer.initialize()
 
                 val blurEffect = BlurEffect(assetManager)
-                blurEffect.bluerRadius = 4.dp.toPx()
+                blurEffect.bluerRadius = 10.dp.toPx()
                 renderingPipeline.addEffect(blurEffect)
                 mainRenderTarget = glRenderer.createRenderTarget(
                     width = renderableLayer.sizeInt.width,
