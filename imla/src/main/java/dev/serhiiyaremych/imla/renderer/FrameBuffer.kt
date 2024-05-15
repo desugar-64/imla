@@ -13,6 +13,9 @@ import dev.serhiiyaremych.imla.renderer.opengl.buffer.OpenGLFramebuffer
 internal enum class FramebufferTextureFormat {
     None,
 
+    // bw masks, noise
+    R8,
+
     // Color
     RGBA8,
 

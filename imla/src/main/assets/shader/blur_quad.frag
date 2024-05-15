@@ -1,5 +1,4 @@
 #version 300 es
-#extension GL_OES_EGL_image_external_essl3: enable
 precision mediump float;
 
 #define USE_GAMMA_CORRECTION 1
@@ -15,6 +14,7 @@ struct VertexOutput
 uniform float u_BlurDirection;
 uniform vec2 u_TexelSize;
 uniform float u_BlurSigma;
+uniform vec4 u_BlurTint;
 
 uniform sampler2D u_Texture;
 
@@ -35,7 +35,6 @@ vec4 srgb_from_linear(vec4 lin)
 }
 
 void main() {
-    vec4 baseColor = vec4(1.);
     bool flipTexture = int(data.FlipTexture) > 0;
     vec2 texCoord = flipTexture ? vec2(TexCoord.x, 1. - TexCoord.y) : TexCoord;
 
@@ -62,5 +61,6 @@ void main() {
     acc = acc * 1.0 / norm;
     #endif
     //    acc.rgb = pow(acc.rgb, vec3(0.85));
-    color = mix(acc, vec4(0.1, 0.1, 0.1, 1.0), 0.24);
+    vec4 tintedColor = vec4(mix(acc.rgb, u_BlurTint.rgb, u_BlurTint.a * u_BlurTint.a), acc.a);
+    color = tintedColor;
 }

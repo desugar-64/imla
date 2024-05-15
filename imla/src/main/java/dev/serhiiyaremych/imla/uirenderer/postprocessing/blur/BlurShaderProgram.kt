@@ -5,12 +5,14 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing
+package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
 
 import android.content.res.AssetManager
 import androidx.annotation.FloatRange
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import dev.romainguy.kotlin.math.Float2
+import dev.romainguy.kotlin.math.Float4
 import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.ShaderProgram
@@ -50,5 +52,10 @@ internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
     fun setBlurringTextureSize(size: IntSize) {
         shader.bind()
         shader.setFloat2("u_TexelSize", Float2(size.width.toFloat(), size.height.toFloat()))
+    }
+
+    fun setTintColor(tint: Color) {
+        shader.bind()
+        shader.setFloat4("u_BlurTint", Float4(tint.red, tint.green, tint.blue, tint.alpha))
     }
 }

@@ -57,21 +57,21 @@ internal class OpenGLFramebuffer(
             target = Texture.Target.TEXTURE_2D,
             specification = Texture.Specification(
                 size = IntSize(width = sampledWidth, height = sampledHeight),
-                format = Texture.ImageFormat.RGBA8,
-                flipTexture = specification.attachmentsSpec.attachments.first { it.format == FramebufferTextureFormat.RGBA8 }.flip
+                format = specification.attachmentsSpec.attachments.first().format.toTextureFormat(), // todo: remove and migrate for OpenGL ES 2 FBs?
+                flipTexture = specification.attachmentsSpec.attachments.first().flip
             )
         )
         _colorAttachmentTexture.bind()
         // @formatter:off
         GLES30.glTexImage2D(
-            /* target = */ GLES31.GL_TEXTURE_2D,
+            /* target = */ GLES30.GL_TEXTURE_2D,
             /* level = */ 0,
             /* internalformat = */ _colorAttachmentTexture.specification.format.toGlInternalFormat(),
             /* width = */ sampledWidth,
             /* height = */ sampledHeight,
             /* border = */ 0,
             /* format = */ _colorAttachmentTexture.specification.format.toGlImageFormat(),
-            /* type = */ GLES31.GL_UNSIGNED_BYTE,
+            /* type = */ GLES30.GL_UNSIGNED_BYTE,
             /* pixels = */ null
         )
         // @formatter:on
@@ -127,11 +127,12 @@ internal class OpenGLFramebuffer(
         val textureFormat = specification.attachmentsSpec.attachments.first().format
         val type = when (textureFormat) {
             FramebufferTextureFormat.None -> 0
-            FramebufferTextureFormat.RGBA8 -> GLES30.GL_UNSIGNED_BYTE
+            FramebufferTextureFormat.RGBA8, FramebufferTextureFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
             else -> error("OpenGL20Framebuffer: Unsupported attachment format: $textureFormat")
         }
         val components = when (textureFormat) {
             FramebufferTextureFormat.None -> 0
+            FramebufferTextureFormat.R8 -> 1
             FramebufferTextureFormat.RGBA8 -> 4
             else -> error("OpenGL20Framebuffer: Unsupported attachment format: $textureFormat")
         }
@@ -173,5 +174,14 @@ internal class OpenGLFramebuffer(
             }
         }
 
+    }
+}
+
+private fun FramebufferTextureFormat.toTextureFormat(): Texture.ImageFormat {
+    return when (this) {
+        FramebufferTextureFormat.None -> Texture.ImageFormat.None
+        FramebufferTextureFormat.R8 -> Texture.ImageFormat.R8
+        FramebufferTextureFormat.RGBA8 -> Texture.ImageFormat.RGBA8
+        FramebufferTextureFormat.DEPTH24STENCIL8 -> TODO()
     }
 }

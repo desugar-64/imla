@@ -118,9 +118,9 @@ private fun Texture.Target.toGlTextureTarget(): Int {
 }
 
 internal fun Texture.ImageFormat.toGlInternalFormat(): Int {
-    GLES30.GL_R8
     return when (this) {
         Texture.ImageFormat.None -> 0
+        Texture.ImageFormat.A8 -> GLES30.GL_ALPHA
         Texture.ImageFormat.R8 -> GLES30.GL_R8
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB8
         Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA8
@@ -131,6 +131,7 @@ private fun Texture.ImageFormat.getDataType(): Int {
     // Use a when expression to return the corresponding OpenGL type constant
     return when (this) {
         Texture.ImageFormat.None -> 0 // No type
+        Texture.ImageFormat.A8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGB8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGBA8 -> GLES30.GL_UNSIGNED_BYTE
@@ -140,7 +141,8 @@ private fun Texture.ImageFormat.getDataType(): Int {
 internal fun Texture.ImageFormat.toGlImageFormat(): Int {
     return when (this) {
         Texture.ImageFormat.None -> 0
-        Texture.ImageFormat.R8 -> GLES30.GL_LUMINANCE
+        Texture.ImageFormat.A8 -> GLES30.GL_ALPHA
+        Texture.ImageFormat.R8 -> GLES30.GL_RED
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB
         Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA
     }

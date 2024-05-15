@@ -17,8 +17,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -60,6 +62,7 @@ import dev.serhiiyaremych.imla.ui.BackdropBlurView
 import dev.serhiiyaremych.imla.ui.theme.ImlaTheme
 import dev.serhiiyaremych.imla.ui.userpost.SimpleImageViewer
 import dev.serhiiyaremych.imla.ui.userpost.UserPostView
+import dev.serhiiyaremych.imla.uirenderer.Style
 import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import dev.serhiiyaremych.imla.uirenderer.rememberUiLayerRenderer
 import kotlinx.collections.immutable.persistentListOf
@@ -115,11 +118,15 @@ class MainActivity : ComponentActivity() {
                     ) {
                         BackdropBlurView(
                             modifier = Modifier.matchParentSize(),
-                            uiLayerRenderer = uiRenderer
+                            uiLayerRenderer = uiRenderer,
+                            style = Style(Color.Green.copy(alpha = 0.3f), 1.0f)
                         ) {
                             SimpleImageViewer(modifier = Modifier.fillMaxSize(),
                                 imageUrl = viewingImage.value,
                                 onDismiss = { viewingImage.value = "" })
+                        }
+                        DisposableEffect(key1 = Unit) {
+                            onDispose { uiRenderer.onUiLayerUpdated() }
                         }
                     }
                 }
@@ -133,6 +140,7 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier
                 .zIndex(1f)
                 .fillMaxWidth()
+                .wrapContentHeight(align = Alignment.Bottom)
                 .align(Alignment.BottomCenter)
                 .shadow(8.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 .border(
@@ -140,9 +148,16 @@ class MainActivity : ComponentActivity() {
                     Color.DarkGray,
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
-            uiLayerRenderer = uiRenderer
+            uiLayerRenderer = uiRenderer,
+            style = Style(Color.Cyan.copy(alpha = 0.3f), 1.0f)
         ) {
-            NavigationBar(Modifier.fillMaxWidth(), containerColor = Color.Transparent) {
+            NavigationBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                windowInsets = WindowInsets(bottom = 0.dp),
+                containerColor = Color.Transparent
+            ) {
                 NavigationBarItem(selected = false, onClick = { /*TODO*/ }, icon = {
                     Icon(
                         imageVector = Icons.Filled.Home, contentDescription = null
@@ -177,17 +192,20 @@ class MainActivity : ComponentActivity() {
                 .wrapContentHeight(align = Alignment.Top)
                 .shadow(2.dp)
                 .border(Dp.Hairline, Color.DarkGray),
-            uiLayerRenderer = uiRenderer
+            uiLayerRenderer = uiRenderer,
+            style = Style(Color.Red.copy(alpha = 0.3f), 1.0f)
         ) {
-            TopAppBar(title = {
-                Text("Blur Demo")
-            },
+            TopAppBar(
+                modifier = Modifier.padding(top = 16.dp),
+                title = { Text("Blur Demo") },
+                windowInsets = WindowInsets(top = 0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 navigationIcon = {
                     IconButton(onClick = { /* "Open nav drawer" */ }) {
                         Icon(Icons.Filled.Menu, contentDescription = null)
                     }
-                })
+                }
+            )
         }
     }
 

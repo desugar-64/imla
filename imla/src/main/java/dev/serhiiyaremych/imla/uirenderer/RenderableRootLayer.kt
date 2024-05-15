@@ -133,8 +133,8 @@ internal class RenderableRootLayer(
     }
 
     fun destroy() {
-        layerExternalTexture.release()
         layerExternalTexture.releaseTexImage()
+        layerExternalTexture.release()
         layerSurface.release()
         extOesLayerTexture.destroy()
         isDestroyed = true

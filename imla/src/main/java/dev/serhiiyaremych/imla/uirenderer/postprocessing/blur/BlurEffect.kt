@@ -5,9 +5,10 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing
+package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
 
 import android.content.res.AssetManager
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.renderer.Framebuffer
@@ -17,6 +18,7 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 import kotlin.properties.Delegates
 
 internal class BlurEffect(
@@ -43,6 +45,7 @@ internal class BlurEffect(
                     init(renderObject.layerArea.size) // downsampled layer
                     isInitialized = true
                 }
+                blurShaderProgram.setTintColor(renderObject.style.tint)
                 blurShaderProgram.setBlurringTextureSize(renderObject.layerArea.size) // downsampled layer
                 blurShaderProgram.setHorizontalPass()
                 bindFrameBuffer(horizontalPassFramebuffer) {
@@ -65,7 +68,7 @@ internal class BlurEffect(
                     }
                 }
             }
-
+            blurShaderProgram.setTintColor(Color.Transparent)
             return verticalPassFramebuffer.colorAttachmentTexture
         }
 

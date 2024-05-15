@@ -20,10 +20,10 @@ internal class RenderingPipeline() {
     }
 
     fun addRenderObject(renderObject: RenderObject) {
-        renderObjects[renderObject.id] = renderObject.apply { onRender(render) }
+        renderObjects[renderObject.id] = renderObject.apply { onRender(renderCallback) }
     }
 
-    private val render = fun RenderableScope.(renderObject: RenderObject) {
+    private val renderCallback = fun RenderableScope.(renderObject: RenderObject) {
         trace("RenderingPipeline#renderObject") {
             RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
             if (effects.isNotEmpty()) {
@@ -67,5 +67,10 @@ internal class RenderingPipeline() {
         } else {
             onRenderComplete()
         }
+    }
+
+    fun removeRenderObject(renderObject: RenderObject?) {
+        renderObject?.onRender(null)
+        renderObjects.remove(renderObject?.id)
     }
 }

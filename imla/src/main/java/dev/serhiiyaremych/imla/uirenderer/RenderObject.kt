@@ -26,6 +26,7 @@ internal class RenderObject internal constructor(
     internal val rect: Rect,
     internal var layerArea: SubTexture2D,
     internal val renderableScope: RenderableScope,
+    internal val style: Style,
 ) {
     private var onRender: (RenderableScope.(RenderObject) -> Unit)? = null
 
@@ -43,7 +44,7 @@ internal class RenderObject internal constructor(
         renderTarget?.requestRender(onRenderComplete)
     }
 
-    fun onRender(onRender: RenderableScope.(RenderObject) -> Unit) {
+    fun onRender(onRender: (RenderableScope.(RenderObject) -> Unit)?) {
         this.onRender = onRender
     }
 
@@ -62,6 +63,16 @@ internal class RenderObject internal constructor(
         return "RenderObject(id='$id', rect=$rect)"
     }
 
+
+    fun detachFromRenderer(glRenderer: GLRenderer) {
+        renderTarget?.let {
+            glRenderer.detach(it, true)
+            if (it.isAttached()) {
+                it.detach(true)
+            }
+        }
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -70,7 +81,7 @@ internal class RenderObject internal constructor(
 
         if (id != other.id) return false
         if (rect != other.rect) return false
-        if (layerArea != other.layerArea) return false
+        if (style != other.style) return false
 
         return true
     }
@@ -78,7 +89,7 @@ internal class RenderObject internal constructor(
     override fun hashCode(): Int {
         var result = id.hashCode()
         result = 31 * result + rect.hashCode()
-        result = 31 * result + layerArea.hashCode()
+        result = 31 * result + style.hashCode()
         return result
     }
 
@@ -111,7 +122,8 @@ internal class RenderObject internal constructor(
             renderableLayer: RenderableRootLayer,
             glRenderer: GLRenderer,
             surface: Surface,
-            rect: Rect
+            rect: Rect,
+            style: Style
         ): RenderObject {
             val texture = renderableLayer.layerTexture // downsampled texture
             val region = rect
@@ -129,7 +141,8 @@ internal class RenderObject internal constructor(
                 renderableScope = RenderableScope(
                     scale = renderableLayer.scale,
                     originalSizeInt = region.size.toIntSize()
-                )
+                ),
+                style = style
             ).apply {
                 renderTarget = glRenderer.attach(
                     surface = surface,

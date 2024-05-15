@@ -36,7 +36,7 @@ import androidx.graphics.opengl.egl.EGLManager
 import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.BlurEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
@@ -109,6 +109,7 @@ public class UiLayerRenderer(
                 val blurEffect = BlurEffect(assetManager)
                 blurEffect.bluerRadius = 10.dp.toPx()
                 renderingPipeline.addEffect(blurEffect)
+//                renderingPipeline.addEffect(NoiseEffect(assetManager))
                 mainRenderTarget = glRenderer.createRenderTarget(
                     width = renderableLayer.sizeInt.width,
                     height = renderableLayer.sizeInt.height,
@@ -163,7 +164,8 @@ public class UiLayerRenderer(
     internal fun attachRenderSurfaceAsState(
         id: String,
         surface: Surface?,
-        size: IntSize
+        size: IntSize,
+        style: Style
     ): State<RenderObject?> {
         return produceState<RenderObject?>(
             initialValue = null,
@@ -171,7 +173,8 @@ public class UiLayerRenderer(
             id,
             renderableLayer,
             surface,
-            size
+            size,
+            style
         ) {
             val existingRo = renderingPipeline.getRenderObject(id)
             val ro = when {
@@ -183,7 +186,8 @@ public class UiLayerRenderer(
                         renderableLayer = renderableLayer,
                         glRenderer = glRenderer,
                         surface = surface,
-                        rect = Rect(offset = Offset.Zero, size.toSize())
+                        rect = Rect(offset = Offset.Zero, size.toSize()),
+                        style = style
                     )
                     renderingPipeline.addRenderObject(renderObject)
                     renderObject
@@ -191,6 +195,11 @@ public class UiLayerRenderer(
             }
             value = ro
         }
+    }
+
+    internal fun detachRenderObject(renderObject: RenderObject?) {
+        renderObject?.detachFromRenderer(glRenderer)
+        renderingPipeline.removeRenderObject(renderObject)
     }
 
     public fun destroy() {
@@ -201,11 +210,6 @@ public class UiLayerRenderer(
             glRenderer.stop(true)
             renderableLayer.destroy()
         }
-    }
-
-    public fun detachRenderSurface(surface: Surface) {
-        TODO("detachRenderSurface")
-//        glRenderer.detach()
     }
 
     internal companion object {

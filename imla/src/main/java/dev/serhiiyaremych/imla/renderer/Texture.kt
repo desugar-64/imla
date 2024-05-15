@@ -20,6 +20,7 @@ internal interface Texture {
 
     enum class ImageFormat {
         None,
+        A8,
         R8,
         RGB8,
         RGBA8,
