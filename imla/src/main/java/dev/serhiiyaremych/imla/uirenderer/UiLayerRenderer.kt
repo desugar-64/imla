@@ -28,7 +28,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
@@ -36,7 +35,6 @@ import androidx.graphics.opengl.egl.EGLManager
 import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
@@ -59,7 +57,7 @@ public class UiLayerRenderer(
         start("GLUiLayerRenderer")
     }
 
-    private val renderingPipeline: RenderingPipeline = RenderingPipeline()
+    private val renderingPipeline: RenderingPipeline = RenderingPipeline(this, assetManager)
 
     private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
         layerDownsampleFactor = 2,
@@ -106,10 +104,6 @@ public class UiLayerRenderer(
 
                 renderableLayer.initialize()
 
-                val blurEffect = BlurEffect(assetManager)
-                blurEffect.bluerRadius = 10.dp.toPx()
-                renderingPipeline.addEffect(blurEffect)
-//                renderingPipeline.addEffect(NoiseEffect(assetManager))
                 mainRenderTarget = glRenderer.createRenderTarget(
                     width = renderableLayer.sizeInt.width,
                     height = renderableLayer.sizeInt.height,
@@ -164,8 +158,7 @@ public class UiLayerRenderer(
     internal fun attachRenderSurfaceAsState(
         id: String,
         surface: Surface?,
-        size: IntSize,
-        style: Style
+        size: IntSize
     ): State<RenderObject?> {
         return produceState<RenderObject?>(
             initialValue = null,
@@ -173,8 +166,7 @@ public class UiLayerRenderer(
             id,
             renderableLayer,
             surface,
-            size,
-            style
+            size
         ) {
             val existingRo = renderingPipeline.getRenderObject(id)
             val ro = when {
@@ -187,7 +179,6 @@ public class UiLayerRenderer(
                         glRenderer = glRenderer,
                         surface = surface,
                         rect = Rect(offset = Offset.Zero, size.toSize()),
-                        style = style
                     )
                     renderingPipeline.addRenderObject(renderObject)
                     renderObject

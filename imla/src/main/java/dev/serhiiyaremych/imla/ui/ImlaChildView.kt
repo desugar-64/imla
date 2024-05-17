@@ -15,12 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
+import dev.serhiiyaremych.imla.ext.logd
 import dev.serhiiyaremych.imla.uirenderer.Style
 import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import java.util.UUID
@@ -68,19 +70,27 @@ public fun BackdropBlurView(
             id = id,
             surface = surface,
             size = contentBoundingBox.size.toIntSize(),
-            style = style
         )
         val topOffset = IntOffset(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
         renderObject?.updateOffset(topOffset + contentOffset.value)
-
-        // Render the content and handle offset changes
-        content { offset ->
-            contentOffset.value = offset
+        trace("BackdropBlurView#renderObject.style") {
+            renderObject?.style = style
         }
 
+        // Render the content and handle offset changes
+        Box(
+            Modifier.drawWithContent {
+                drawContent()
+                logd("BackdropBlurView", "drawing content")
+            }
+        ) {
+            content { offset ->
+                contentOffset.value = offset
+            }
+        }
         // Detach the render object when the composable is disposed
         DisposableEffect(Unit) {
             onDispose {

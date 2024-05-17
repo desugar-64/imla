@@ -20,40 +20,46 @@ import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
+import kotlin.properties.Delegates
 
 internal class RenderObject internal constructor(
     internal val id: String,
     internal val rect: Rect,
-    internal var layerArea: SubTexture2D,
+    internal var layer: SubTexture2D,
     internal val renderableScope: RenderableScope,
-    internal val style: Style,
 ) {
-    private var onRender: (RenderableScope.(RenderObject) -> Unit)? = null
+    private var renderCallback: ((RenderObject) -> Unit)? = null
 
-    val glCallback = object : GLRenderer.RenderCallback {
+    private val openGLCallback = object : GLRenderer.RenderCallback {
         override fun onDrawFrame(eglManager: EGLManager) {
             trace("RenderObject#onRender") {
-                onRender?.invoke(renderableScope, this@RenderObject)
+                renderCallback?.invoke(this@RenderObject)
             }
+        }
+    }
+
+    internal var style: Style by Delegates.observable(Style.default) { _, old, new ->
+        if (old != new) {
+            invalidate()
         }
     }
 
     var renderTarget: GLRenderer.RenderTarget? = null
 
-    fun invalidate(onRenderComplete: (GLRenderer.RenderTarget) -> Unit) {
+    fun invalidate(onRenderComplete: ((GLRenderer.RenderTarget) -> Unit)? = null) {
         renderTarget?.requestRender(onRenderComplete)
     }
 
-    fun onRender(onRender: (RenderableScope.(RenderObject) -> Unit)?) {
-        this.onRender = onRender
+    fun setRenderCallback(onRender: ((RenderObject) -> Unit)?) {
+        this.renderCallback = onRender
     }
 
     fun updateOffset(offset: IntOffset) {
         val (x, y) = offset
-        val d = layerArea.texture.height - (y * renderableScope.scale) - rect.height
+        val d = layer.texture.height - (y * renderableScope.scale) - rect.height
         val r = rect.translate(translateX = x.toFloat(), translateY = d)
-        layerArea = SubTexture2D.createFromCoords(
-            texture = layerArea.texture,
+        layer = SubTexture2D.createFromCoords(
+            texture = layer.texture,
             rect = r
         )
         invalidate { }
@@ -123,7 +129,6 @@ internal class RenderObject internal constructor(
             glRenderer: GLRenderer,
             surface: Surface,
             rect: Rect,
-            style: Style
         ): RenderObject {
             val texture = renderableLayer.layerTexture // downsampled texture
             val region = rect
@@ -134,7 +139,7 @@ internal class RenderObject internal constructor(
             val renderObject = RenderObject(
                 id = id,
                 rect = scaledRegion,
-                layerArea = SubTexture2D.createFromCoords(
+                layer = SubTexture2D.createFromCoords(
                     texture = texture,
                     rect = scaledRegion
                 ),
@@ -142,13 +147,12 @@ internal class RenderObject internal constructor(
                     scale = renderableLayer.scale,
                     originalSizeInt = region.size.toIntSize()
                 ),
-                style = style
             ).apply {
                 renderTarget = glRenderer.attach(
                     surface = surface,
                     width = rect.width.toInt(),
                     height = rect.height.toInt(),
-                    renderer = glCallback
+                    renderer = openGLCallback
                 )
             }
             return renderObject

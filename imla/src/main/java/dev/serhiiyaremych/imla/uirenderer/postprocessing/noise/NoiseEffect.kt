@@ -27,31 +27,35 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     private var textureFrameBuffer: Framebuffer by Delegates.notNull()
     private var isNoiseTextureInitialized: Boolean = false
 
+    override fun setup(size: IntSize) {
+        TODO("Not yet implemented")
+    }
 
+    // TODO
     override fun applyEffect(renderObject: RenderObject): Texture2D {
         with(renderObject.renderableScope) {
             if (!isNoiseTextureInitialized) {
                 isNoiseTextureInitialized = true
                 initializeNoiseTexture(
-                    renderObject.layerArea.size.width,
-                    renderObject.layerArea.size.height
+                    renderObject.layer.subTextureSize.width,
+                    renderObject.layer.subTextureSize.height
                 )
                 bindFrameBuffer(noiseTextureFrameBuffer) {
                     scaledCameraController.onVisibleBoundsResize(
-                        renderObject.layerArea.size.width,
-                        renderObject.layerArea.size.height,
+                        renderObject.layer.subTextureSize.width,
+                        renderObject.layer.subTextureSize.height,
                     )
                     drawScene(shaderProgram = shader) {
                         drawQuad(
                             position = Float3(
                                 Float2(
-                                    renderObject.layerArea.size.width / 2f,
-                                    renderObject.layerArea.size.height / 2f
+                                    renderObject.layer.subTextureSize.width / 2f,
+                                    renderObject.layer.subTextureSize.height / 2f
                                 )
                             ),
                             size = Float2(
-                                renderObject.layerArea.size.width.toFloat(),
-                                renderObject.layerArea.size.height.toFloat()
+                                renderObject.layer.subTextureSize.width.toFloat(),
+                                renderObject.layer.subTextureSize.height.toFloat()
                             )
 
                         )

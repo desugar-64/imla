@@ -7,51 +7,27 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
+import android.content.res.AssetManager
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.util.trace
-import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.EffectCoordinator
 
-internal class RenderingPipeline() {
+internal class RenderingPipeline(density: Density, assetManager: AssetManager) {
     private val renderObjects: MutableMap<String, RenderObject> = mutableMapOf()
-    private val effects: MutableList<PostProcessingEffect> = mutableListOf()
+    private val effectCoordinator = EffectCoordinator(density, assetManager)
 
     fun getRenderObject(id: String): RenderObject? {
         return renderObjects[id]
     }
 
     fun addRenderObject(renderObject: RenderObject) {
-        renderObjects[renderObject.id] = renderObject.apply { onRender(renderCallback) }
+        renderObjects[renderObject.id] = renderObject.apply { setRenderCallback(renderCallback) }
     }
 
-    private val renderCallback = fun RenderableScope.(renderObject: RenderObject) {
+    private val renderCallback = fun(renderObject: RenderObject) {
         trace("RenderingPipeline#renderObject") {
-            RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
-            if (effects.isNotEmpty()) {
-                for (fx in effects) {
-                    val result = fx.applyEffect(renderObject)
-                    RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
-                    drawScene(cameraController.camera) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = result
-                        )
-                    }
-                }
-            } else {
-                drawScene(cameraController.camera) {
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        subTexture = renderObject.layerArea
-                    )
-                }
-            }
+            effectCoordinator.applyEffects(renderObject)
         }
-    }
-
-    fun addEffect(postProcessingEffect: PostProcessingEffect) {
-        effects += postProcessingEffect
     }
 
     fun requestRender(onRenderComplete: () -> Unit) {
@@ -70,7 +46,7 @@ internal class RenderingPipeline() {
     }
 
     fun removeRenderObject(renderObject: RenderObject?) {
-        renderObject?.onRender(null)
+        renderObject?.setRenderCallback(null)
         renderObjects.remove(renderObject?.id)
     }
 }

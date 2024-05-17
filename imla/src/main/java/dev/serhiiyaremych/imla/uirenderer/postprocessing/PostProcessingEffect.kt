@@ -7,10 +7,15 @@
 
 package dev.serhiiyaremych.imla.uirenderer.postprocessing
 
-import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.RenderObject
+import androidx.compose.ui.unit.IntSize
+import dev.serhiiyaremych.imla.renderer.Texture
+import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 
 internal interface PostProcessingEffect {
-    fun applyEffect(renderObject: RenderObject): Texture2D
+    fun shouldResize(size: IntSize): Boolean
+    fun setup(size: IntSize)
+    context(RenderableScope)
+    fun applyEffect(texture: Texture): Texture
+
     fun dispose()
 }

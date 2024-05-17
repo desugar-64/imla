@@ -207,7 +207,7 @@ internal object Renderer2D {
         size: Float2,
         rotated: Float3 = zero3,
         cameraDistance: Float = 3f,
-        texture: Texture2D? = null,
+        texture2D: Texture2D? = null,
     ) {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
@@ -238,17 +238,17 @@ internal object Renderer2D {
         var texIndex = 0.0f
         var flipTexture = false
         var isExternalTexture = false
-        if (texture != null) {
-            flipTexture = texture.flipTexture
-            isExternalTexture = texture.target == Texture.Target.TEXTURE_EXTERNAL_OES
-            var textureIndex = findTextureSlotIndexFor(texture)
+        if (texture2D != null) {
+            flipTexture = texture2D.flipTexture
+            isExternalTexture = texture2D.target == Texture.Target.TEXTURE_EXTERNAL_OES
+            var textureIndex = findTextureSlotIndexFor(texture2D)
             if (textureIndex == -1) {
                 textureIndex = data.textureSlotIndex
                 data.textureSlotIndex++
             } else {
                 data.textureSlotIndex = textureIndex + 1
             }
-            data.textureSlots[textureIndex] = texture
+            data.textureSlots[textureIndex] = texture2D
             texIndex = textureIndex.toFloat()
         }
 
@@ -258,6 +258,22 @@ internal object Renderer2D {
             flipTexture = if (flipTexture) 1.0f else 0.0f,
             isExternalTexture = if (isExternalTexture) 1.0f else 0.0f
         )
+    }
+
+    fun drawQuad(position: Float3, size: Float2, texture: Texture) {
+        when (texture) {
+            is Texture2D -> drawQuad(
+                position = position,
+                size = size,
+                texture2D = texture
+            )
+
+            is SubTexture2D -> drawQuad(
+                position = position,
+                size = size,
+                subTexture = texture
+            )
+        }
     }
 
     fun drawQuad(position: Float3, size: Float2, subTexture: SubTexture2D) {

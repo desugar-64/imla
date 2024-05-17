@@ -16,8 +16,10 @@ import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.SubTexture2D
+import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.RenderObject
+import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 import kotlin.properties.Delegates
 
@@ -33,46 +35,70 @@ internal class BlurEffect(
     private var isInitialized: Boolean = false
 
     var bluerRadius: Float = 4f
-        set(value) {
-            field = value
-            blurShaderProgram.setBlurRadius(value)
-        }
+    var tint: Color = Color.Transparent
 
-    override fun applyEffect(renderObject: RenderObject): Texture2D =
-        with(renderObject.renderableScope) {
-            trace("BlurEffect#applyEffect") {
-                if (!isInitialized) {
-                    init(renderObject.layerArea.size) // downsampled layer
-                    isInitialized = true
-                }
-                blurShaderProgram.setTintColor(renderObject.style.tint)
-                blurShaderProgram.setBlurringTextureSize(renderObject.layerArea.size) // downsampled layer
-                blurShaderProgram.setHorizontalPass()
-                bindFrameBuffer(horizontalPassFramebuffer) {
-                    drawScene(shaderProgram = blurShaderProgram) {
-                        drawQuad(
-                            position = scaledCenter,
-                            size = scaledSize,
-                            subTexture = renderObject.layerArea
-                        )
-                    }
-                }
-                blurShaderProgram.setVerticalPass()
-                bindFrameBuffer(verticalPassFramebuffer) {
-                    drawScene(shaderProgram = blurShaderProgram) {
-                        drawQuad(
-                            position = scaledCenter,
-                            size = scaledSize,
-                            texture = horizontalPassFramebuffer.colorAttachmentTexture
-                        )
-                    }
+
+    override fun setup(size: IntSize) {
+        if (shouldResize(size)) {
+            init(size)
+            isInitialized = true
+        }
+    }
+
+    override fun shouldResize(size: IntSize): Boolean {
+        return !isInitialized ||
+                (horizontalPassFramebuffer.specification.size != size || verticalPassFramebuffer.specification.size != size)
+    }
+
+    context(RenderableScope)
+    override fun applyEffect(texture: Texture): Texture {
+        trace("BlurEffect#applyEffect") {
+            val effectSize = getSize(texture)
+            setup(effectSize)
+
+            blurShaderProgram.setBlurRadius(bluerRadius)
+            blurShaderProgram.setTintColor(tint)
+            blurShaderProgram.setBlurringTextureSize(effectSize) // down-sampled layer
+
+            // first pass
+            blurShaderProgram.setHorizontalPass()
+            bindFrameBuffer(horizontalPassFramebuffer) {
+                drawScene(shaderProgram = blurShaderProgram) {
+                    drawQuad(
+                        position = scaledCenter,
+                        size = scaledSize,
+                        texture = texture
+                    )
                 }
             }
-            blurShaderProgram.setTintColor(Color.Transparent)
-            return verticalPassFramebuffer.colorAttachmentTexture
+            // second pass
+            blurShaderProgram.setVerticalPass()
+            bindFrameBuffer(verticalPassFramebuffer) {
+                drawScene(shaderProgram = blurShaderProgram) {
+                    drawQuad(
+                        position = scaledCenter,
+                        size = scaledSize,
+                        texture = horizontalPassFramebuffer.colorAttachmentTexture
+                    )
+                }
+            }
         }
+        return verticalPassFramebuffer.colorAttachmentTexture
+    }
 
-    private fun init(size: IntSize) {
+    private fun getSize(texture: Texture): IntSize {
+        return when (texture) {
+            is Texture2D -> IntSize(width = texture.width, height = texture.height)
+            is SubTexture2D -> texture.subTextureSize
+            else -> error("Unsupported texture: $texture")
+        }
+    }
+
+    private fun init(size: IntSize) = trace("BlurEffect#init") {
+        if (isInitialized) {
+            horizontalPassFramebuffer.destroy()
+            verticalPassFramebuffer.destroy()
+        }
         val spec = FramebufferSpecification(
             size = size,
             attachmentsSpec = FramebufferAttachmentSpecification(
@@ -87,5 +113,9 @@ internal class BlurEffect(
         horizontalPassFramebuffer.destroy()
         verticalPassFramebuffer.destroy()
         isInitialized = false
+    }
+
+    companion object {
+        const val MIN_BLUR_RADIUS_PX = 1
     }
 }

@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.toIntSize
 
 internal class SubTexture2D(
     val texture: Texture2D
-) {
+) : Texture by texture {
     val texCoords: Array<Offset> = Array(4) { index ->
         when (index) {
             0 -> Offset(0.0f, 0.0f)
@@ -25,9 +25,7 @@ internal class SubTexture2D(
         }
     }
 
-    val flipTexture: Boolean get() = texture.flipTexture
-
-    var size: IntSize = IntSize.Zero
+    var subTextureSize: IntSize = IntSize.Zero
         private set
 
     constructor(texture: Texture2D, min: Offset, max: Offset) : this(texture) {
@@ -37,7 +35,6 @@ internal class SubTexture2D(
         texCoords[3] = Offset(min.x, max.y)
     }
 
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -46,7 +43,7 @@ internal class SubTexture2D(
 
         if (texture != other.texture) return false
         if (!texCoords.contentEquals(other.texCoords)) return false
-        if (size != other.size) return false
+        if (subTextureSize != other.subTextureSize) return false
 
         return true
     }
@@ -54,7 +51,7 @@ internal class SubTexture2D(
     override fun hashCode(): Int {
         var result = texture.hashCode()
         result = 31 * result + texCoords.contentHashCode()
-        result = 31 * result + size.hashCode()
+        result = 31 * result + subTextureSize.hashCode()
         return result
     }
 
@@ -72,7 +69,7 @@ internal class SubTexture2D(
             val max = Offset(x = texRight, y = texBottom)
 
             return SubTexture2D(texture = texture, min = min, max = max).apply {
-                size = rect.size.toIntSize()
+                subTextureSize = rect.size.toIntSize()
             }
         }
     }
