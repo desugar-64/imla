@@ -7,15 +7,15 @@ package dev.serhiiyaremych.imla.uirenderer.postprocessing.noise
 
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
-import dev.romainguy.kotlin.math.Float2
+import androidx.compose.ui.util.trace
 import dev.romainguy.kotlin.math.Float3
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.SubTexture2D
+import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.RenderObject
+import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 import kotlin.properties.Delegates
 
@@ -24,77 +24,75 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     private val shader = NoiseShaderProgram(assetManager)
 
     private var noiseTextureFrameBuffer: Framebuffer by Delegates.notNull()
-    private var textureFrameBuffer: Framebuffer by Delegates.notNull()
+    private var outputFrameBuffer: Framebuffer by Delegates.notNull()
     private var isNoiseTextureInitialized: Boolean = false
+    private var isNoiseTextureDrawn: Boolean = false
 
     override fun setup(size: IntSize) {
-        TODO("Not yet implemented")
+        if (shouldResize(size)) {
+            init(size)
+        }
     }
 
-    // TODO
-    override fun applyEffect(renderObject: RenderObject): Texture2D {
-        with(renderObject.renderableScope) {
-            if (!isNoiseTextureInitialized) {
-                isNoiseTextureInitialized = true
-                initializeNoiseTexture(
-                    renderObject.layer.subTextureSize.width,
-                    renderObject.layer.subTextureSize.height
-                )
-                bindFrameBuffer(noiseTextureFrameBuffer) {
-                    scaledCameraController.onVisibleBoundsResize(
-                        renderObject.layer.subTextureSize.width,
-                        renderObject.layer.subTextureSize.height,
-                    )
-                    drawScene(shaderProgram = shader) {
-                        drawQuad(
-                            position = Float3(
-                                Float2(
-                                    renderObject.layer.subTextureSize.width / 2f,
-                                    renderObject.layer.subTextureSize.height / 2f
-                                )
-                            ),
-                            size = Float2(
-                                renderObject.layer.subTextureSize.width.toFloat(),
-                                renderObject.layer.subTextureSize.height.toFloat()
-                            )
+    private fun init(size: IntSize) {
+        if (isNoiseTextureInitialized) {
+            noiseTextureFrameBuffer.destroy()
+            outputFrameBuffer.destroy()
+        }
+        val spec = FramebufferSpecification(
+            size = size,
+            attachmentsSpec = FramebufferAttachmentSpecification()
+        )
+        noiseTextureFrameBuffer = Framebuffer.create(spec)
+        outputFrameBuffer = Framebuffer.create(spec)
+        isNoiseTextureInitialized = true
+    }
 
+    override fun shouldResize(size: IntSize): Boolean {
+        return !isNoiseTextureInitialized || noiseTextureFrameBuffer.specification.size != size
+    }
+
+    context(RenderableScope)
+    private fun drawNoiseTextureOnce() {
+        if (!isNoiseTextureDrawn) {
+            trace("NoiseEffect#drawNoiseTextureOnce") {
+                bindFrameBuffer(noiseTextureFrameBuffer) {
+                    drawScene(camera = cameraController.camera, shaderProgram = shader) {
+                        drawQuad(
+                            position = Float3(center),
+                            size = size
                         )
                     }
                 }
             }
-//            bindFrameBuffer(textureFrameBuffer) {
-//                drawScene() {
-//                    drawQuad(
-//                        position = scaledCenter,
-//                        size = scaledSize,
-//                        texture = noiseTextureFrameBuffer.colorAttachmentTexture
-//                    )
-//                }
-//            }
+            isNoiseTextureDrawn = true
+        }
+    }
+
+    context(RenderableScope)
+    override fun applyEffect(texture: Texture): Texture2D {
+        val effectSize = getSize(texture)
+        setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
+        drawNoiseTextureOnce()
+        bindFrameBuffer(outputFrameBuffer) {
+
         }
         return noiseTextureFrameBuffer.colorAttachmentTexture
     }
 
-    private fun initializeNoiseTexture(width: Int, height: Int) {
-        val spec = FramebufferSpecification(
-            size = IntSize(width, height),
-            attachmentsSpec = FramebufferAttachmentSpecification(
-                attachments = listOf(
-                    FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8)
-                )
-            )
-        )
-        noiseTextureFrameBuffer = Framebuffer.create(spec)
-
-        textureFrameBuffer = Framebuffer.create(
-            FramebufferSpecification(
-                size = IntSize(width, height),
-                attachmentsSpec = FramebufferAttachmentSpecification()
-            )
-        )
+    private fun getSize(texture: Texture): IntSize {
+        return when (texture) {
+            is Texture2D -> IntSize(width = texture.width, height = texture.height)
+            is SubTexture2D -> texture.subTextureSize
+            else -> error("Unsupported texture: $texture")
+        }
     }
 
     override fun dispose() {
-        TODO("Not yet implemented")
+        if (isNoiseTextureInitialized) {
+            noiseTextureFrameBuffer.destroy()
+            outputFrameBuffer.destroy()
+        }
+        isNoiseTextureInitialized = false
     }
 }

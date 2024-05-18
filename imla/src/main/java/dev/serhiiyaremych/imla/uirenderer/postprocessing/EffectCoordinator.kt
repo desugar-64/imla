@@ -42,12 +42,17 @@ internal class EffectCoordinator(
             createEffects(renderObject)
         }
         var finalTexture: Texture? = null
-        RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
+        RenderCommand.setViewPort(
+            0,
+            0,
+            scaledSize.x.toInt(),
+            scaledSize.y.toInt()
+        ) // buffer effect size
         effects.forEach { effect ->
             val result = effect.applyEffect(finalTexture ?: renderObject.layer)
             finalTexture = result
         }
-        RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
+        RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
 
         val result = finalTexture
         if (result != null) {

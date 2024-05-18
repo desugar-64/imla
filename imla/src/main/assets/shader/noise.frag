@@ -19,6 +19,6 @@ void main()
 {
 
     //    color.rgb = hash42(uvec2(1000, 1000)).rgb;
-    color = vec4(1.0);
-    color = vec4(vec3(rand(TexCoord)), 1.0);
+    //    color = vec4(1.0);
+    color = vec4(vec3(rand(TexCoord) * 1.2), 1.0);
 }

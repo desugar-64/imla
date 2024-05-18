@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
                         BackdropBlurView(
                             modifier = Modifier.matchParentSize(),
                             uiLayerRenderer = uiRenderer,
-                            style = Style(4.dp, Color.Green.copy(alpha = 0.3f), 0.0f)
+                            style = Style(4.dp, Color.Green.copy(alpha = 0.3f), 1.0f)
                         ) {
                             SimpleImageViewer(modifier = Modifier.fillMaxSize(),
                                 imageUrl = viewingImage.value,
