@@ -9,6 +9,7 @@ struct VertexOutput
     float TexIndex;
     float FlipTexture;
     float isExternalTexture;
+    float alpha;
 };
 
 uniform float u_BlurDirection;
@@ -16,7 +17,7 @@ uniform vec2 u_TexelSize;
 uniform float u_BlurSigma;
 uniform vec4 u_BlurTint;
 
-uniform sampler2D u_Texture;
+uniform sampler2D u_Textures[8];
 
 in vec2 TexCoord;
 in VertexOutput data;
@@ -47,7 +48,7 @@ void main() {
     float sigma = u_BlurSigma;
     for (int i = -support; i <= support; i++) {
         float coeff = exp(-0.5 * float(i) * float(i) / (sigma * sigma));
-        vec4 texColor = texture(u_Texture, loc + float(i) * dir);
+        vec4 texColor = texture(u_Textures[1], loc + float(i) * dir);
         #ifdef USE_GAMMA_CORRECTION
         acc += linear_from_srgb(texColor) * coeff;
         #else
@@ -62,5 +63,8 @@ void main() {
     #endif
     //    acc.rgb = pow(acc.rgb, vec3(0.85));
     vec4 tintedColor = vec4(mix(acc.rgb, u_BlurTint.rgb, u_BlurTint.a * u_BlurTint.a), acc.a);
+    tintedColor.a = mix(tintedColor.a, data.alpha, data.alpha);
     color = tintedColor;
+    //    color = texture(u_Textures[1], texCoord);
+    //    color = vec4(data.TexIndex, 0.0, 0.0, 1.0);
 }

@@ -16,6 +16,7 @@ import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
@@ -42,6 +43,11 @@ internal class BlurEffect(
         if (shouldResize(size)) {
             init(size)
             isInitialized = true
+
+
+            val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
+            blurShaderProgram.shader.bind()
+            blurShaderProgram.shader.setIntArray("u_Textures", *samplers)
         }
     }
 

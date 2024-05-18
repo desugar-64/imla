@@ -30,7 +30,7 @@ internal class EffectCoordinator(
                 blurEffect.setup(effectSize)
                 add(blurEffect)
             }
-            if (style.noiseFactor > 0f) {
+            if (style.noiseAlpha > 0f) {
                 val noiseEffect = NoiseEffect(assetManager)
                 add(noiseEffect)
             }
@@ -49,6 +49,13 @@ internal class EffectCoordinator(
             scaledSize.y.toInt()
         ) // buffer effect size
         effects.forEach { effect ->
+            if (effect is BlurEffect) {
+                effect.bluerRadius = renderObject.style.blurRadiusPx()
+                effect.tint = renderObject.style.tint
+            }
+            if (effect is NoiseEffect) {
+                effect.noiseAlpha = renderObject.style.noiseAlpha
+            }
             val result = effect.applyEffect(finalTexture ?: renderObject.layer)
             finalTexture = result
         }

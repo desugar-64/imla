@@ -6,12 +6,14 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.noise
 
 import android.content.res.AssetManager
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import dev.romainguy.kotlin.math.Float3
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
@@ -27,6 +29,8 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     private var outputFrameBuffer: Framebuffer by Delegates.notNull()
     private var isNoiseTextureInitialized: Boolean = false
     private var isNoiseTextureDrawn: Boolean = false
+
+    var noiseAlpha: Float = 0.0f
 
     override fun setup(size: IntSize) {
         if (shouldResize(size)) {
@@ -75,9 +79,22 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
         setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
         drawNoiseTextureOnce()
         bindFrameBuffer(outputFrameBuffer) {
-
+            drawScene(camera = cameraController.camera) {
+                RenderCommand.clear(Color.Magenta)
+                drawQuad(
+                    position = center,
+                    size = size,
+                    texture = texture
+                )
+                drawQuad(
+                    position = center,
+                    size = size,
+                    texture = noiseTextureFrameBuffer.colorAttachmentTexture,
+                    alpha = noiseAlpha
+                )
+            }
         }
-        return noiseTextureFrameBuffer.colorAttachmentTexture
+        return outputFrameBuffer.colorAttachmentTexture
     }
 
     private fun getSize(texture: Texture): IntSize {

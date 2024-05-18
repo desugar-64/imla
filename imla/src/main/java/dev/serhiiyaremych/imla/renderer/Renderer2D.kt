@@ -58,6 +58,10 @@ internal object Renderer2D {
                 fragmentAsset = "shader/default_quad.frag"
             )
         )
+        defaultQuadShaderProgram.shader.bind()
+        val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
+        defaultQuadShaderProgram.shader.setIntArray("u_Textures", *samplers)
+
         val quadVertexBuffer: VertexBuffer =
             VertexBuffer.create(MAX_VERTICES * defaultQuadShaderProgram.componentsCount).apply {
                 layout = defaultQuadShaderProgram.vertexBufferLayout
@@ -136,12 +140,6 @@ internal object Renderer2D {
 
         if (shaderProgram != data.quadShaderProgram) {
             data.quadShaderProgram = shaderProgram
-//            data.quadVertexBuffer.layout = shaderProgram.vertexBufferLayout
-//            (data.quadVertexArray as OpenGLVertexArray).vertexBuffers.forEach { it.destroy() }
-//            val vbo = VertexBuffer.create(MAX_VERTICES * shaderProgram.componentsCount)
-//            vbo.layout = shaderProgram.vertexBufferLayout
-//            data.quadVertexBuffer = vbo
-//            data.quadVertexArray.addVertexBuffer(vbo)
         }
         val mat4 = data.cameraData.viewProjection
 
@@ -166,6 +164,7 @@ internal object Renderer2D {
         data.quadVertexBufferBase.clear()
 
         data.textureSlotIndex = 1
+        data.textureSlots.fill(null, 1)
     }
 
     fun endScene() {
@@ -180,7 +179,7 @@ internal object Renderer2D {
         if (data.quadIndexCount > 0) {
             // Bind textures
             for (i in 0 until data.textureSlotIndex) {
-                data.textureSlots[i]?.bind(slot = 0)
+                data.textureSlots[i]?.bind(slot = i)
             }
             val isCustomShader = data.quadShaderProgram != data.defaultQuadShaderProgram &&
                     data.quadShaderProgram != data.externalQuadShaderProgram
@@ -208,6 +207,7 @@ internal object Renderer2D {
         rotated: Float3 = zero3,
         cameraDistance: Float = 3f,
         texture2D: Texture2D? = null,
+        alpha: Float = 1.0f
     ) {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
@@ -243,8 +243,8 @@ internal object Renderer2D {
             isExternalTexture = texture2D.target == Texture.Target.TEXTURE_EXTERNAL_OES
             var textureIndex = findTextureSlotIndexFor(texture2D)
             if (textureIndex == -1) {
-                textureIndex = data.textureSlotIndex
-                data.textureSlotIndex++
+                textureIndex = data.textureSlotIndex++
+//                data.textureSlotIndex++
             } else {
                 data.textureSlotIndex = textureIndex + 1
             }
@@ -256,27 +256,30 @@ internal object Renderer2D {
             transform = transform,
             texIndex = texIndex,
             flipTexture = if (flipTexture) 1.0f else 0.0f,
-            isExternalTexture = if (isExternalTexture) 1.0f else 0.0f
+            isExternalTexture = if (isExternalTexture) 1.0f else 0.0f,
+            alpha = alpha
         )
     }
 
-    fun drawQuad(position: Float3, size: Float2, texture: Texture) {
+    fun drawQuad(position: Float3, size: Float2, texture: Texture, alpha: Float = 1.0f) {
         when (texture) {
             is Texture2D -> drawQuad(
                 position = position,
                 size = size,
-                texture2D = texture
+                texture2D = texture,
+                alpha = alpha
             )
 
             is SubTexture2D -> drawQuad(
                 position = position,
                 size = size,
-                subTexture = texture
+                subTexture = texture,
+                alpha = alpha
             )
         }
     }
 
-    fun drawQuad(position: Float3, size: Float2, subTexture: SubTexture2D) {
+    fun drawQuad(position: Float3, size: Float2, subTexture: SubTexture2D, alpha: Float = 1.0f) {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
         }
@@ -296,6 +299,7 @@ internal object Renderer2D {
             textureCoords = subTexture.texCoords,
             flipTexture = if (subTexture.flipTexture) 1.0f else 0.0f,
             isExternalTexture = if (isExternalTexture) 1.0f else 0.0f,
+            alpha = alpha
         )
     }
 
@@ -313,6 +317,7 @@ internal object Renderer2D {
         data.quadIndexCount = 0
         data.quadVertexBufferBase.clear()
         data.textureSlotIndex = 1
+        data.textureSlots.fill(null, 1)
         data.textureSlots[WHITE_TEXTURE_SLOT_INDEX] = data.whiteTexture
 
     }
@@ -334,6 +339,7 @@ internal object Renderer2D {
         texIndex: Float = 0.0f, // 0 = white texture
         flipTexture: Float = 1.0f,
         isExternalTexture: Float = 0.0f,
+        alpha: Float = 1.0f
     ) {
 
         for (i in 0 until 4) {
@@ -342,7 +348,8 @@ internal object Renderer2D {
                 texCoord = textureCoords[i],
                 texIndex = texIndex,
                 flipTexture = flipTexture,
-                isExternalTexture = isExternalTexture
+                isExternalTexture = isExternalTexture,
+                alpha = alpha
             )
         }
 

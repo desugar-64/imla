@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
                         BackdropBlurView(
                             modifier = Modifier.matchParentSize(),
                             uiLayerRenderer = uiRenderer,
-                            style = Style(4.dp, Color.Green.copy(alpha = 0.3f), 1.0f)
+                            style = Style(12.dp, Color.Green.copy(alpha = 0.3f), 0.3f)
                         ) {
                             SimpleImageViewer(modifier = Modifier.fillMaxSize(),
                                 imageUrl = viewingImage.value,
@@ -149,7 +149,7 @@ class MainActivity : ComponentActivity() {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
             uiLayerRenderer = uiRenderer,
-            style = Style(4.dp, Color.Cyan.copy(alpha = 0.3f), 0.0f)
+            style = Style(14.dp, Color.Cyan.copy(alpha = 0.2f), noiseAlpha = 0.2f)
         ) {
             NavigationBar(
                 modifier = Modifier
@@ -193,7 +193,7 @@ class MainActivity : ComponentActivity() {
                 .shadow(2.dp)
                 .border(Dp.Hairline, Color.DarkGray),
             uiLayerRenderer = uiRenderer,
-            style = Style(4.dp, Color.Red.copy(alpha = 0.3f), 0.0f)
+            style = Style(14.dp, Color.Red.copy(alpha = 0.2f), noiseAlpha = 0.2f)
         ) {
             TopAppBar(
                 modifier = Modifier.padding(top = 16.dp),

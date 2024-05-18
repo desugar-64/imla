@@ -18,6 +18,7 @@ internal val defaultQuadBufferLayout = BufferLayout {
     addElement("a_TexIndex", ShaderDataType.Float)
     addElement("a_FlipTexture", ShaderDataType.Float)
     addElement("a_IsExternalTexture", ShaderDataType.Float)
+    addElement("a_Alpha", ShaderDataType.Float)
 }
 
 internal fun defaultQuadVertexMapper(
@@ -42,6 +43,8 @@ internal fun defaultQuadVertexMapper(
         verticesData[lastVertexIndex + 7] = quad.flipTexture
         // a_IsExternalTexture
         verticesData[lastVertexIndex + 8] = quad.isExternalTexture
+        // a_Alpha
+        verticesData[lastVertexIndex + 9] = quad.alpha
 
         lastVertexIndex += QuadVertex.NUMBER_OF_COMPONENTS
     }

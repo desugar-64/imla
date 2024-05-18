@@ -13,7 +13,8 @@ internal data class QuadVertex(
     val texCoord: Offset,
     val texIndex: Float,
     val flipTexture: Float,
-    val isExternalTexture: Float
+    val isExternalTexture: Float,
+    val alpha: Float
 ) {
     companion object {
         // @formatter:off
@@ -22,7 +23,8 @@ internal data class QuadVertex(
                        /*texCoord*/ 2 +
                      /* texIndex */ 1 +
                   /* flipTexture */ 1 +
-            /* isExternalTexture */ 1
+            /* isExternalTexture */ 1 +
+                        /* alpha */ 1
 
     }
 }

@@ -2,6 +2,8 @@
 #extension GL_OES_standard_derivatives: enable
 precision mediump float;
 
+#define GAMMA 2.0
+
 in vec2 TexCoord;
 out vec4 color;
 
@@ -17,8 +19,7 @@ highp float rand(vec2 co)
 
 void main()
 {
-
-    //    color.rgb = hash42(uvec2(1000, 1000)).rgb;
-    //    color = vec4(1.0);
-    color = vec4(vec3(rand(TexCoord) * 1.2), 1.0);
+    // color = vec4(1.0);
+    float val = pow(clamp(rand(TexCoord), 0.6, 1.0), 1.0 / GAMMA);
+    color = vec4(vec3(val, val, val), 1.0);
 }

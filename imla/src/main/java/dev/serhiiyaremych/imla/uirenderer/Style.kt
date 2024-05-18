@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 public data class Style(
     val blurRadius: Dp,
     val tint: Color,
-    @FloatRange(from = 0.0, to = 1.0) val noiseFactor: Float
+    @FloatRange(from = 0.0, to = 1.0) val noiseAlpha: Float
 ) {
     context(Density)
     internal fun blurRadiusPx(): Float {
@@ -27,7 +27,7 @@ public data class Style(
         val default = Style(
             blurRadius = 8.dp,
             tint = Color.Transparent,
-            noiseFactor = 0.0f
+            noiseAlpha = 0.0f
         )
     }
 }
