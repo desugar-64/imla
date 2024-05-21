@@ -73,6 +73,9 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
+    implementation(libs.haze)
+    implementation(libs.androidx.runtime.tracing)
+    implementation(libs.androidx.tracing.ktx)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

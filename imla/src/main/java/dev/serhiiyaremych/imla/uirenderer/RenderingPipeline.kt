@@ -36,9 +36,10 @@ internal class RenderingPipeline(density: Density, assetManager: AssetManager) {
             val lastIndex = renderObjects.size - 1
             renderObjects.forEach { (_, ro) ->
                 ro.invalidate {
-                    if (index > lastIndex) onRenderComplete()
+                    if (index >= lastIndex) onRenderComplete()
+                    index += 1
                 }
-                index += 1
+
             }
         } else {
             onRenderComplete()
@@ -48,5 +49,6 @@ internal class RenderingPipeline(density: Density, assetManager: AssetManager) {
     fun removeRenderObject(renderObject: RenderObject?) {
         renderObject?.setRenderCallback(null)
         renderObjects.remove(renderObject?.id)
+        effectCoordinator.removeEffectsOf(renderObject?.id)
     }
 }

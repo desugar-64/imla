@@ -25,15 +25,11 @@ internal class EffectCoordinator(
         val style = renderObject.style
 
         return mutableListOf<PostProcessingEffect>().apply {
-            if (style.blurRadiusPx() >= BlurEffect.MIN_BLUR_RADIUS_PX) {
-                val blurEffect = BlurEffect(assetManager)
-                blurEffect.setup(effectSize)
-                add(blurEffect)
-            }
-            if (style.noiseAlpha > 0f) {
-                val noiseEffect = NoiseEffect(assetManager)
-                add(noiseEffect)
-            }
+            val blurEffect = BlurEffect(assetManager)
+            blurEffect.setup(effectSize)
+            add(blurEffect)
+            val noiseEffect = NoiseEffect(assetManager)
+            add(noiseEffect)
         }
     }
 
@@ -71,6 +67,10 @@ internal class EffectCoordinator(
                 drawQuad(position = center, size = size, subTexture = renderObject.layer)
             }
         }
+    }
+
+    fun removeEffectsOf(id: String?) {
+        effectCache.remove(id)?.forEach { it.dispose() }
     }
 
 }

@@ -35,12 +35,15 @@ internal class BlurEffect(
 
     private var isInitialized: Boolean = false
 
-    var bluerRadius: Float = 4f
+    var bluerRadius: Float = 0f
     var tint: Color = Color.Transparent
 
+    private fun isEnabled(): Boolean {
+        return bluerRadius > MIN_BLUR_RADIUS_PX
+    }
 
     override fun setup(size: IntSize) {
-        if (shouldResize(size)) {
+        if (isEnabled() && shouldResize(size)) {
             init(size)
             isInitialized = true
 
@@ -61,6 +64,10 @@ internal class BlurEffect(
         trace("BlurEffect#applyEffect") {
             val effectSize = getSize(texture)
             setup(effectSize)
+
+            if (isEnabled().not()) {
+                return@trace texture
+            }
 
             blurShaderProgram.setBlurRadius(bluerRadius)
             blurShaderProgram.setTintColor(tint)

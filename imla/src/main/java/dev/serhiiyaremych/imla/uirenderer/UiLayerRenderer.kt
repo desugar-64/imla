@@ -38,12 +38,12 @@ import dev.serhiiyaremych.imla.renderer.Renderer2D
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
-public fun rememberUiLayerRenderer(): UiLayerRenderer {
+public fun rememberUiLayerRenderer(downSampleFactor: Int = 2): UiLayerRenderer {
     val density = LocalDensity.current
     val graphicsLayer = rememberGraphicsLayer()
     val assetManager = LocalContext.current.assets
-    return remember(density, graphicsLayer, assetManager) {
-        UiLayerRenderer(density, graphicsLayer, assetManager)
+    return remember(density, graphicsLayer, assetManager, downSampleFactor) {
+        UiLayerRenderer(density, graphicsLayer, downSampleFactor, assetManager)
     }
 }
 
@@ -51,6 +51,7 @@ public fun rememberUiLayerRenderer(): UiLayerRenderer {
 public class UiLayerRenderer(
     density: Density,
     graphicsLayer: GraphicsLayer,
+    downSampleFactor: Int,
     private val assetManager: AssetManager
 ) : Density by density {
     private val glRenderer: GLRenderer = GLRenderer().apply {
@@ -60,7 +61,7 @@ public class UiLayerRenderer(
     private val renderingPipeline: RenderingPipeline = RenderingPipeline(this, assetManager)
 
     private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
-        layerDownsampleFactor = 2,
+        layerDownsampleFactor = downSampleFactor,
         density = density,
         graphicsLayer = graphicsLayer,
         onLayerTextureUpdated = {
@@ -87,6 +88,9 @@ public class UiLayerRenderer(
 
     private val isRendering: AtomicBoolean = AtomicBoolean(false)
     private val isRecording: AtomicBoolean = AtomicBoolean(false)
+
+    internal val graphicsLayer: GraphicsLayer
+        get() = renderableLayer.graphicsLayer
 
     init {
         initializeIfNeed()
@@ -147,7 +151,7 @@ public class UiLayerRenderer(
         } else {
             isRendering.set(false)
             glRenderer.execute {
-                if (!renderableLayer.isReady) {
+                if (!renderableLayer.isReady && isGLInitialized.get()) {
                     mainRenderTarget.requestRender()
                 }
             }

@@ -6,7 +6,7 @@
 package dev.serhiiyaremych.imla.ui
 
 import android.view.Surface
-import androidx.compose.foundation.AndroidEmbeddedExternalSurface
+import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
@@ -15,14 +15,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
-import dev.serhiiyaremych.imla.ext.logd
 import dev.serhiiyaremych.imla.uirenderer.Style
 import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import java.util.UUID
@@ -32,7 +36,8 @@ public fun BackdropBlurView(
     modifier: Modifier,
     style: Style,
     uiLayerRenderer: UiLayerRenderer,
-    content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit
+    clipShape: Shape = RectangleShape,
+    content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit = {}
 ) {
     val contentBoundingBoxState = remember { mutableStateOf(Rect.Zero) }
     val id = remember { trace("BlurBehindView#id") { UUID.randomUUID().toString() } }
@@ -46,11 +51,23 @@ public fun BackdropBlurView(
         }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value
-
+        val clipPath = remember { Path() }
         // Render the external surface
-        AndroidEmbeddedExternalSurface(
-            modifier = Modifier.matchParentSize(),
-            surfaceSize = contentBoundingBox.size.toIntSize()
+        AndroidExternalSurface(
+            modifier = Modifier
+                .matchParentSize()
+                .drawWithCache {
+                    val outline = clipShape.createOutline(size, layoutDirection, this)
+                    clipPath.rewind()
+                    clipPath.addOutline(outline)
+                    onDrawWithContent {
+                        clipPath(path = clipPath) {
+                            this@onDrawWithContent.drawContent()
+                        }
+                    }
+                },
+            surfaceSize = contentBoundingBox.size.toIntSize(),
+            isOpaque = false
         ) {
             onSurface { surface, _, _ ->
                 behindSurfaceState.value = surface
@@ -81,15 +98,8 @@ public fun BackdropBlurView(
         }
 
         // Render the content and handle offset changes
-        Box(
-            Modifier.drawWithContent {
-                drawContent()
-                logd("BackdropBlurView", "drawing content")
-            }
-        ) {
-            content { offset ->
-                contentOffset.value = offset
-            }
+        content { offset ->
+            contentOffset.value = offset
         }
         // Detach the render object when the composable is disposed
         DisposableEffect(Unit) {

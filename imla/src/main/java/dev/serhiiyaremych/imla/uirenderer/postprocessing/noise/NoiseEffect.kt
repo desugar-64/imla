@@ -33,9 +33,13 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     var noiseAlpha: Float = 0.0f
 
     override fun setup(size: IntSize) {
-        if (shouldResize(size)) {
+        if (isEnabled() && shouldResize(size)) {
             init(size)
         }
+    }
+
+    private fun isEnabled(): Boolean {
+        return noiseAlpha > 0.05f
     }
 
     private fun init(size: IntSize) {
@@ -74,24 +78,29 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     }
 
     context(RenderableScope)
-    override fun applyEffect(texture: Texture): Texture2D {
+    override fun applyEffect(texture: Texture): Texture {
         val effectSize = getSize(texture)
         setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
+        if (isEnabled().not()) {
+            return texture
+        }
         drawNoiseTextureOnce()
-        bindFrameBuffer(outputFrameBuffer) {
-            drawScene(camera = cameraController.camera) {
-                RenderCommand.clear(Color.Magenta)
-                drawQuad(
-                    position = center,
-                    size = size,
-                    texture = texture
-                )
-                drawQuad(
-                    position = center,
-                    size = size,
-                    texture = noiseTextureFrameBuffer.colorAttachmentTexture,
-                    alpha = noiseAlpha
-                )
+        trace("NoiseEffect#blendNoise") {
+            bindFrameBuffer(outputFrameBuffer) {
+                drawScene(camera = cameraController.camera) {
+                    RenderCommand.clear(Color.Magenta)
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = texture
+                    )
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = noiseTextureFrameBuffer.colorAttachmentTexture,
+                        alpha = noiseAlpha
+                    )
+                }
             }
         }
         return outputFrameBuffer.colorAttachmentTexture

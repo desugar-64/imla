@@ -66,6 +66,8 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.graphics.core)
+    implementation(libs.androidx.runtime.tracing)
+    implementation(libs.androidx.tracing.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
