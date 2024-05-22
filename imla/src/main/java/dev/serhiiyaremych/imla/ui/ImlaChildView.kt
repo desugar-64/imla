@@ -34,7 +34,7 @@ import java.util.UUID
 @Composable
 public fun BackdropBlurView(
     modifier: Modifier,
-    style: Style,
+    style: Style = Style.default,
     uiLayerRenderer: UiLayerRenderer,
     clipShape: Shape = RectangleShape,
     content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit = {}

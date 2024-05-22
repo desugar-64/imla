@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
 import android.view.Surface
+import androidx.annotation.MainThread
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
@@ -19,13 +20,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
-import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
-import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 
@@ -99,12 +98,6 @@ internal class RenderableRootLayer(
     ) {
         with(renderableScope) {
             bindFrameBuffer(frameBuffer) {
-                RenderCommand.setViewPort(
-                    x = 0,
-                    y = 0,
-                    width = scaledSize.x.toInt(),
-                    height = scaledSize.y.toInt()
-                )
                 drawScene {
                     drawQuad(
                         position = scaledCenter,
@@ -116,7 +109,8 @@ internal class RenderableRootLayer(
         }
     }
 
-    context(GLRenderer.RenderCallback)
+    //    context(GLRenderer.RenderCallback)
+    @MainThread
     fun updateTex() {
         require(!isDestroyed) { "Can't update destroyed layer" }
         require(!graphicsLayer.isReleased) { "GraphicsLayer has been released!" }

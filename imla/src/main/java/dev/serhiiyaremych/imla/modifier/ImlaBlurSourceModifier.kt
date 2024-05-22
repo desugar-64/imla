@@ -42,10 +42,7 @@ internal class ImlaSourceNode(
 
     override fun onAttach() {
         super.onAttach()
-        logd(
-            TAG,
-            "onAttach"
-        )
+        logd(TAG, "onAttach")
         onObservedReadsChanged()
     }
 

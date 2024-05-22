@@ -57,7 +57,7 @@ internal class RenderObject internal constructor(
     fun updateOffset(offset: IntOffset) {
         val (x, y) = offset
         val d = layer.texture.height - (y * renderableScope.scale) - rect.height
-        val r = rect.translate(translateX = x.toFloat(), translateY = d)
+        val r = rect.translate(translateX = x.toFloat() * renderableScope.scale, translateY = d)
         layer = SubTexture2D.createFromCoords(
             texture = layer.texture,
             rect = r

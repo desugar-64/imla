@@ -27,7 +27,7 @@ public data class Style(
         val default = Style(
             blurRadius = 8.dp,
             tint = Color.Transparent,
-            noiseAlpha = 0.0f
+            noiseAlpha = 0.2f
         )
     }
 }

@@ -8,6 +8,8 @@
 package dev.serhiiyaremych.imla.uirenderer
 
 import android.content.res.AssetManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Surface
 import androidx.annotation.MainThread
@@ -60,6 +62,7 @@ public class UiLayerRenderer(
 
     private val renderingPipeline: RenderingPipeline = RenderingPipeline(this, assetManager)
 
+    private val mainThreadHandler = Handler(Looper.getMainLooper())
     private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
         layerDownsampleFactor = downSampleFactor,
         density = density,
@@ -81,7 +84,7 @@ public class UiLayerRenderer(
     private val mainDrawCallback = object : GLRenderer.RenderCallback {
         override fun onDrawFrame(eglManager: EGLManager) {
             if (isRendering.compareAndSet(false, true)) {
-                renderableLayer.updateTex()
+//                renderableLayer.updateTex()
             }
         }
     }
@@ -89,8 +92,7 @@ public class UiLayerRenderer(
     private val isRendering: AtomicBoolean = AtomicBoolean(false)
     private val isRecording: AtomicBoolean = AtomicBoolean(false)
 
-    internal val graphicsLayer: GraphicsLayer
-        get() = renderableLayer.graphicsLayer
+    internal val isRecorded: Boolean get() = renderableLayer.isReady.not()
 
     init {
         initializeIfNeed()
@@ -147,12 +149,14 @@ public class UiLayerRenderer(
         }
 
         if (isGLInitialized.get()) {
-            mainRenderTarget.requestRender()
+//            mainRenderTarget.requestRender()
+            renderableLayer.updateTex()
         } else {
             isRendering.set(false)
             glRenderer.execute {
                 if (!renderableLayer.isReady && isGLInitialized.get()) {
-                    mainRenderTarget.requestRender()
+//                    mainRenderTarget.requestRender()
+                    mainThreadHandler.post { renderableLayer.updateTex() }
                 }
             }
         }
