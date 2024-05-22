@@ -15,6 +15,7 @@ import android.view.Surface
 import androidx.annotation.MainThread
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
@@ -39,13 +40,36 @@ import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import java.util.concurrent.atomic.AtomicBoolean
 
+internal class UiRendererObserver(
+    val uiLayerRenderer: UiLayerRenderer
+) : RememberObserver {
+    override fun onAbandoned() {
+        uiLayerRenderer.destroy()
+    }
+
+    override fun onForgotten() {
+        uiLayerRenderer.destroy()
+    }
+
+    override fun onRemembered() {
+        // no-op
+    }
+}
+
 @Composable
 public fun rememberUiLayerRenderer(downSampleFactor: Int = 2): UiLayerRenderer {
     val density = LocalDensity.current
     val graphicsLayer = rememberGraphicsLayer()
     val assetManager = LocalContext.current.assets
     return remember(density, graphicsLayer, assetManager, downSampleFactor) {
-        UiLayerRenderer(density, graphicsLayer, downSampleFactor, assetManager)
+        UiRendererObserver(
+            UiLayerRenderer(
+                density,
+                graphicsLayer,
+                downSampleFactor,
+                assetManager
+            )
+        ).uiLayerRenderer
     }
 }
 
@@ -160,6 +184,35 @@ public class UiLayerRenderer(
                 }
             }
         }
+    }
+
+    private fun attachSurface(
+        surface: Surface,
+        id: String,
+        size: IntSize
+    ): RenderObject {
+        val existingRenderObject = renderingPipeline.getRenderObject(id)
+        if (existingRenderObject != null) {
+            return existingRenderObject
+        }
+        val renderObject = RenderObject.createFromSurface(
+            id = id,
+            renderableLayer = renderableLayer,
+            glRenderer = glRenderer,
+            surface = surface,
+            rect = Rect(offset = Offset.Zero, size.toSize()),
+        )
+        renderingPipeline.addRenderObject(renderObject)
+        return renderObject
+    }
+
+    internal fun attachRendererSurface(
+        surface: Surface?,
+        id: String,
+        size: IntSize
+    ): RenderObject? {
+        if (surface == null || isGLInitialized.get().not() || size == IntSize.Zero) return null
+        return attachSurface(surface, id, size)
     }
 
     @Composable

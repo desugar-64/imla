@@ -10,10 +10,9 @@ import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Rect
@@ -25,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.uirenderer.Style
@@ -42,9 +42,15 @@ public fun BackdropBlurView(
     val contentBoundingBoxState = remember { mutableStateOf(Rect.Zero) }
     val id = remember { trace("BlurBehindView#id") { UUID.randomUUID().toString() } }
 
-    val behindSurfaceState = remember { mutableStateOf<Surface?>(null) }
+    val drawingSurfaceState = remember { mutableStateOf<Surface?>(null) }
+    val drawingSurfaceSizeState = remember { mutableStateOf<IntSize>(IntSize.Zero) }
     val contentOffset = remember { mutableStateOf(IntOffset.Zero) }
 
+    val renderObject = uiLayerRenderer.attachRendererSurface(
+        surface = drawingSurfaceState.value,
+        id = id,
+        size = drawingSurfaceSizeState.value
+    )
     Box(
         modifier = modifier.onPlaced { layoutCoordinates ->
             contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
@@ -69,25 +75,21 @@ public fun BackdropBlurView(
             surfaceSize = contentBoundingBox.size.toIntSize(),
             isOpaque = false
         ) {
-            onSurface { surface, _, _ ->
-                behindSurfaceState.value = surface
-
+            onSurface { surface, w, h ->
+                Snapshot.withMutableSnapshot {
+                    drawingSurfaceState.value = surface
+                    drawingSurfaceSizeState.value = IntSize(w, h)
+                }
                 surface.onChanged { _, _ ->
                     // todo
                 }
                 surface.onDestroyed {
-                    behindSurfaceState.value = null
+                    renderObject?.let { uiLayerRenderer.detachRenderObject(it) }
+                    drawingSurfaceState.value = null
                 }
             }
         }
 
-        // Attach the render surface and update the offset
-        val surface = behindSurfaceState.value
-        val renderObject by uiLayerRenderer.attachRenderSurfaceAsState(
-            id = id,
-            surface = surface,
-            size = contentBoundingBox.size.toIntSize(),
-        )
         val topOffset = IntOffset(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
@@ -100,12 +102,6 @@ public fun BackdropBlurView(
         // Render the content and handle offset changes
         content { offset ->
             contentOffset.value = offset
-        }
-        // Detach the render object when the composable is disposed
-        DisposableEffect(Unit) {
-            onDispose {
-                uiLayerRenderer.detachRenderObject(renderObject)
-            }
         }
     }
 }

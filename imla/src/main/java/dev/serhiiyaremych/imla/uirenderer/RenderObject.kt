@@ -66,7 +66,7 @@ internal class RenderObject internal constructor(
     }
 
     override fun toString(): String {
-        return "RenderObject(id='$id', rect=$rect)"
+        return "RenderObject(id='$id', rect='$rect', layer='${layer.id}, ${layer.subTextureSize}')"
     }
 
 

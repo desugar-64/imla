@@ -95,11 +95,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             ImlaTheme {
                 val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
-                DisposableEffect(key1 = uiRenderer) {
-                    onDispose {
-                        uiRenderer.destroy()
-                    }
-                }
                 val viewingImage = remember {
                     mutableStateOf("")
                 }

@@ -11,9 +11,10 @@ import android.content.res.AssetManager
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.EffectCoordinator
+import java.util.concurrent.ConcurrentHashMap
 
 internal class RenderingPipeline(density: Density, assetManager: AssetManager) {
-    private val renderObjects: MutableMap<String, RenderObject> = mutableMapOf()
+    private val renderObjects: MutableMap<String, RenderObject> = ConcurrentHashMap()
     private val effectCoordinator = EffectCoordinator(density, assetManager)
 
     fun getRenderObject(id: String): RenderObject? {
