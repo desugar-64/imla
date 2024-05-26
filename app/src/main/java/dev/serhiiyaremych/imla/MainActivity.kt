@@ -69,7 +69,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.modifier.blurSource
-import dev.serhiiyaremych.imla.ui.BackdropBlurView
+import dev.serhiiyaremych.imla.ui.BackdropBlur
 import dev.serhiiyaremych.imla.ui.theme.ImlaTheme
 import dev.serhiiyaremych.imla.ui.userpost.SimpleImageViewer
 import dev.serhiiyaremych.imla.ui.userpost.UserPostView
@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity() {
                         enter = fadeIn(),
                         exit = fadeOut()
                     ) {
-                        BackdropBlurView(
+                        BackdropBlur(
                             modifier = Modifier.matchParentSize(),
                             uiLayerRenderer = uiRenderer,
                             style = Style(
@@ -161,7 +161,7 @@ class MainActivity : ComponentActivity() {
                         val noiseAlpha = remember {
                             mutableFloatStateOf(0.1f)
                         }
-                        BackdropBlurView(
+                        BackdropBlur(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(2f),
@@ -225,7 +225,7 @@ class MainActivity : ComponentActivity() {
         onShowSettings: () -> Unit
     ) {
 
-        BackdropBlurView(
+        BackdropBlur(
             modifier = Modifier
                 .fillMaxWidth()
 //                .shadow(8.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
@@ -275,7 +275,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer) {
-        BackdropBlurView(
+        BackdropBlur(
             modifier = Modifier,
             uiLayerRenderer = uiRenderer,
             style = Style(

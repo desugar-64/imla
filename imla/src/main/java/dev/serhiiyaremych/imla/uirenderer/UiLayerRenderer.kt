@@ -24,12 +24,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
@@ -133,7 +135,6 @@ public class UiLayerRenderer(
                 Renderer2D.init(assetManager)
 
                 renderableLayer.initialize()
-
                 mainRenderTarget = glRenderer.createRenderTarget(
                     width = renderableLayer.sizeInt.width,
                     height = renderableLayer.sizeInt.height,
@@ -210,9 +211,9 @@ public class UiLayerRenderer(
         surface: Surface?,
         id: String,
         size: IntSize
-    ): RenderObject? {
+    ): String? {
         if (surface == null || isGLInitialized.get().not() || size == IntSize.Zero) return null
-        return attachSurface(surface, id, size)
+        return attachSurface(surface, id, size).id
     }
 
     @Composable
@@ -249,9 +250,9 @@ public class UiLayerRenderer(
         }
     }
 
-    internal fun detachRenderObject(renderObject: RenderObject?) {
-        renderObject?.detachFromRenderer(glRenderer)
-        renderingPipeline.removeRenderObject(renderObject)
+    internal fun detachRenderObject(renderObjectId: String?): Unit = with(renderingPipeline) {
+        getRenderObject(renderObjectId)?.detachFromRenderer()
+        removeRenderObject(renderObjectId)
     }
 
     public fun destroy() {
@@ -261,7 +262,22 @@ public class UiLayerRenderer(
             isInitialized.value = false
             glRenderer.stop(true)
             renderableLayer.destroy()
+            renderingPipeline.destroy()
         }
+    }
+
+    internal fun updateOffset(renderObjectId: String?, offset: IntOffset) {
+        renderingPipeline
+            .getRenderObject(renderObjectId)
+            ?.updateOffset(offset = offset)
+    }
+
+    internal fun updateStyle(renderObjectId: String?, style: Style) {
+        renderingPipeline.getRenderObject(renderObjectId)?.style = style
+    }
+
+    internal fun updateMask(renderObjectId: String?, brush: Brush?) {
+        renderingPipeline.updateMask(renderObjectId, brush)
     }
 
     internal companion object {

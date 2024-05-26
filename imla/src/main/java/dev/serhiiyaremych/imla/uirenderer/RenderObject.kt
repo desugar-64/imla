@@ -20,6 +20,7 @@ import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
+import dev.serhiiyaremych.imla.renderer.Texture2D
 import kotlin.properties.Delegates
 
 internal class RenderObject internal constructor(
@@ -43,6 +44,8 @@ internal class RenderObject internal constructor(
             invalidate()
         }
     }
+
+    internal var mask: Texture2D? = null
 
     var renderTarget: GLRenderer.RenderTarget? = null
 
@@ -70,13 +73,8 @@ internal class RenderObject internal constructor(
     }
 
 
-    fun detachFromRenderer(glRenderer: GLRenderer) {
-        renderTarget?.let {
-            glRenderer.detach(it, true)
-            if (it.isAttached()) {
-                it.detach(true)
-            }
-        }
+    fun detachFromRenderer() {
+        renderTarget?.detach(true)
     }
 
     override fun equals(other: Any?): Boolean {

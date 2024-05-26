@@ -22,7 +22,6 @@ internal class EffectCoordinator(
 
     private fun createEffects(renderObject: RenderObject): MutableList<PostProcessingEffect> {
         val effectSize = renderObject.layer.subTextureSize
-        val style = renderObject.style
 
         return mutableListOf<PostProcessingEffect>().apply {
             val blurEffect = BlurEffect(assetManager)
@@ -38,12 +37,10 @@ internal class EffectCoordinator(
             createEffects(renderObject)
         }
         var finalTexture: Texture? = null
-        RenderCommand.setViewPort(
-            0,
-            0,
-            scaledSize.x.toInt(),
-            scaledSize.y.toInt()
-        ) // buffer effect size
+        RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
+
+        val maskTexture = renderObject.mask
+
         effects.forEach { effect ->
             if (effect is BlurEffect) {
                 effect.bluerRadius = renderObject.style.blurRadiusPx()
@@ -71,6 +68,14 @@ internal class EffectCoordinator(
 
     fun removeEffectsOf(id: String?) {
         effectCache.remove(id)?.forEach { it.dispose() }
+    }
+
+    fun destroy() {
+        effectCache.forEach { (_, effects) ->
+            effects.forEach { fx -> fx.dispose() }
+            effects.clear()
+        }
+        effectCache.clear()
     }
 
 }

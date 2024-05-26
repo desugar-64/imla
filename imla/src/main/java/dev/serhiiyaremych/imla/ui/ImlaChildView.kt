@@ -16,6 +16,7 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -32,10 +33,11 @@ import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import java.util.UUID
 
 @Composable
-public fun BackdropBlurView(
+public fun BackdropBlur(
     modifier: Modifier,
     style: Style = Style.default,
     uiLayerRenderer: UiLayerRenderer,
+    blurMask: Brush? = null,
     clipShape: Shape = RectangleShape,
     content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit = {}
 ) {
@@ -46,10 +48,11 @@ public fun BackdropBlurView(
     val drawingSurfaceSizeState = remember { mutableStateOf<IntSize>(IntSize.Zero) }
     val contentOffset = remember { mutableStateOf(IntOffset.Zero) }
 
-    val renderObject = uiLayerRenderer.attachRendererSurface(
+    val renderObjectId = uiLayerRenderer.attachRendererSurface(
         surface = drawingSurfaceState.value,
         id = id,
-        size = drawingSurfaceSizeState.value
+        size = drawingSurfaceSizeState.value,
+        mask = blurMask
     )
     Box(
         modifier = modifier.onPlaced { layoutCoordinates ->
@@ -84,7 +87,7 @@ public fun BackdropBlurView(
                     // todo
                 }
                 surface.onDestroyed {
-                    renderObject?.let { uiLayerRenderer.detachRenderObject(it) }
+                    renderObjectId?.let { uiLayerRenderer.detachRenderObject(it) }
                     drawingSurfaceState.value = null
                 }
             }
@@ -94,9 +97,9 @@ public fun BackdropBlurView(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
-        renderObject?.updateOffset(topOffset + contentOffset.value)
+        uiLayerRenderer.updateOffset(renderObjectId, topOffset + contentOffset.value)
         trace("BackdropBlurView#renderObject.style") {
-            renderObject?.style = style
+            uiLayerRenderer.updateStyle(renderObjectId, style)
         }
 
         // Render the content and handle offset changes
