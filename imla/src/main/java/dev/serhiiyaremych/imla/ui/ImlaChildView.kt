@@ -52,7 +52,6 @@ public fun BackdropBlur(
         surface = drawingSurfaceState.value,
         id = id,
         size = drawingSurfaceSizeState.value,
-        mask = blurMask
     )
     Box(
         modifier = modifier.onPlaced { layoutCoordinates ->
@@ -98,6 +97,7 @@ public fun BackdropBlur(
             y = contentBoundingBox.top.toInt()
         )
         uiLayerRenderer.updateOffset(renderObjectId, topOffset + contentOffset.value)
+        uiLayerRenderer.updateMask(renderObjectId, blurMask)
         trace("BackdropBlurView#renderObject.style") {
             uiLayerRenderer.updateStyle(renderObjectId, style)
         }

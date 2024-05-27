@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
+import dev.serhiiyaremych.imla.BuildConfig
 import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
@@ -158,6 +159,9 @@ public class UiLayerRenderer(
         }
         try {
             trace("UiLayerRenderer#recordCanvas") {
+                if (BuildConfig.DEBUG) {
+                    require(renderableLayer.graphicsLayer.isReleased.not())
+                }
                 renderableLayer.graphicsLayer.record(block = block)
             }
         } finally {
@@ -277,7 +281,9 @@ public class UiLayerRenderer(
     }
 
     internal fun updateMask(renderObjectId: String?, brush: Brush?) {
-        renderingPipeline.updateMask(renderObjectId, brush)
+        with(glRenderer) {
+            with(renderingPipeline) { updateMask(renderObjectId, brush) }
+        }
     }
 
     internal companion object {

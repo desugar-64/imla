@@ -11,7 +11,7 @@ struct VertexOutput
     float alpha;
 };
 
-uniform samplerExternalOES u_Texture;
+uniform samplerExternalOES u_Textures[8];
 
 in vec2 TexCoord;
 in VertexOutput data;
@@ -24,7 +24,25 @@ void main()
     bool flipTexture = int(data.FlipTexture) > 0;
     vec2 texCoord = flipTexture ? vec2(TexCoord.x, 1. - TexCoord.y) : TexCoord;
 
-    baseColor = texture(u_Texture, texCoord);
+    switch (int(data.TexIndex)) {
+        case 0:
+            baseColor = texture(u_Textures[0], texCoord);break;
+        case 1:
+            baseColor = texture(u_Textures[1], texCoord);break;
+        case 2:
+            baseColor = texture(u_Textures[2], texCoord);break;
+        case 3:
+            baseColor = texture(u_Textures[3], texCoord);break;
+        case 4:
+            baseColor = texture(u_Textures[4], texCoord);break;
+        case 5:
+            baseColor = texture(u_Textures[5], texCoord);break;
+        case 6:
+            baseColor = texture(u_Textures[6], texCoord);break;
+        case 7:
+            baseColor = texture(u_Textures[7], texCoord);break;
+    }
+
     baseColor.a = data.alpha;
     color = baseColor;
 }

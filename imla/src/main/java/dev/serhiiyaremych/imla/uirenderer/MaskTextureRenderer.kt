@@ -15,9 +15,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
+import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.ext.isGLThread
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class MaskTextureRenderer(
     density: Density,
@@ -29,14 +31,14 @@ internal class MaskTextureRenderer(
     private lateinit var surfaceTexture: SurfaceTexture
     private lateinit var surface: Surface
 
-    private var isInitialized: Boolean = false
+    private var isInitialized: AtomicBoolean = AtomicBoolean(false)
 
     private var lastRenderedBrush: Brush? = null
 
     private fun initialize(size: IntSize) {
         require(isGLThread()) { "Initialization failed: An active GL context is required in the current thread." }
 
-        if (isInitialized) {
+        if (isInitialized.get()) {
             destroy()
         }
 
@@ -53,18 +55,20 @@ internal class MaskTextureRenderer(
             onRenderComplete(maskExternalTexture)
         }
         surface = Surface(surfaceTexture)
-        isInitialized = true
+        isInitialized.set(true)
     }
 
     fun destroy() {
-        surfaceTexture.release()
-        surface.release()
-        maskExternalTexture.destroy()
-        isInitialized = false
+        if (isInitialized.get()) {
+            surfaceTexture.release()
+            surface.release()
+            maskExternalTexture.destroy()
+            isInitialized.set(false)
+        }
     }
 
     private fun invalidateBySize(newSize: IntSize): Boolean {
-        return !isInitialized ||
+        return !isInitialized.get() ||
                 (maskExternalTexture.width != newSize.width || maskExternalTexture.height != newSize.height)
     }
 
@@ -72,16 +76,23 @@ internal class MaskTextureRenderer(
         return lastRenderedBrush != brush
     }
 
-    fun renderMask(brush: Brush, size: IntSize) {
-        if (invalidateBySize(size)) initialize(size)
+    fun GLRenderer.renderMask(brush: Brush, size: IntSize) {
+        if (invalidateBySize(size)) execute { initialize(size) }
 
         if (shouldRedraw(brush)) {
-            trace("MaskTextureRenderer#renderMask") {
-                val hwCanvas = surface.lockHardwareCanvas()
-                drawScope.draw(this, LayoutDirection.Ltr, Canvas(hwCanvas), size.toSize()) {
-                    drawRect(brush)
+            execute {
+                trace("MaskTextureRenderer#renderMask") {
+                    val hwCanvas = surface.lockHardwareCanvas()
+                    drawScope.draw(
+                        this@MaskTextureRenderer,
+                        LayoutDirection.Ltr,
+                        Canvas(hwCanvas),
+                        size.toSize()
+                    ) {
+                        drawRect(brush)
+                    }
+                    surface.unlockCanvasAndPost(hwCanvas)
                 }
-                surface.unlockCanvasAndPost(hwCanvas)
             }
         } else {
             onRenderComplete(maskExternalTexture)

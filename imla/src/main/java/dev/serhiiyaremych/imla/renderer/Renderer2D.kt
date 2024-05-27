@@ -76,6 +76,8 @@ internal object Renderer2D {
                 fragmentAsset = "shader/external_quad.frag"
             )
         )
+        externalQuadShaderProgram.shader.bind()
+        externalQuadShaderProgram.shader.setIntArray("u_Textures", *samplers)
 
         val quadIndexCount = 0
         val quadVertexBufferBase: MutableList<QuadVertex> = ArrayList(MAX_VERTICES)
@@ -244,7 +246,6 @@ internal object Renderer2D {
             var textureIndex = findTextureSlotIndexFor(texture2D)
             if (textureIndex == -1) {
                 textureIndex = data.textureSlotIndex++
-//                data.textureSlotIndex++
             } else {
                 data.textureSlotIndex = textureIndex + 1
             }

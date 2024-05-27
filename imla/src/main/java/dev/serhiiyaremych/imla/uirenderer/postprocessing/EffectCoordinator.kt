@@ -59,6 +59,12 @@ internal class EffectCoordinator(
             drawScene(cameraController.camera) {
                 drawQuad(position = center, size = size, texture = result)
             }
+//            if (maskTexture != null) {
+//                drawScene(cameraController.camera) {
+//                    drawQuad(position = center, size = size, texture = maskTexture)
+//                }
+//            }
+
         } else {
             drawScene(cameraController.camera) {
                 drawQuad(position = center, size = size, subTexture = renderObject.layer)

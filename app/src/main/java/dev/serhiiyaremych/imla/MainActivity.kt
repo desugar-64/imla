@@ -60,6 +60,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
@@ -278,6 +279,7 @@ class MainActivity : ComponentActivity() {
         BackdropBlur(
             modifier = Modifier,
             uiLayerRenderer = uiRenderer,
+            blurMask = Brush.verticalGradient(colors = listOf(Color.Black, Color.White)),
             style = Style(
                 blurRadius = 10.dp,
                 noiseAlpha = 0.2f
