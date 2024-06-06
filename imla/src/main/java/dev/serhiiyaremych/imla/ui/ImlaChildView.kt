@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.ui
 
 import android.view.Surface
 import androidx.compose.foundation.AndroidExternalSurface
+import androidx.compose.foundation.AndroidExternalSurfaceZOrder
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
@@ -75,7 +76,8 @@ public fun BackdropBlur(
                     }
                 },
             surfaceSize = contentBoundingBox.size.toIntSize(),
-            isOpaque = false
+            isOpaque = false,
+            zOrder = if (blurMask != null) AndroidExternalSurfaceZOrder.OnTop else AndroidExternalSurfaceZOrder.Behind
         ) {
             onSurface { surface, w, h ->
                 Snapshot.withMutableSnapshot {

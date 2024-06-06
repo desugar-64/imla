@@ -42,6 +42,5 @@ void main()
     }
 
     baseColor.a = data.alpha;
-    color = vec4(data.TexIndex, 0.0, 0.0, 1.0);
     color = baseColor;
 }

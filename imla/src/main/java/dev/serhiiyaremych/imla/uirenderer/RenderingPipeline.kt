@@ -10,7 +10,7 @@ package dev.serhiiyaremych.imla.uirenderer
 import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.toIntSize
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.EffectCoordinator
@@ -29,7 +29,7 @@ internal class RenderingPipeline(private val density: Density, assetManager: Ass
         renderObjects[renderObject.id] = renderObject.apply { setRenderCallback(renderCallback) }
     }
 
-    fun GLRenderer.updateMask(renderObjectId: String?, mask: Brush?) {
+    fun updateMask(glRenderer: GLRenderer, renderObjectId: String?, mask: Brush?) {
         val renderObject = renderObjectId?.let { renderObjects[it] }
         if (renderObject != null) {
             val maskRenderer = masks.getOrPut(renderObject.id) {
@@ -42,7 +42,14 @@ internal class RenderingPipeline(private val density: Density, assetManager: Ass
                 )
             }
             if (mask != null) {
-                with(maskRenderer) { renderMask(mask, renderObject.rect.size.toIntSize()) }
+                maskRenderer.renderMask(
+                    glRenderer = glRenderer,
+                    brush = mask,
+                    size = IntSize(
+                        width = renderObject.renderableScope.size.x.toInt(),
+                        height = renderObject.renderableScope.size.y.toInt()
+                    )
+                )
             } else {
                 maskRenderer.releaseCurrentMask()
                 renderObject.mask = null

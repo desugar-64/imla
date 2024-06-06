@@ -281,9 +281,7 @@ public class UiLayerRenderer(
     }
 
     internal fun updateMask(renderObjectId: String?, brush: Brush?) {
-        with(glRenderer) {
-            with(renderingPipeline) { updateMask(renderObjectId, brush) }
-        }
+        renderingPipeline.updateMask(glRenderer, renderObjectId, brush)
     }
 
     internal companion object {

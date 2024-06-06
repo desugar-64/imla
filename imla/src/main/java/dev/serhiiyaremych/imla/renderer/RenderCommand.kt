@@ -21,6 +21,10 @@ internal object RenderCommand {
         rendererAPI.setClearColor(color)
     }
 
+    fun colorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean) {
+        rendererAPI.colorMask(red, green, blue, alpha)
+    }
+
     fun clear() {
         rendererAPI.clear()
     }
@@ -40,5 +44,13 @@ internal object RenderCommand {
 
     fun disableDepthTest() {
         rendererAPI.disableDepthTest()
+    }
+
+    fun enableBlending() {
+        rendererAPI.enableBlending()
+    }
+
+    fun disableBlending() {
+        rendererAPI.disableBlending()
     }
 }

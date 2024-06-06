@@ -1,8 +1,8 @@
 #version 300 es
 precision mediump float;
 
-#define USE_GAMMA_CORRECTION 1
-#define GAMMA 2.0
+#define USE_GAMMA_CORRECTION 0
+#define GAMMA 2.2
 
 struct VertexOutput
 {
@@ -26,13 +26,13 @@ out vec4 color;
 
 
 //Classic gamma correction functions
-vec4 linear_from_srgb(vec4 rgb)
+vec3 linear_from_srgb(vec3 rgb)
 {
-    return pow(rgb, vec4(GAMMA));
+    return pow(rgb, vec3(GAMMA));
 }
-vec4 srgb_from_linear(vec4 lin)
+vec3 srgb_from_linear(vec3 lin)
 {
-    return pow(lin, vec4(1.0 / GAMMA));
+    return pow(lin, vec3(1.0 / GAMMA));
 }
 
 void main() {
@@ -48,23 +48,20 @@ void main() {
     float sigma = u_BlurSigma;
     for (int i = -support; i <= support; i++) {
         float coeff = exp(-0.5 * float(i) * float(i) / (sigma * sigma));
-        vec4 texColor = texture(u_Textures[1], loc + float(i) * dir);
+        vec4 texColor = texture(u_Textures[1], loc + float(i) * dir); // todo: support batching
         #ifdef USE_GAMMA_CORRECTION
-        acc += linear_from_srgb(texColor) * coeff;
+        texColor.rgb = linear_from_srgb(texColor.rgb);
+        acc += texColor * coeff;
         #else
         acc += texColor * coeff;
         #endif
         norm += coeff;
     }
     #ifdef USE_GAMMA_CORRECTION
-    acc = srgb_from_linear(acc * (1.0 / norm));
+    acc = vec4(srgb_from_linear(acc.rgb * (1.0 / norm)), acc.a * (1.0 / norm));
     #else
-    acc = acc * 1.0 / norm;
+    acc = acc * (1.0 / norm);
     #endif
-    //    acc.rgb = pow(acc.rgb, vec3(0.85));
     vec4 tintedColor = vec4(mix(acc.rgb, u_BlurTint.rgb, u_BlurTint.a * u_BlurTint.a), acc.a);
-    tintedColor.a = mix(tintedColor.a, data.alpha, data.alpha);
     color = tintedColor;
-    //    color = texture(u_Textures[1], texCoord);
-    //    color = vec4(data.TexIndex, 0.0, 0.0, 1.0);
 }

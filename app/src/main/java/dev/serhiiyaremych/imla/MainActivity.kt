@@ -279,9 +279,17 @@ class MainActivity : ComponentActivity() {
         BackdropBlur(
             modifier = Modifier,
             uiLayerRenderer = uiRenderer,
-            blurMask = Brush.verticalGradient(colors = listOf(Color.Black, Color.White)),
+            blurMask = Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 1.0f),
+                    Color.White.copy(alpha = 1.0f),
+                    Color.White.copy(alpha = 0.9f),
+                    Color.White.copy(alpha = 0.6f),
+                    Color.White.copy(alpha = 0.0f),
+                ),
+            ),
             style = Style(
-                blurRadius = 10.dp,
+                blurRadius = 15.dp,
                 noiseAlpha = 0.2f
             )
         ) {

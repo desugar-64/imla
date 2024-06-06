@@ -11,6 +11,7 @@ import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.noise.NoiseEffect
 
 internal class EffectCoordinator(
@@ -27,8 +28,8 @@ internal class EffectCoordinator(
             val blurEffect = BlurEffect(assetManager)
             blurEffect.setup(effectSize)
             add(blurEffect)
-            val noiseEffect = NoiseEffect(assetManager)
-            add(noiseEffect)
+            add(NoiseEffect(assetManager))
+//            add(MaskEffect())
         }
     }
 
@@ -49,22 +50,22 @@ internal class EffectCoordinator(
             if (effect is NoiseEffect) {
                 effect.noiseAlpha = renderObject.style.noiseAlpha
             }
+            if (effect is MaskEffect) {
+                effect.maskTexture = maskTexture
+            }
             val result = effect.applyEffect(finalTexture ?: renderObject.layer)
             finalTexture = result
         }
         RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
-
         val result = finalTexture
         if (result != null) {
             drawScene(cameraController.camera) {
-                drawQuad(position = center, size = size, texture = result)
+                drawQuad(
+                    position = center,
+                    size = size,
+                    texture = result
+                )
             }
-//            if (maskTexture != null) {
-//                drawScene(cameraController.camera) {
-//                    drawQuad(position = center, size = size, texture = maskTexture)
-//                }
-//            }
-
         } else {
             drawScene(cameraController.camera) {
                 drawQuad(position = center, size = size, subTexture = renderObject.layer)

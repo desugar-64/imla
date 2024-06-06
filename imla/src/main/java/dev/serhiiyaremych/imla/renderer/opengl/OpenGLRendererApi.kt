@@ -51,6 +51,25 @@ internal class OpenGLRendererAPI : RendererApi {
         GLES30.glDisable(GLES30.GL_DEPTH_TEST)
     }
 
+    override fun colorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean) {
+        // @formatter:off
+        GLES30.glColorMask(
+            /* red = */ red,
+            /* green = */ green,
+            /* blue = */ blue,
+            /* alpha = */ alpha
+        )
+        // @formatter:on
+    }
+
+    override fun enableBlending() {
+        GLES30.glEnable(GLES30.GL_BLEND)
+    }
+
+    override fun disableBlending() {
+        GLES30.glDisable(GLES30.GL_BLEND)
+    }
+
     companion object {
         private const val TAG = "OpenGLRendererAPI"
     }
