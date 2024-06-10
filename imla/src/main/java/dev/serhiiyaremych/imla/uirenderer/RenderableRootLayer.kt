@@ -38,6 +38,8 @@ internal class RenderableRootLayer(
     val sizeDec: Size get() = sizeInt.toSize()
     val layerTexture: Texture2D
         get() = frameBuffer.colorAttachmentTexture
+    val scaledLayerTexture: Texture2D
+        get() = scaledFrameBuffer.colorAttachmentTexture
     val scale: Float
         get() = 1.0f / layerDownsampleFactor
 
@@ -50,6 +52,7 @@ internal class RenderableRootLayer(
     private lateinit var layerSurface: Surface
     private lateinit var extOesLayerTexture: Texture2D
 
+    private lateinit var scaledFrameBuffer: Framebuffer
     private lateinit var frameBuffer: Framebuffer
 
     private var isInitialized: Boolean = false
@@ -68,7 +71,9 @@ internal class RenderableRootLayer(
                     downSampleFactor = layerDownsampleFactor // downsample layer texture later
                 )
 
-                frameBuffer = Framebuffer.create(specification)
+                frameBuffer =
+                    Framebuffer.create(specification.copy(downSampleFactor = 1)) // no downsampling
+                scaledFrameBuffer = Framebuffer.create(specification)
 
                 extOesLayerTexture = Texture2D.create(
                     target = Texture.Target.TEXTURE_EXTERNAL_OES,
@@ -98,13 +103,26 @@ internal class RenderableRootLayer(
     ) {
         with(renderableScope) {
             bindFrameBuffer(frameBuffer) {
+                drawScene(camera = cameraController.camera) {
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = extOesLayerTexture
+                    )
+                }
+//                frameBuffer.colorAttachmentTexture.bind()
+//                frameBuffer.colorAttachmentTexture.generateMipMaps()
+            }
+            bindFrameBuffer(scaledFrameBuffer) {
                 drawScene {
                     drawQuad(
                         position = scaledCenter,
                         size = scaledSize,
-                        texture = extOesLayerTexture
+                        texture = frameBuffer.colorAttachmentTexture
                     )
                 }
+//                scaledFrameBuffer.colorAttachmentTexture.bind()
+//                scaledFrameBuffer.colorAttachmentTexture.generateMipMaps()
             }
         }
     }

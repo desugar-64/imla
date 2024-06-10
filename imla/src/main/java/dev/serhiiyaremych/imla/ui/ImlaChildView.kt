@@ -7,7 +7,6 @@ package dev.serhiiyaremych.imla.ui
 
 import android.view.Surface
 import androidx.compose.foundation.AndroidExternalSurface
-import androidx.compose.foundation.AndroidExternalSurfaceZOrder
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
@@ -16,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
@@ -55,9 +55,17 @@ public fun BackdropBlur(
         size = drawingSurfaceSizeState.value,
     )
     Box(
-        modifier = modifier.onPlaced { layoutCoordinates ->
-            contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
-        }
+        modifier = modifier
+            .onPlaced { layoutCoordinates ->
+                contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
+            }
+            .drawWithContent {
+                drawContent()
+                val bm = blurMask
+                if (bm != null) {
+                    drawRect(bm)
+                }
+            }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value
         val clipPath = remember { Path() }
@@ -76,8 +84,7 @@ public fun BackdropBlur(
                     }
                 },
             surfaceSize = contentBoundingBox.size.toIntSize(),
-            isOpaque = false,
-            zOrder = if (blurMask != null) AndroidExternalSurfaceZOrder.OnTop else AndroidExternalSurfaceZOrder.Behind
+            isOpaque = false
         ) {
             onSurface { surface, w, h ->
                 Snapshot.withMutableSnapshot {

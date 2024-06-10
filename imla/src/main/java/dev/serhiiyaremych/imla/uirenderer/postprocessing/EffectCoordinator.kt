@@ -22,14 +22,14 @@ internal class EffectCoordinator(
     private val effectCache: MutableMap<String, MutableList<PostProcessingEffect>> = mutableMapOf()
 
     private fun createEffects(renderObject: RenderObject): MutableList<PostProcessingEffect> {
-        val effectSize = renderObject.layer.subTextureSize
+        val effectSize = renderObject.scaledLayer.subTextureSize
 
         return mutableListOf<PostProcessingEffect>().apply {
             val blurEffect = BlurEffect(assetManager)
             blurEffect.setup(effectSize)
             add(blurEffect)
             add(NoiseEffect(assetManager))
-//            add(MaskEffect())
+            add(MaskEffect(assetManager))
         }
     }
 
@@ -53,7 +53,15 @@ internal class EffectCoordinator(
             if (effect is MaskEffect) {
                 effect.maskTexture = maskTexture
             }
-            val result = effect.applyEffect(finalTexture ?: renderObject.layer)
+            val result = when (effect) {
+                is MaskEffect -> {
+                    effect.applyEffect(renderObject.originalLayer)
+                }
+
+                else -> {
+                    effect.applyEffect(finalTexture ?: renderObject.scaledLayer)
+                }
+            }
             finalTexture = result
         }
         RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
@@ -68,7 +76,7 @@ internal class EffectCoordinator(
             }
         } else {
             drawScene(cameraController.camera) {
-                drawQuad(position = center, size = size, subTexture = renderObject.layer)
+                drawQuad(position = center, size = size, subTexture = renderObject.originalLayer)
             }
         }
     }

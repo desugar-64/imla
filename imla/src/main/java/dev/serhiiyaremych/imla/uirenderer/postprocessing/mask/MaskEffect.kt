@@ -5,16 +5,20 @@
 
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
 
+import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 
-internal class MaskEffect : PostProcessingEffect {
+internal class MaskEffect(assetManager: AssetManager) : PostProcessingEffect {
+
+    private val shaderProgram = MaskShaderProgram(assetManager)
 
     private lateinit var framebuffer: Framebuffer
     private var isInitialized: Boolean = false
@@ -37,6 +41,10 @@ internal class MaskEffect : PostProcessingEffect {
             )
             framebuffer = Framebuffer.create(spec)
             isInitialized = true
+
+            val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
+            shaderProgram.shader.bind()
+            shaderProgram.shader.setIntArray("u_Textures", *samplers)
         }
     }
 
@@ -44,21 +52,14 @@ internal class MaskEffect : PostProcessingEffect {
     override fun applyEffect(texture: Texture): Texture {
         val mask = maskTexture
         if (mask != null) {
+            shaderProgram.setMask(mask)
             setup(IntSize(mask.width, mask.height))
             bindFrameBuffer(framebuffer) {
-                drawScene(cameraController.camera) {
+                drawScene(cameraController.camera, shaderProgram) {
                     drawQuad(
                         position = center,
                         size = size,
                         texture = texture
-                    )
-                }
-                drawScene(cameraController.camera) {
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = mask,
-                        alpha = 0.1f
                     )
                 }
             }

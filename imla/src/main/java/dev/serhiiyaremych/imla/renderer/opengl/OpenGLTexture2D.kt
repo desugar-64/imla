@@ -46,6 +46,12 @@ internal class OpenGLTexture2D : Texture2D {
         _isDataLoaded = true
     }
 
+    override fun generateMipMaps() {
+        if (specification.generateMips) {
+            GLES30.glGenerateMipmap(/* target = */ target.toGlTextureTarget())
+        }
+    }
+
     private fun createGLTexture(glTarget: Int) {
         val ids = IntArray(1)
         GLES30.glGenTextures(1, ids, 0)
@@ -66,9 +72,7 @@ internal class OpenGLTexture2D : Texture2D {
             /* type = */ specification.format.getDataType(),
             /* pixels = */ data
         )
-        if (specification.generateMips) {
-            GLES30.glGenerateMipmap(/* target = */ glTextureTarget)
-        }
+        generateMipMaps()
         _isDataLoaded = true
     }
 

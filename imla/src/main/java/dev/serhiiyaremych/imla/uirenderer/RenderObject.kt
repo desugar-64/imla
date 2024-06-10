@@ -26,7 +26,9 @@ import kotlin.properties.Delegates
 internal class RenderObject internal constructor(
     internal val id: String,
     internal val rect: Rect,
-    internal var layer: SubTexture2D,
+    internal val scaledRect: Rect,
+    internal var originalLayer: SubTexture2D,
+    internal var scaledLayer: SubTexture2D,
     internal val renderableScope: RenderableScope,
 ) {
     private var renderCallback: ((RenderObject) -> Unit)? = null
@@ -59,17 +61,32 @@ internal class RenderObject internal constructor(
 
     fun updateOffset(offset: IntOffset) {
         val (x, y) = offset
-        val d = layer.texture.height - (y * renderableScope.scale) - rect.height
-        val r = rect.translate(translateX = x.toFloat() * renderableScope.scale, translateY = d)
-        layer = SubTexture2D.createFromCoords(
-            texture = layer.texture,
-            rect = r
+        val scaledTranslateY =
+            scaledLayer.texture.height - (y * renderableScope.scale) - rect.height
+        val scaledRect = rect.translate(
+            translateX = x.toFloat() * renderableScope.scale,
+            translateY = scaledTranslateY
         )
-        invalidate { }
+        // todo: update coordinates in place
+        scaledLayer = SubTexture2D.createFromCoords(
+            texture = scaledLayer.texture,
+            rect = scaledRect
+        )
+
+        val rect = rect.translate(
+            translateX = x.toFloat(),
+            translateY = originalLayer.texture.height - y - rect.height
+        )
+        originalLayer = SubTexture2D.createFromCoords(
+            texture = originalLayer.texture,
+            rect = rect
+        )
+
+        invalidate()
     }
 
     override fun toString(): String {
-        return "RenderObject(id='$id', rect='$rect', layer='${layer.id}, ${layer.subTextureSize}')"
+        return "RenderObject(id='$id', rect='$rect', layer='${scaledLayer.id}, ${scaledLayer.subTextureSize}')"
     }
 
 
@@ -128,7 +145,8 @@ internal class RenderObject internal constructor(
             surface: Surface,
             rect: Rect,
         ): RenderObject {
-            val texture = renderableLayer.layerTexture // downsampled texture
+            val originalTexture = renderableLayer.layerTexture
+            val scaledTexture = renderableLayer.scaledLayerTexture
             val region = rect
             val scaledRegion = Matrix().apply {
                 scale(renderableLayer.scale, renderableLayer.scale)
@@ -136,9 +154,14 @@ internal class RenderObject internal constructor(
 
             val renderObject = RenderObject(
                 id = id,
-                rect = scaledRegion,
-                layer = SubTexture2D.createFromCoords(
-                    texture = texture,
+                rect = region,
+                scaledRect = scaledRegion,
+                originalLayer = SubTexture2D.createFromCoords(
+                    texture = originalTexture,
+                    rect = region
+                ),
+                scaledLayer = SubTexture2D.createFromCoords(
+                    texture = scaledTexture,
                     rect = scaledRegion
                 ),
                 renderableScope = RenderableScope(

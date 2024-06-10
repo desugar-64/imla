@@ -8,14 +8,18 @@ package dev.serhiiyaremych.imla.uirenderer
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
 import android.view.Surface
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
@@ -23,6 +27,7 @@ import dev.serhiiyaremych.imla.ext.isGLThread
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import java.util.concurrent.atomic.AtomicBoolean
@@ -83,6 +88,7 @@ internal class MaskTextureRenderer(
     ) {
         with(renderableScope) {
             bindFrameBuffer(frameBuffer) {
+                RenderCommand.clear(Color.Transparent)
                 drawScene {
                     drawQuad(
                         position = scaledCenter,
@@ -110,17 +116,25 @@ internal class MaskTextureRenderer(
         if (shouldRedraw(brush)) {
             glRenderer.execute {
                 trace("MaskTextureRenderer#renderMask") {
-                    val hwCanvas = this.surface.lockHardwareCanvas()
+                    val hwCanvas = surface.lockHardwareCanvas()
                     hwCanvas.drawColor(Color.Transparent.toArgb(), PorterDuff.Mode.CLEAR)
-                    this.drawScope.draw(
-                        this,
-                        LayoutDirection.Ltr,
-                        Canvas(hwCanvas),
-                        size.toSize()
+                    hwCanvas.drawColor(Color.Magenta.toArgb())
+                    drawScope.draw(
+                        density = this,
+                        layoutDirection = LayoutDirection.Ltr,
+                        canvas = Canvas(hwCanvas),
+                        size = size.toSize()
                     ) {
-                        this.drawRect(brush)
+                        drawRect(brush)
+                        val line = 1.dp.toPx()
+                        drawRect(
+                            Color.Green,
+                            topLeft = Offset(line, line),
+                            size = Size(width = size.width - line, height = size.height - line),
+                            style = Stroke(width = line)
+                        )
                     }
-                    this.surface.unlockCanvasAndPost(hwCanvas)
+                    surface.unlockCanvasAndPost(hwCanvas)
                 }
             }
         } else {
