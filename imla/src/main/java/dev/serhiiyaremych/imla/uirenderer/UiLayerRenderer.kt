@@ -83,17 +83,20 @@ public class UiLayerRenderer(
     downSampleFactor: Int,
     private val assetManager: AssetManager
 ) : Density by density {
+    private val renderer2D: Renderer2D = Renderer2D()
     private val glRenderer: GLRenderer = GLRenderer().apply {
         start("GLUiLayerRenderer")
     }
 
-    private val renderingPipeline: RenderingPipeline = RenderingPipeline(this, assetManager)
+    private val renderingPipeline: RenderingPipeline =
+        RenderingPipeline(assetManager, renderer2D, this)
 
     private val mainThreadHandler = Handler(Looper.getMainLooper())
     private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
         layerDownsampleFactor = downSampleFactor,
         density = density,
         graphicsLayer = graphicsLayer,
+        renderer2D = renderer2D,
         onLayerTextureUpdated = {
             // graphics layer texture updated, request pipeline render
             renderingPipeline.requestRender {
@@ -133,7 +136,7 @@ public class UiLayerRenderer(
         if (!isGLInitialized.get()) {
             glRenderer.execute {
                 RenderCommand.init()
-                Renderer2D.init(assetManager)
+                renderer2D.init(assetManager)
 
                 renderableLayer.initialize()
                 mainRenderTarget = glRenderer.createRenderTarget(

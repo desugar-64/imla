@@ -25,6 +25,7 @@ import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 
@@ -32,6 +33,7 @@ internal class RenderableRootLayer(
     private val layerDownsampleFactor: Int,
     private val density: Density,
     internal val graphicsLayer: GraphicsLayer,
+    internal val renderer2D: Renderer2D,
     private val onLayerTextureUpdated: () -> Unit
 ) {
     val sizeInt: IntSize get() = graphicsLayer.size
@@ -62,7 +64,8 @@ internal class RenderableRootLayer(
         require(!isDestroyed) { "Can't re-init destroyed layer" }
         if (!isReady) {
             trace("RenderableRootLayer#initialize") {
-                renderableScope = RenderableScope(scale = scale, originalSizeInt = sizeInt)
+                renderableScope =
+                    RenderableScope(scale = scale, originalSizeInt = sizeInt, renderer = renderer2D)
                 val specification = FramebufferSpecification(
                     size = sizeInt,
                     attachmentsSpec = FramebufferAttachmentSpecification(

@@ -28,6 +28,7 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import java.util.concurrent.atomic.AtomicBoolean
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 // TODO: Refactor it to custom shader
 internal class MaskTextureRenderer(
     density: Density,
+    private val renderer2D: Renderer2D,
     private val onRenderComplete: (Texture2D) -> Unit
 ) : Density by density {
     private val drawScope = CanvasDrawScope()
@@ -68,7 +70,7 @@ internal class MaskTextureRenderer(
             format = Texture.ImageFormat.RGBA8,
             flipTexture = true
         )
-        renderableScope = RenderableScope(1.0f, size)
+        renderableScope = RenderableScope(1.0f, size, renderer2D)
         maskExternalTexture =
             Texture2D.create(target = Texture.Target.TEXTURE_EXTERNAL_OES, specification = texSpec)
         maskExternalTexture.bind()

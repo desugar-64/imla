@@ -29,7 +29,7 @@ internal class EffectCoordinator(
             blurEffect.setup(effectSize)
             add(blurEffect)
             add(NoiseEffect(assetManager))
-            add(MaskEffect(assetManager))
+//            add(MaskEffect(assetManager))
         }
     }
 

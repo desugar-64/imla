@@ -61,10 +61,10 @@ public fun BackdropBlur(
             }
             .drawWithContent {
                 drawContent()
-                val bm = blurMask
-                if (bm != null) {
-                    drawRect(bm)
-                }
+//                val bm = blurMask
+//                if (bm != null) {
+//                    drawRect(bm)
+//                }
             }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value

@@ -19,7 +19,7 @@ import dev.serhiiyaremych.imla.renderer.camera.OrthographicCameraController
 internal class RenderableScope(
     internal val scale: Float,
     private val originalSizeInt: IntSize,
-    private val renderer: Renderer2D = Renderer2D
+    private val renderer: Renderer2D
 ) {
 
     val size: Float2 = Float2(originalSizeInt.width.toFloat(), originalSizeInt.height.toFloat())

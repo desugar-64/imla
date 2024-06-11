@@ -23,13 +23,13 @@ import dev.serhiiyaremych.imla.renderer.camera.OrthographicCamera
 import dev.serhiiyaremych.imla.renderer.objects.QuadShaderProgram
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 
-internal const val MAX_QUADS = 1000
+internal const val MAX_QUADS = 100
 internal const val MAX_VERTICES = MAX_QUADS * 4
 internal const val MAX_INDICES = MAX_QUADS * 6
 internal const val MAX_TEXTURE_SLOTS = 8 // query from actual HW
 
 
-internal object Renderer2D {
+internal class Renderer2D {
     private var _data: Renderer2DData? = null
     private val data: Renderer2DData get() = requireNotNull(_data) { "Renderer2D not initialized!" }
 

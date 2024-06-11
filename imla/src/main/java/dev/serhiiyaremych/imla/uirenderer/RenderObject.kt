@@ -62,8 +62,8 @@ internal class RenderObject internal constructor(
     fun updateOffset(offset: IntOffset) {
         val (x, y) = offset
         val scaledTranslateY =
-            scaledLayer.texture.height - (y * renderableScope.scale) - rect.height
-        val scaledRect = rect.translate(
+            scaledLayer.texture.height - (y * renderableScope.scale) - scaledRect.height
+        val scaledRect = scaledRect.translate(
             translateX = x.toFloat() * renderableScope.scale,
             translateY = scaledTranslateY
         )
@@ -166,7 +166,8 @@ internal class RenderObject internal constructor(
                 ),
                 renderableScope = RenderableScope(
                     scale = renderableLayer.scale,
-                    originalSizeInt = region.size.toIntSize()
+                    originalSizeInt = region.size.toIntSize(),
+                    renderer = renderableLayer.renderer2D
                 ),
             ).apply {
                 renderTarget = glRenderer.attach(

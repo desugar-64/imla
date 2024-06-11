@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             ImlaTheme {
-                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 6)
+                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
                 val viewingImage = remember {
                     mutableStateOf("")
                 }
