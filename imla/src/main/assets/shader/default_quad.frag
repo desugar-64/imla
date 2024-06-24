@@ -4,25 +4,27 @@ precision mediump float;
 
 struct VertexOutput
 {
-    float TexIndex;
-    float FlipTexture;
+    float texIndex;
+    float flipTexture;
     float isExternalTexture;
     float alpha;
+    float mask;
 };
 
 uniform sampler2D u_Textures[8]; // todo: pre-process source before compilation to set HW value
 
-in vec2 TexCoord;
+in vec2 maskCoord;
+in vec2 texCoord;
 in VertexOutput data;
 out vec4 color;
 
 void main()
 {
     vec4 baseColor = vec4(1.);
-    bool flipTexture = int(data.FlipTexture) > 0;
-    vec2 texCoord = flipTexture ? vec2(TexCoord.x, 1. - TexCoord.y) : TexCoord;
+    bool flipTexture = int(data.flipTexture) > 0;
+    vec2 texCoord = flipTexture ? vec2(texCoord.x, 1. - texCoord.y) : texCoord;
 
-    switch (int(data.TexIndex)) {
+    switch (int(data.texIndex)) {
         case 0:
             baseColor = texture(u_Textures[0], texCoord);break;
         case 1:

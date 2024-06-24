@@ -11,6 +11,7 @@ import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.util.trace
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float3
 import dev.romainguy.kotlin.math.Float4
@@ -138,6 +139,7 @@ internal class Renderer2D {
 
     fun beginScene(camera: OrthographicCamera, shaderProgram: ShaderProgram) {
         require(isDrawingScene.not()) { "Please complete the current scene before starting a new one." }
+        isDrawingScene = true
         data.cameraData.viewProjection = camera.viewProjectionMatrix
 
         if (shaderProgram != data.quadShaderProgram) {
@@ -145,22 +147,16 @@ internal class Renderer2D {
         }
         val mat4 = data.cameraData.viewProjection
 
-        data.defaultQuadShaderProgram.shader.bind()
-        data.defaultQuadShaderProgram.shader.setMat4(
-            "u_ViewProjection",
-            mat4
-        )
-        data.externalQuadShaderProgram.shader.bind()
-        data.externalQuadShaderProgram.shader.setMat4(
-            "u_ViewProjection",
-            mat4
-        )
+        trace("Renderer2D#beginBatch") {
+            data.defaultQuadShaderProgram.shader.bind()
+            data.defaultQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
-        data.quadShaderProgram.shader.bind()
-        data.quadShaderProgram.shader.setMat4(
-            "u_ViewProjection",
-            mat4
-        )
+            data.externalQuadShaderProgram.shader.bind()
+            data.externalQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+
+            data.quadShaderProgram.shader.bind()
+            data.quadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+        }
 
         data.quadIndexCount = 0
         data.quadVertexBufferBase.clear()
@@ -209,7 +205,8 @@ internal class Renderer2D {
         rotated: Float3 = zero3,
         cameraDistance: Float = 3f,
         texture2D: Texture2D? = null,
-        alpha: Float = 1.0f
+        alpha: Float = 1.0f,
+        withMask: Boolean = false
     ) {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
@@ -258,29 +255,44 @@ internal class Renderer2D {
             texIndex = texIndex,
             flipTexture = if (flipTexture) 1.0f else 0.0f,
             isExternalTexture = if (isExternalTexture) 1.0f else 0.0f,
-            alpha = alpha
+            alpha = alpha,
+            mask = if (withMask) 1.0f else 0.0f
         )
     }
 
-    fun drawQuad(position: Float3, size: Float2, texture: Texture, alpha: Float = 1.0f) {
+    fun drawQuad(
+        position: Float3,
+        size: Float2,
+        texture: Texture,
+        alpha: Float = 1.0f,
+        withMask: Boolean = false
+    ) {
         when (texture) {
             is Texture2D -> drawQuad(
                 position = position,
                 size = size,
                 texture2D = texture,
-                alpha = alpha
+                alpha = alpha,
+                withMask = withMask
             )
 
             is SubTexture2D -> drawQuad(
                 position = position,
                 size = size,
                 subTexture = texture,
-                alpha = alpha
+                alpha = alpha,
+                withMask = withMask
             )
         }
     }
 
-    fun drawQuad(position: Float3, size: Float2, subTexture: SubTexture2D, alpha: Float = 1.0f) {
+    fun drawQuad(
+        position: Float3,
+        size: Float2,
+        subTexture: SubTexture2D,
+        alpha: Float = 1.0f,
+        withMask: Boolean = false
+    ) {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
         }
@@ -300,7 +312,8 @@ internal class Renderer2D {
             textureCoords = subTexture.texCoords,
             flipTexture = if (subTexture.flipTexture) 1.0f else 0.0f,
             isExternalTexture = if (isExternalTexture) 1.0f else 0.0f,
-            alpha = alpha
+            alpha = alpha,
+            mask = if (withMask) 1.0f else 0.0f
         )
     }
 
@@ -336,11 +349,12 @@ internal class Renderer2D {
 
     private fun submitQuad(
         transform: Mat4,
-        textureCoords: Array<Offset> = arrayOf(bottomLeft, bottomRight, topRight, topLeft), // CCW
+        textureCoords: Array<Offset> = defaultTextureCoords,
         texIndex: Float = 0.0f, // 0 = white texture
         flipTexture: Float = 1.0f,
         isExternalTexture: Float = 0.0f,
-        alpha: Float = 1.0f
+        alpha: Float = 1.0f,
+        mask: Float
     ) {
 
         for (i in 0 until 4) {
@@ -350,7 +364,9 @@ internal class Renderer2D {
                 texIndex = texIndex,
                 flipTexture = flipTexture,
                 isExternalTexture = isExternalTexture,
-                alpha = alpha
+                alpha = alpha,
+                mask = mask,
+                maskCoord = textureCoords[i]
             )
         }
 
@@ -401,10 +417,12 @@ public data class RenderStatistics(
     }
 }
 
+// Texture coordinates
 private val bottomLeft = Offset(0.0f, 0.0f)
 private val bottomRight = Offset(1.0f, 0.0f)
 private val topRight = Offset(1.0f, 1.0f)
 private val topLeft = Offset(0.0f, 1.0f)
+private val defaultTextureCoords = arrayOf(bottomLeft, bottomRight, topRight, topLeft) // CCW
 
 private val whiteColor = Float4(1.0f)
 private val zero3 = Float3(0.0f)

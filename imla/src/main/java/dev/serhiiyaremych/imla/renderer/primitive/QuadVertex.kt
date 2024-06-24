@@ -14,7 +14,9 @@ internal data class QuadVertex(
     val texIndex: Float,
     val flipTexture: Float,
     val isExternalTexture: Float,
-    val alpha: Float
+    val alpha: Float,
+    val mask: Float,
+    val maskCoord: Offset
 ) {
     companion object {
         // @formatter:off
@@ -24,7 +26,8 @@ internal data class QuadVertex(
                      /* texIndex */ 1 +
                   /* flipTexture */ 1 +
             /* isExternalTexture */ 1 +
-                        /* alpha */ 1
-
+                        /* alpha */ 1 +
+                         /* mask */ 1 +
+                    /* maskCoord */ 2
     }
 }

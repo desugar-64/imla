@@ -17,8 +17,8 @@ import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
     override val shader: Shader = Shader.create(
         assetManager = assetManager,
-        vertexAsset = "shader/default_quad.vert",
-        fragmentAsset = "shader/mask_shader.frag"
+        vertexAsset = "shader/mask.vert",
+        fragmentAsset = "shader/mask.frag"
     )
 
     override val vertexBufferLayout: BufferLayout = defaultQuadBufferLayout
@@ -30,7 +30,7 @@ internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
 
     fun setMask(mask: Texture2D) {
         shader.bind()
-        mask.bind(3)
-        shader.setInt("u_Mask", 3)
+        mask.bind()
+        shader.setInt("u_Mask", 0)
     }
 }
