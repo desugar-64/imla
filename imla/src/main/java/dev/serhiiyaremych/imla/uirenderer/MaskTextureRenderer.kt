@@ -23,6 +23,8 @@ import dev.serhiiyaremych.imla.ext.isGLThread
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.Texture
@@ -58,7 +60,9 @@ internal class MaskTextureRenderer(
         frameBuffer = Framebuffer.create(
             FramebufferSpecification(
                 size = size,
-                attachmentsSpec = FramebufferAttachmentSpecification()
+                attachmentsSpec = FramebufferAttachmentSpecification(
+                    attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.R8))
+                )
             )
         )
         val texSpec = Texture.Specification(
