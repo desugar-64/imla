@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -86,8 +87,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(
-                android.graphics.Color.TRANSPARENT
+            statusBarStyle = SystemBarStyle.light(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT,
             ),
             navigationBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
@@ -277,7 +279,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer) {
         BackdropBlur(
-            modifier = Modifier,
+            modifier = Modifier.requiredHeight(150.dp),
             uiLayerRenderer = uiRenderer,
             blurMask = Brush.verticalGradient(
                 colors = listOf(

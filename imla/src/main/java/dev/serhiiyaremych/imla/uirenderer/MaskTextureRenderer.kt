@@ -8,18 +8,14 @@ package dev.serhiiyaremych.imla.uirenderer
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
 import android.view.Surface
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
@@ -120,7 +116,6 @@ internal class MaskTextureRenderer(
                 trace("MaskTextureRenderer#renderMask") {
                     val hwCanvas = surface.lockHardwareCanvas()
                     hwCanvas.drawColor(Color.Transparent.toArgb(), PorterDuff.Mode.CLEAR)
-                    hwCanvas.drawColor(Color.Magenta.toArgb())
                     drawScope.draw(
                         density = this,
                         layoutDirection = LayoutDirection.Ltr,
@@ -128,13 +123,6 @@ internal class MaskTextureRenderer(
                         size = size.toSize()
                     ) {
                         drawRect(brush)
-                        val line = 1.dp.toPx()
-                        drawRect(
-                            Color.Green,
-                            topLeft = Offset(line, line),
-                            size = Size(width = size.width - line, height = size.height - line),
-                            style = Stroke(width = line)
-                        )
                     }
                     surface.unlockCanvasAndPost(hwCanvas)
                 }

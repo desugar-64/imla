@@ -14,33 +14,33 @@ import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 
-internal class MaskEffect(assetManager: AssetManager) : PostProcessingEffect {
+internal class MaskEffect(assetManager: AssetManager) {
 
     private val shaderProgram = MaskShaderProgram(assetManager)
 
-    private lateinit var framebuffer: Framebuffer
+    private lateinit var backgroundFramebuffer: Framebuffer
+    private lateinit var finalMaskFrameBuffer: Framebuffer
     private var isInitialized: Boolean = false
 
-    var maskTexture: Texture2D? = null
-
-    override fun shouldResize(size: IntSize): Boolean {
-        return !isInitialized || (framebuffer.specification.size != size)
+    private fun shouldResize(size: IntSize): Boolean {
+        return !isInitialized || (finalMaskFrameBuffer.specification.size != size)
     }
 
-    override fun setup(size: IntSize) {
+    private fun setup(size: IntSize) {
         if (shouldResize(size)) {
             if (isInitialized) {
-                framebuffer.destroy()
+                finalMaskFrameBuffer.destroy()
             }
 
             val spec = FramebufferSpecification(
                 size = size,
                 attachmentsSpec = FramebufferAttachmentSpecification()
             )
-            framebuffer = Framebuffer.create(spec)
+            finalMaskFrameBuffer = Framebuffer.create(spec)
             isInitialized = true
+
+            backgroundFramebuffer = Framebuffer.create(spec)
 
             val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
             shaderProgram.shader.bind()
@@ -49,29 +49,43 @@ internal class MaskEffect(assetManager: AssetManager) : PostProcessingEffect {
     }
 
     context(RenderableScope)
-    override fun applyEffect(texture: Texture): Texture {
-        val mask = maskTexture
+    fun applyEffect(background: Texture, blur: Texture, mask: Texture2D?): Texture {
+
         if (mask != null) {
             shaderProgram.setMask(mask)
+
             setup(IntSize(mask.width, mask.height))
-            bindFrameBuffer(framebuffer) {
+            bindFrameBuffer(backgroundFramebuffer) {
+                drawScene(cameraController.camera) {
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = background
+                    )
+                }
+            }
+
+            shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
+
+            bindFrameBuffer(finalMaskFrameBuffer) {
                 drawScene(cameraController.camera, shaderProgram) {
                     drawQuad(
                         position = center,
                         size = size,
-                        texture = texture
+                        texture = blur,
+                        withMask = true
                     )
                 }
             }
-            return framebuffer.colorAttachmentTexture
+            return finalMaskFrameBuffer.colorAttachmentTexture
         } else {
-            return texture
+            return blur
         }
     }
 
-    override fun dispose() {
+    fun dispose() {
         if (isInitialized) {
-            framebuffer.destroy()
+            finalMaskFrameBuffer.destroy()
             isInitialized = false
         }
     }

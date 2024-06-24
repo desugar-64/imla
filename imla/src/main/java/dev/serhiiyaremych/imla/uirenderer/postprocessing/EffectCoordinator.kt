@@ -8,7 +8,6 @@ package dev.serhiiyaremych.imla.uirenderer.postprocessing
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.Density
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.mask.MaskEffect
@@ -19,76 +18,59 @@ internal class EffectCoordinator(
     private val assetManager: AssetManager
 ) : Density by density {
 
-    private val effectCache: MutableMap<String, MutableList<PostProcessingEffect>> = mutableMapOf()
+    private val effectCache: MutableMap<String, EffectsHolder> = mutableMapOf()
 
-    private fun createEffects(renderObject: RenderObject): MutableList<PostProcessingEffect> {
+    private fun createEffects(renderObject: RenderObject): EffectsHolder {
         val effectSize = renderObject.scaledLayer.subTextureSize
 
-        return mutableListOf<PostProcessingEffect>().apply {
-            val blurEffect = BlurEffect(assetManager)
-            blurEffect.setup(effectSize)
-            add(blurEffect)
-            add(NoiseEffect(assetManager))
-//            add(MaskEffect(assetManager))
-        }
+        return EffectsHolder(
+            blurEffect = BlurEffect(assetManager).apply { setup(effectSize) },
+            noiseEffect = NoiseEffect(assetManager),
+            maskEffect = MaskEffect(assetManager)
+        )
     }
 
     fun applyEffects(renderObject: RenderObject) = with(renderObject.renderableScope) {
         val effects = effectCache.getOrPut(renderObject.id) {
             createEffects(renderObject)
         }
-        var finalTexture: Texture? = null
         RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
 
         val maskTexture = renderObject.mask
 
-        effects.forEach { effect ->
-            if (effect is BlurEffect) {
-                effect.bluerRadius = renderObject.style.blurRadiusPx()
-                effect.tint = renderObject.style.tint
-            }
-            if (effect is NoiseEffect) {
-                effect.noiseAlpha = renderObject.style.noiseAlpha
-            }
-            if (effect is MaskEffect) {
-                effect.maskTexture = maskTexture
-            }
-            val result = when (effect) {
-                is MaskEffect -> {
-                    effect.applyEffect(renderObject.originalLayer)
-                }
+        val (blur, noise, mask) = effects
 
-                else -> {
-                    effect.applyEffect(finalTexture ?: renderObject.scaledLayer)
-                }
-            }
-            finalTexture = result
-        }
+        val style = renderObject.style
+
+        val blurredTexture = blur.applyEffect(
+            texture = renderObject.scaledLayer,
+            blurRadius = style.blurRadiusPx(),
+            tint = style.tint
+        )
+
+        val textureWithNoise = noise.applyEffect(blurredTexture, style.noiseAlpha)
+
+        val finalComposition =
+            mask.applyEffect(renderObject.originalLayer, textureWithNoise, maskTexture)
+
         RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
-        val result = finalTexture
-        if (result != null) {
-            drawScene(cameraController.camera) {
-                drawQuad(
-                    position = center,
-                    size = size,
-                    texture = result
-                )
-            }
-        } else {
-            drawScene(cameraController.camera) {
-                drawQuad(position = center, size = size, subTexture = renderObject.originalLayer)
-            }
+
+        drawScene(cameraController.camera) {
+            drawQuad(
+                position = center,
+                size = size,
+                texture = finalComposition
+            )
         }
     }
 
     fun removeEffectsOf(id: String?) {
-        effectCache.remove(id)?.forEach { it.dispose() }
+        effectCache.remove(id)?.dispose()
     }
 
     fun destroy() {
         effectCache.forEach { (_, effects) ->
-            effects.forEach { fx -> fx.dispose() }
-            effects.clear()
+            effects.dispose()
         }
         effectCache.clear()
     }

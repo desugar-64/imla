@@ -21,12 +21,11 @@ import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 import kotlin.properties.Delegates
 
 internal class BlurEffect(
     assetManager: AssetManager
-) : PostProcessingEffect {
+) {
 
     private val blurShaderProgram: BlurShaderProgram = BlurShaderProgram(assetManager)
 
@@ -35,15 +34,8 @@ internal class BlurEffect(
 
     private var isInitialized: Boolean = false
 
-    var bluerRadius: Float = 0f
-    var tint: Color = Color.Transparent
-
-    private fun isEnabled(): Boolean {
-        return bluerRadius > MIN_BLUR_RADIUS_PX
-    }
-
-    override fun setup(size: IntSize) {
-        if (isEnabled() && shouldResize(size)) {
+    fun setup(size: IntSize) {
+        if (isInitialized.not() || shouldResize(size)) {
             init(size)
             isInitialized = true
 
@@ -54,23 +46,24 @@ internal class BlurEffect(
         }
     }
 
-    override fun shouldResize(size: IntSize): Boolean {
+    private fun shouldResize(size: IntSize): Boolean {
         return !isInitialized ||
                 (horizontalPassFramebuffer.specification.size != size || verticalPassFramebuffer.specification.size != size)
     }
 
     context(RenderableScope)
-    override fun applyEffect(texture: Texture): Texture {
+    fun applyEffect(texture: Texture, blurRadius: Float, tint: Color): Texture {
         trace("BlurEffect#applyEffect") {
             val effectSize = getSize(texture)
             setup(effectSize)
 
-            if (isEnabled().not()) {
+            if (blurRadius < MIN_BLUR_RADIUS_PX) {
                 return@trace texture
             }
 
-            blurShaderProgram.setBlurRadius(bluerRadius)
+            blurShaderProgram.setBlurRadius(blurRadius)
             blurShaderProgram.setTintColor(tint)
+
             blurShaderProgram.setBlurringTextureSize(effectSize) // down-sampled layer
 
             // first pass
@@ -122,7 +115,7 @@ internal class BlurEffect(
         verticalPassFramebuffer = Framebuffer.create(spec)
     }
 
-    override fun dispose() {
+    fun dispose() {
         horizontalPassFramebuffer.destroy()
         verticalPassFramebuffer.destroy()
         isInitialized = false

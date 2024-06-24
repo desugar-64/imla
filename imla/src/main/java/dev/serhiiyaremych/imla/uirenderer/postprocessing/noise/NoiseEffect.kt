@@ -18,10 +18,9 @@ import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.PostProcessingEffect
 import kotlin.properties.Delegates
 
-internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
+internal class NoiseEffect(assetManager: AssetManager) {
 
     private val shader = NoiseShaderProgram(assetManager)
 
@@ -30,16 +29,10 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     private var isNoiseTextureInitialized: Boolean = false
     private var isNoiseTextureDrawn: Boolean = false
 
-    var noiseAlpha: Float = 0.0f
-
-    override fun setup(size: IntSize) {
-        if (isEnabled() && shouldResize(size)) {
+    fun setup(size: IntSize) {
+        if (shouldResize(size)) {
             init(size)
         }
-    }
-
-    private fun isEnabled(): Boolean {
-        return noiseAlpha > 0.05f
     }
 
     private fun init(size: IntSize) {
@@ -56,7 +49,7 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
         isNoiseTextureInitialized = true
     }
 
-    override fun shouldResize(size: IntSize): Boolean {
+    private fun shouldResize(size: IntSize): Boolean {
         return !isNoiseTextureInitialized || noiseTextureFrameBuffer.specification.size != size
     }
 
@@ -78,32 +71,32 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
     }
 
     context(RenderableScope)
-    override fun applyEffect(texture: Texture): Texture {
-        val effectSize = getSize(texture)
-        setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
-        if (isEnabled().not()) {
-            return texture
-        }
-        drawNoiseTextureOnce()
-        trace("NoiseEffect#blendNoise") {
-            bindFrameBuffer(outputFrameBuffer) {
-                drawScene(camera = cameraController.camera) {
-                    RenderCommand.clear(Color.Magenta)
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = texture
-                    )
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = noiseTextureFrameBuffer.colorAttachmentTexture,
-                        alpha = noiseAlpha
-                    )
+    fun applyEffect(texture: Texture, noiseAlpha: Float): Texture {
+        if (noiseAlpha >= MIN_NOISE_ALPHA) {
+            setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
+            drawNoiseTextureOnce()
+            trace("NoiseEffect#blendNoise") {
+                bindFrameBuffer(outputFrameBuffer) {
+                    drawScene(camera = cameraController.camera) {
+                        RenderCommand.clear(Color.Magenta)
+                        drawQuad(
+                            position = center,
+                            size = size,
+                            texture = texture
+                        )
+                        drawQuad(
+                            position = center,
+                            size = size,
+                            texture = noiseTextureFrameBuffer.colorAttachmentTexture,
+                            alpha = noiseAlpha
+                        )
+                    }
                 }
             }
+            return outputFrameBuffer.colorAttachmentTexture
+        } else {
+            return texture
         }
-        return outputFrameBuffer.colorAttachmentTexture
     }
 
     private fun getSize(texture: Texture): IntSize {
@@ -114,11 +107,15 @@ internal class NoiseEffect(assetManager: AssetManager) : PostProcessingEffect {
         }
     }
 
-    override fun dispose() {
+    fun dispose() {
         if (isNoiseTextureInitialized) {
             noiseTextureFrameBuffer.destroy()
             outputFrameBuffer.destroy()
         }
         isNoiseTextureInitialized = false
+    }
+
+    private companion object {
+        const val MIN_NOISE_ALPHA = 0.05f
     }
 }

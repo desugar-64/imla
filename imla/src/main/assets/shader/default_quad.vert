@@ -25,7 +25,7 @@ out vec2 texCoord;
 out VertexOutput data;
 
 void main() {
-
+    maskCoord = a_MaskCoord;
     texCoord = a_TexCoord;
     data.texIndex = a_TexIndex;
     data.flipTexture = a_FlipTexture;

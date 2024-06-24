@@ -49,7 +49,7 @@ internal fun defaultQuadVertexMapper(
         verticesData[lastVertexIndex + 9] = quad.alpha
         // a_Mask
         verticesData[lastVertexIndex + 10] = quad.mask
-        // a_Mask
+        // a_MaskCoord
         verticesData[lastVertexIndex + 11] = quad.maskCoord.x
         verticesData[lastVertexIndex + 12] = quad.maskCoord.y
 

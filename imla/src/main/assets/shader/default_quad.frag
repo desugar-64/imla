@@ -16,6 +16,7 @@ uniform sampler2D u_Textures[8]; // todo: pre-process source before compilation 
 in vec2 maskCoord;
 in vec2 texCoord;
 in VertexOutput data;
+
 out vec4 color;
 
 void main()

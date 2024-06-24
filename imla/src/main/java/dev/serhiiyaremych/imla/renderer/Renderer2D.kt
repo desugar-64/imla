@@ -366,7 +366,7 @@ internal class Renderer2D {
                 isExternalTexture = isExternalTexture,
                 alpha = alpha,
                 mask = mask,
-                maskCoord = textureCoords[i]
+                maskCoord = defaultTextureCoords[i]
             )
         }
 

@@ -9,6 +9,7 @@ import android.content.res.AssetManager
 import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.ShaderProgram
+import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.renderer.objects.defaultQuadBufferLayout
 import dev.serhiiyaremych.imla.renderer.objects.defaultQuadVertexMapper
@@ -17,7 +18,7 @@ import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
     override val shader: Shader = Shader.create(
         assetManager = assetManager,
-        vertexAsset = "shader/mask.vert",
+        vertexAsset = "shader/default_quad.vert",
         fragmentAsset = "shader/mask.frag"
     )
 
@@ -30,7 +31,13 @@ internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
 
     fun setMask(mask: Texture2D) {
         shader.bind()
-        mask.bind()
-        shader.setInt("u_Mask", 0)
+        mask.bind(2)
+        shader.setInt("u_Mask", 2)
+    }
+
+    fun setBackground(background: Texture) {
+        shader.bind()
+        background.bind(3)
+        shader.setInt("u_Background", 3)
     }
 }
