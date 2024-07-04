@@ -49,11 +49,13 @@ public fun BackdropBlur(
     val drawingSurfaceSizeState = remember { mutableStateOf<IntSize>(IntSize.Zero) }
     val contentOffset = remember { mutableStateOf(IntOffset.Zero) }
 
-    val renderObjectId = uiLayerRenderer.attachRendererSurface(
-        surface = drawingSurfaceState.value,
-        id = id,
-        size = drawingSurfaceSizeState.value,
-    )
+    val renderObjectId = {
+        uiLayerRenderer.attachRendererSurface(
+            surface = drawingSurfaceState.value,
+            id = id,
+            size = drawingSurfaceSizeState.value,
+        )
+    }
     Box(
         modifier = modifier
             .onPlaced { layoutCoordinates ->
@@ -95,7 +97,7 @@ public fun BackdropBlur(
                     // todo
                 }
                 surface.onDestroyed {
-                    renderObjectId?.let { uiLayerRenderer.detachRenderObject(it) }
+                    renderObjectId()?.let { uiLayerRenderer.detachRenderObject(it) }
                     drawingSurfaceState.value = null
                 }
             }
@@ -105,10 +107,10 @@ public fun BackdropBlur(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
-        uiLayerRenderer.updateOffset(renderObjectId, topOffset + contentOffset.value)
-        uiLayerRenderer.updateMask(renderObjectId, blurMask)
+        uiLayerRenderer.updateOffset(renderObjectId(), topOffset + contentOffset.value)
+        uiLayerRenderer.updateMask(renderObjectId(), blurMask)
         trace("BackdropBlurView#renderObject.style") {
-            uiLayerRenderer.updateStyle(renderObjectId, style)
+            uiLayerRenderer.updateStyle(renderObjectId(), style)
         }
 
         // Render the content and handle offset changes
