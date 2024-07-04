@@ -24,6 +24,7 @@ internal interface Texture {
         R8,
         RGB8,
         RGBA8,
+        DEPTH24STENCIL8
     }
 
     data class Specification(

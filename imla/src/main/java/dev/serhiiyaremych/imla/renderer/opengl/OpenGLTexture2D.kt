@@ -114,7 +114,7 @@ internal class OpenGLTexture2D : Texture2D {
 
 }
 
-private fun Texture.Target.toGlTextureTarget(): Int {
+internal fun Texture.Target.toGlTextureTarget(): Int {
     return when (this) {
         Texture.Target.TEXTURE_2D -> GLES30.GL_TEXTURE_2D
         Texture.Target.TEXTURE_EXTERNAL_OES -> GLES11Ext.GL_TEXTURE_EXTERNAL_OES
@@ -124,14 +124,15 @@ private fun Texture.Target.toGlTextureTarget(): Int {
 internal fun Texture.ImageFormat.toGlInternalFormat(): Int {
     return when (this) {
         Texture.ImageFormat.None -> 0
-        Texture.ImageFormat.A8 -> GLES30.GL_ALPHA
+        Texture.ImageFormat.A8,
         Texture.ImageFormat.R8 -> GLES30.GL_R8
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB8
         Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA8
+        Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH24_STENCIL8
     }
 }
 
-private fun Texture.ImageFormat.getDataType(): Int {
+internal fun Texture.ImageFormat.getDataType(): Int {
     // Use a when expression to return the corresponding OpenGL type constant
     return when (this) {
         Texture.ImageFormat.None -> 0 // No type
@@ -139,6 +140,7 @@ private fun Texture.ImageFormat.getDataType(): Int {
         Texture.ImageFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGB8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGBA8 -> GLES30.GL_UNSIGNED_BYTE
+        Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_UNSIGNED_INT_24_8
     }
 }
 
@@ -149,5 +151,6 @@ internal fun Texture.ImageFormat.toGlImageFormat(): Int {
         Texture.ImageFormat.R8 -> GLES30.GL_RED
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB
         Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA
+        Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH_STENCIL
     }
 }
