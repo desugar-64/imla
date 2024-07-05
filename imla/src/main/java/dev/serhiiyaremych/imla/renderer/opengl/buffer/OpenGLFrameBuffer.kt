@@ -264,6 +264,6 @@ private fun FramebufferTextureFormat.toTextureFormat(): Texture.ImageFormat {
     return when (this) {
         FramebufferTextureFormat.R8 -> Texture.ImageFormat.R8
         FramebufferTextureFormat.RGBA8 -> Texture.ImageFormat.RGBA8
-        FramebufferTextureFormat.DEPTH24STENCIL8 -> TODO()
+        FramebufferTextureFormat.DEPTH24STENCIL8 -> Texture.ImageFormat.DEPTH24STENCIL8
     }
 }

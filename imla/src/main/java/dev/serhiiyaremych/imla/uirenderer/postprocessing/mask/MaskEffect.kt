@@ -6,11 +6,13 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
 
 import android.content.res.AssetManager
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
+import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
@@ -52,10 +54,9 @@ internal class MaskEffect(assetManager: AssetManager) {
     fun applyEffect(background: Texture, blur: Texture, mask: Texture2D?): Texture {
 
         if (mask != null) {
-            shaderProgram.setMask(mask)
-
             setup(IntSize(mask.width, mask.height))
             bindFrameBuffer(backgroundFramebuffer) {
+                RenderCommand.clear(Color.Transparent)
                 drawScene(cameraController.camera) {
                     drawQuad(
                         position = center,
@@ -65,9 +66,12 @@ internal class MaskEffect(assetManager: AssetManager) {
                 }
             }
 
+
+            shaderProgram.setMask(mask)
             shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
 
             bindFrameBuffer(finalMaskFrameBuffer) {
+                RenderCommand.clear(Color.Transparent)
                 drawScene(cameraController.camera, shaderProgram) {
                     drawQuad(
                         position = center,

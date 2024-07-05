@@ -26,7 +26,7 @@ void main() {
     bool flipTexture = int(data.flipTexture) > 0;
     vec2 texCoord = flipTexture ? vec2(texCoord.x, 1. - texCoord.y) : texCoord;
 
-    vec4 backgroundColor = texture(u_Background, texCoord);
+    vec4 backgroundColor = texture(u_Background, maskCoord);
 
     vec4 contentColor = vec4(1.0, 1.0, 1.0, 1.0);
 
