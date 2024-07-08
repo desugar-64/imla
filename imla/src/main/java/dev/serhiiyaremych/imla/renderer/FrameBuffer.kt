@@ -52,6 +52,7 @@ internal interface Framebuffer {
     fun getColorAttachmentRendererID(index: Int = 0): Int
 
     fun destroy()
+    fun setColorAttachmentAt(attachmentIndex: Int)
 
     companion object {
         fun create(spec: FramebufferSpecification): Framebuffer {

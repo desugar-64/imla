@@ -28,7 +28,7 @@ internal class OpenGLRendererAPI : RendererApi {
     }
 
     override fun clear() {
-        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT or GLES30.GL_STENCIL_BUFFER_BIT)
     }
 
     // @formatter:off

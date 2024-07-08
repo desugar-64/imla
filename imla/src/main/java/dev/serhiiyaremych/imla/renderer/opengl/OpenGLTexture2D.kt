@@ -111,6 +111,10 @@ internal class OpenGLTexture2D : Texture2D {
         return result
     }
 
+    override fun toString(): String {
+        return "OpenGLTexture2D(target=$target, specification=$specification, width=$width, height=$height, id=$id)"
+    }
+
 
 }
 

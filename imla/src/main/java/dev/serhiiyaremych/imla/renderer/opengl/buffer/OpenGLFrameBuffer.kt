@@ -39,7 +39,7 @@ internal class OpenGLFramebuffer(
         target = Texture.Target.TEXTURE_2D,
         specification = Texture.Specification()
     )
-    private var colorAttachmentIds: IntArray = IntArray(0)
+    private val colorAttachments: MutableList<Texture2D> = mutableListOf()
     private var depthAttachmentSpecification: FramebufferTextureSpecification? = null
 
     private val sampledWidth get() = specification.size.width / specification.downSampleFactor
@@ -59,24 +59,21 @@ internal class OpenGLFramebuffer(
         rendererId = id[0]
 
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, rendererId)
-
+        checkGlError("bind fb")
         val attachments = specification.attachmentsSpec.attachments
 
-        colorAttachmentIds = IntArray(
-            attachments.count { it.format != FramebufferTextureFormat.DEPTH24STENCIL8 }
-        )
-        val colorAttachments =
+        val colorAttachmentSpecs =
             attachments.filter { it.format != FramebufferTextureFormat.DEPTH24STENCIL8 }
         depthAttachmentSpecification =
             attachments.find { it.format == FramebufferTextureFormat.DEPTH24STENCIL8 }
-        colorAttachments.forEachIndexed { index, attachment ->
+        colorAttachmentSpecs.forEachIndexed { index, attachment ->
             createAttachment(
                 width = sampledWidth,
                 height = sampledHeight,
                 format = attachment.format,
                 flip = attachment.flip
             ).apply {
-                colorAttachmentIds[index] = this.id
+                colorAttachments.add(this)
                 GLES30.glFramebufferTexture2D(
                     /* target = */ GLES30.GL_FRAMEBUFFER,
                     /* attachment = */ GLES30.GL_COLOR_ATTACHMENT0 + index,
@@ -84,20 +81,13 @@ internal class OpenGLFramebuffer(
                     /* texture = */ this.id,
                     /* level = */ 0
                 )
+                checkGlError("attach tex $index")
             }
         }
 
-        if (_colorAttachmentTexture.id != colorAttachmentIds[0]) {
+        if (_colorAttachmentTexture.id != colorAttachments.first().id) {
             _colorAttachmentTexture.destroy()
-            _colorAttachmentTexture = Texture2D.create(
-                target = Texture.Target.TEXTURE_2D,
-                textureId = colorAttachmentIds[0],
-                specification = Texture.Specification(
-                    size = IntSize(sampledWidth, sampledHeight),
-                    flipTexture = colorAttachments[0].flip
-                )
-            )
-
+            _colorAttachmentTexture = colorAttachments.first()
         }
 
         depthAttachmentSpecification?.let {
@@ -115,31 +105,21 @@ internal class OpenGLFramebuffer(
                     /* texture = */ depthAttachment,
                     /* level = */ 0
                 )
+
+                checkGlError("attach depth")
             }
         }
 
-        if (colorAttachments.isNotEmpty()) {
-            val buffers: IntArray = IntArray(colorAttachments.size) {
+        if (colorAttachmentSpecs.isNotEmpty()) {
+            val buffers: IntArray = IntArray(colorAttachmentSpecs.size) {
                 GLES30.GL_COLOR_ATTACHMENT0 + it
             }
-            GLES30.glDrawBuffers(colorAttachments.size, buffers, 0);
+            GLES30.glDrawBuffers(colorAttachmentSpecs.size, buffers, 0)
+            checkGlError("glDrawBuffers all")
         } else {
             // Only depth-pass
             GLES30.glDrawBuffers(0, intArrayOf(), 0)
         }
-
-        GLES30.glFramebufferTexture2D(
-            /* target = */ GLES30.GL_FRAMEBUFFER,
-            /* attachment = */ GLES30.GL_COLOR_ATTACHMENT0,
-            /* textarget = */ GLES30.GL_TEXTURE_2D,
-            /* texture = */ _colorAttachmentTexture.id,
-            /* level = */ 0
-        )
-
-        val buffers: IntArray = IntArray(1) {
-            GLES30.GL_COLOR_ATTACHMENT0
-        }
-        GLES30.glDrawBuffers(1, buffers, 0);
 
         require(GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER) == GLES30.GL_FRAMEBUFFER_COMPLETE) {
             "OpenGL20Framebuffer is incomplete!"
@@ -172,8 +152,8 @@ internal class OpenGLFramebuffer(
     }
 
     override fun getColorAttachmentRendererID(index: Int): Int {
-        require(index <= colorAttachmentIds.lastIndex)
-        return colorAttachmentIds[index]
+        require(index <= colorAttachments.lastIndex)
+        return colorAttachments[index].id
     }
 
     override fun clearAttachment(attachmentIndex: Int, value: Int) {
@@ -209,12 +189,20 @@ internal class OpenGLFramebuffer(
         )
     }
 
+    override fun setColorAttachmentAt(attachmentIndex: Int) {
+        require(attachmentIndex <= colorAttachments.lastIndex)
+        _colorAttachmentTexture = colorAttachments[attachmentIndex]
+    }
 
     override fun destroy() {
         unbind()
         GLES30.glDeleteFramebuffers(1, intArrayOf(rendererId), 0)
         GLES30.glDeleteTextures(1, intArrayOf(depthAttachment), 0)
-        GLES30.glDeleteTextures(colorAttachmentIds.size, colorAttachmentIds, 0)
+        GLES30.glDeleteTextures(
+            colorAttachments.size,
+            colorAttachments.map { it.id }.toIntArray(),
+            0
+        )
     }
 
     private companion object {
@@ -234,7 +222,7 @@ internal class OpenGLFramebuffer(
             height: Int,
             format: FramebufferTextureFormat,
             flip: Boolean
-        ): Texture = Texture2D.create(
+        ): Texture2D = Texture2D.create(
             target = Texture.Target.TEXTURE_2D,
             specification = Texture.Specification(
                 size = IntSize(width = width, height = height),
@@ -242,8 +230,6 @@ internal class OpenGLFramebuffer(
                 flipTexture = flip
             )
         ).apply {
-            bind()
-
             // @formatter:off
             GLES30.glTexImage2D(
                 /* target = */ GLES30.GL_TEXTURE_2D,
@@ -256,7 +242,16 @@ internal class OpenGLFramebuffer(
                 /* type = */ specification.format.getDataType(),
                 /* pixels = */ null
             )
+            checkGlError("glTexImage2D")
         }
+        fun checkGlError(operation: String) {
+            val error = GLES30.glGetError()
+            if (error != GLES30.GL_NO_ERROR) {
+//                throw RuntimeException("$operation: glError $error")
+                Log.e(TAG, "checkGlError: glError $error")
+            }
+        }
+
     }
 }
 
