@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             ImlaTheme {
-                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
+                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 3)
                 val viewingImage = remember {
                     mutableStateOf("")
                 }
@@ -291,7 +291,7 @@ class MainActivity : ComponentActivity() {
                 ),
             ),
             style = Style(
-                blurRadius = 15.dp,
+                blurRadius = 10.dp,
                 noiseAlpha = 0.2f
             )
         ) {

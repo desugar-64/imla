@@ -37,7 +37,6 @@ internal class EffectCoordinator(
         RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
 
         val maskTexture = renderObject.mask
-
         val (blur, noise, mask) = effects
 
         val style = renderObject.style
@@ -47,14 +46,14 @@ internal class EffectCoordinator(
             blurRadius = style.blurRadiusPx(),
             tint = style.tint
         )
-
+        RenderCommand.enableBlending()
         val textureWithNoise = noise.applyEffect(blurredTexture, style.noiseAlpha)
+        RenderCommand.disableBlending()
 
         val finalComposition =
             mask.applyEffect(renderObject.originalLayer, textureWithNoise, maskTexture)
 
         RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
-
         drawScene(cameraController.camera) {
             drawQuad(
                 position = center,

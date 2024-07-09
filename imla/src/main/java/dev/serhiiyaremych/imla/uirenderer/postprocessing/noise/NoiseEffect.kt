@@ -9,7 +9,6 @@ import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
-import dev.romainguy.kotlin.math.Float3
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -60,7 +59,7 @@ internal class NoiseEffect(assetManager: AssetManager) {
                 bindFrameBuffer(noiseTextureFrameBuffer) {
                     drawScene(camera = cameraController.camera, shaderProgram = shader) {
                         drawQuad(
-                            position = Float3(center),
+                            position = center,
                             size = size
                         )
                     }
@@ -77,8 +76,8 @@ internal class NoiseEffect(assetManager: AssetManager) {
             drawNoiseTextureOnce()
             trace("NoiseEffect#blendNoise") {
                 bindFrameBuffer(outputFrameBuffer) {
+                    RenderCommand.clear(Color.Transparent)
                     drawScene(camera = cameraController.camera) {
-                        RenderCommand.clear(Color.Magenta)
                         drawQuad(
                             position = center,
                             size = size,

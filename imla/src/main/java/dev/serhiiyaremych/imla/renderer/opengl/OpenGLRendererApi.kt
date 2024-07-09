@@ -18,7 +18,6 @@ internal class OpenGLRendererAPI : RendererApi {
         Log.d(TAG, "vendor: " + GLES30.glGetString(GLES30.GL_VENDOR))
         Log.d(TAG, "renderer: " + GLES30.glGetString(GLES30.GL_RENDERER))
         Log.d(TAG, "version: " + GLES30.glGetString(GLES30.GL_VERSION))
-        GLES30.glEnable(GLES30.GL_BLEND)
         GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
     }

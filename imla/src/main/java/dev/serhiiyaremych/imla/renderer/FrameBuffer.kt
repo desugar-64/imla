@@ -29,7 +29,6 @@ internal data class FramebufferTextureSpecification(
 internal data class FramebufferAttachmentSpecification(
     val attachments: List<FramebufferTextureSpecification> = listOf(
         FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8),
-        FramebufferTextureSpecification(format = FramebufferTextureFormat.DEPTH24STENCIL8)
     )
 )
 
