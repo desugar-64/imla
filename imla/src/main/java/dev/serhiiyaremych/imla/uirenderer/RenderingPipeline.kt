@@ -65,7 +65,7 @@ internal class RenderingPipeline(
     }
 
     private val renderCallback = fun(renderObject: RenderObject) {
-        trace("RenderingPipeline#renderObject") {
+        trace("RenderingPipeline#applyAllEffects") {
             effectCoordinator.applyEffects(renderObject)
         }
     }

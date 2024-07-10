@@ -36,13 +36,15 @@ internal class BlurEffect(
 
     fun setup(size: IntSize) {
         if (isInitialized.not() || shouldResize(size)) {
-            init(size)
-            isInitialized = true
+            trace("setup") {
+                init(size)
+                isInitialized = true
 
 
-            val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
-            blurShaderProgram.shader.bind()
-            blurShaderProgram.shader.setIntArray("u_Textures", *samplers)
+                val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
+                blurShaderProgram.shader.bind()
+                blurShaderProgram.shader.setIntArray("u_Textures", *samplers)
+            }
         }
     }
 
@@ -61,31 +63,35 @@ internal class BlurEffect(
                 return@trace texture
             }
 
-            blurShaderProgram.setBlurRadius(blurRadius)
-            blurShaderProgram.setTintColor(tint)
-
-            blurShaderProgram.setBlurringTextureSize(effectSize) // down-sampled layer
-
+            trace("setStyle") {
+                blurShaderProgram.setBlurRadius(blurRadius)
+                blurShaderProgram.setTintColor(tint)
+                blurShaderProgram.setBlurringTextureSize(effectSize)
+            }
             // first pass
-            blurShaderProgram.setHorizontalPass()
-            bindFrameBuffer(horizontalPassFramebuffer) {
-                drawScene(shaderProgram = blurShaderProgram) {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = texture
-                    )
+            trace("horizontalPass") {
+                blurShaderProgram.setHorizontalPass()
+                bindFrameBuffer(horizontalPassFramebuffer) {
+                    drawScene(shaderProgram = blurShaderProgram) {
+                        drawQuad(
+                            position = scaledCenter,
+                            size = scaledSize,
+                            texture = texture
+                        )
+                    }
                 }
             }
             // second pass
-            blurShaderProgram.setVerticalPass()
-            bindFrameBuffer(verticalPassFramebuffer) {
-                drawScene(shaderProgram = blurShaderProgram) {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = horizontalPassFramebuffer.colorAttachmentTexture
-                    )
+            trace("verticalPass") {
+                blurShaderProgram.setVerticalPass()
+                bindFrameBuffer(verticalPassFramebuffer) {
+                    drawScene(shaderProgram = blurShaderProgram) {
+                        drawQuad(
+                            position = scaledCenter,
+                            size = scaledSize,
+                            texture = horizontalPassFramebuffer.colorAttachmentTexture
+                        )
+                    }
                 }
             }
         }

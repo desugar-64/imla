@@ -43,8 +43,9 @@ internal class RenderableScope(
     )
 
 
-    inline fun bindFrameBuffer(framebuffer: Framebuffer, draw: Renderer2D.() -> Unit) =
-        trace("RenderableScope#bindFrameBuffer") {
+    inline fun bindFrameBuffer(framebuffer: Framebuffer, draw: Renderer2D.() -> Unit) {
+        val traceSize = framebuffer.specification.size / framebuffer.specification.downSampleFactor
+        trace("bindFrameBuffer[${traceSize.width} x ${traceSize.height}]") {
             try {
                 framebuffer.bind()
                 draw(renderer)
@@ -53,30 +54,46 @@ internal class RenderableScope(
                 RenderCommand.setViewPort(0, 0, originalSizeInt.width, originalSizeInt.height)
             }
         }
+    }
 
     inline fun drawScene(
         camera: OrthographicCamera = scaledCameraController.camera,
         draw: Renderer2D.() -> Unit
-    ) = trace("RenderableScope#drawScene") {
-        try {
-            renderer.beginScene(camera)
-            draw(renderer)
-        } finally {
-            renderer.endScene()
+    ) {
+        val size = traceSceneSize(camera)
+        trace("drawScene[$size]") {
+            try {
+                renderer.beginScene(camera)
+                draw(renderer)
+            } finally {
+                renderer.endScene()
+            }
         }
     }
-
 
     inline fun drawScene(
         camera: OrthographicCamera = scaledCameraController.camera,
         shaderProgram: ShaderProgram,
         draw: Renderer2D.() -> Unit
-    ) = trace("RenderableScope#drawScene") {
-        try {
-            renderer.beginScene(camera, shaderProgram)
-            draw(renderer)
-        } finally {
-            renderer.endScene()
+    ) {
+        val size = traceSceneSize(camera)
+        trace("drawScene[$size]") {
+            try {
+                renderer.beginScene(camera, shaderProgram)
+                draw(renderer)
+            } finally {
+                renderer.endScene()
+            }
         }
+    }
+
+
+    internal fun traceSceneSize(camera: OrthographicCamera): IntSize {
+        val size = if (camera === cameraController.camera) {
+            originalSizeInt
+        } else {
+            scaledSizeInt
+        }
+        return size
     }
 }

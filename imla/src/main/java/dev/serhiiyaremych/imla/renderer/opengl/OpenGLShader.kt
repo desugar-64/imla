@@ -8,6 +8,7 @@ package dev.serhiiyaremych.imla.renderer.opengl
 import android.opengl.GLES30
 import android.util.Log
 import androidx.collection.MutableObjectIntMap
+import androidx.compose.ui.util.trace
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float3
 import dev.romainguy.kotlin.math.Float4
@@ -33,11 +34,11 @@ internal class OpenGLShader(
         compile(vertexSrc, fragmentSrc)
     }
 
-    override fun bind() {
+    override fun bind() = trace("shaderBind") {
         GLES30.glUseProgram(rendererId)
     }
 
-    override fun unbind() {
+    override fun unbind() = trace("shaderUnBind") {
         GLES30.glUseProgram(0)
     }
 
@@ -120,7 +121,7 @@ internal class OpenGLShader(
         GLES30.glDeleteProgram(rendererId)
     }
 
-    private fun compile(vertexSrc: String, fragmentSrc: String) {
+    private fun compile(vertexSrc: String, fragmentSrc: String) = trace("shaderCompile") {
         val vertexShader = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER)
         GLES30.glShaderSource(vertexShader, vertexSrc)
         GLES30.glCompileShader(vertexShader)

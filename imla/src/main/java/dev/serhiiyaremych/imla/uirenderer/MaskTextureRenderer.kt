@@ -86,7 +86,7 @@ internal class MaskTextureRenderer(
     }
 
     private fun copyTextureToFrameBuffer() = trace(
-        sectionName = "RenderableRootLayer#copyExtTextureToFrameBuffer"
+        sectionName = "copyExtTextureToFrameBuffer"
     ) {
         with(renderableScope) {
             bindFrameBuffer(frameBuffer) {
@@ -112,12 +112,13 @@ internal class MaskTextureRenderer(
         return lastRenderedBrush != brush
     }
 
-    fun renderMask(glRenderer: GLRenderer, brush: Brush, size: IntSize) {
+    fun renderMask(glRenderer: GLRenderer, brush: Brush, size: IntSize) =
+        trace("MaskTextureRenderer#renderMask") {
         if (invalidateBySize(size)) glRenderer.execute { this.initialize(size) }
 
         if (shouldRedraw(brush)) {
             glRenderer.execute {
-                trace("MaskTextureRenderer#renderMask") {
+                trace("MaskTextureRenderer#shouldRedraw") {
                     val hwCanvas = surface.lockHardwareCanvas()
                     hwCanvas.drawColor(Color.Transparent.toArgb(), PorterDuff.Mode.CLEAR)
                     drawScope.draw(

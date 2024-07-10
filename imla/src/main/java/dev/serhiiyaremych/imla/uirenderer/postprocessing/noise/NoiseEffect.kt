@@ -13,9 +13,7 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
-import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import kotlin.properties.Delegates
 
@@ -28,13 +26,13 @@ internal class NoiseEffect(assetManager: AssetManager) {
     private var isNoiseTextureInitialized: Boolean = false
     private var isNoiseTextureDrawn: Boolean = false
 
-    fun setup(size: IntSize) {
+    private fun setup(size: IntSize) {
         if (shouldResize(size)) {
             init(size)
         }
     }
 
-    private fun init(size: IntSize) {
+    private fun init(size: IntSize) = trace("init") {
         if (isNoiseTextureInitialized) {
             noiseTextureFrameBuffer.destroy()
             outputFrameBuffer.destroy()
@@ -55,7 +53,7 @@ internal class NoiseEffect(assetManager: AssetManager) {
     context(RenderableScope)
     private fun drawNoiseTextureOnce() {
         if (!isNoiseTextureDrawn) {
-            trace("NoiseEffect#drawNoiseTextureOnce") {
+            trace("drawNoiseTextureOnce") {
                 bindFrameBuffer(noiseTextureFrameBuffer) {
                     drawScene(camera = cameraController.camera, shaderProgram = shader) {
                         drawQuad(
@@ -72,9 +70,9 @@ internal class NoiseEffect(assetManager: AssetManager) {
     context(RenderableScope)
     fun applyEffect(texture: Texture, noiseAlpha: Float): Texture {
         if (noiseAlpha >= MIN_NOISE_ALPHA) {
-            setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
-            drawNoiseTextureOnce()
-            trace("NoiseEffect#blendNoise") {
+            trace("NoiseEffect#applyEffect") {
+                setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
+                drawNoiseTextureOnce()
                 bindFrameBuffer(outputFrameBuffer) {
                     RenderCommand.clear(Color.Transparent)
                     drawScene(camera = cameraController.camera) {
@@ -95,14 +93,6 @@ internal class NoiseEffect(assetManager: AssetManager) {
             return outputFrameBuffer.colorAttachmentTexture
         } else {
             return texture
-        }
-    }
-
-    private fun getSize(texture: Texture): IntSize {
-        return when (texture) {
-            is Texture2D -> IntSize(width = texture.width, height = texture.height)
-            is SubTexture2D -> texture.subTextureSize
-            else -> error("Unsupported texture: $texture")
         }
     }
 

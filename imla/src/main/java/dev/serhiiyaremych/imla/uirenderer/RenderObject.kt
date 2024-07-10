@@ -59,7 +59,7 @@ internal class RenderObject internal constructor(
         this.renderCallback = onRender
     }
 
-    fun updateOffset(offset: IntOffset) {
+    fun updateOffset(offset: IntOffset) = trace("RenderObject#updateOffset") {
         val (x, y) = offset
         val scaledTranslateY =
             scaledLayer.texture.height - (y * renderableScope.scale) - scaledRect.height

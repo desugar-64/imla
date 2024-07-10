@@ -11,7 +11,7 @@ import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.util.trace
+import androidx.tracing.trace
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float3
 import dev.romainguy.kotlin.math.Float4
@@ -137,7 +137,8 @@ internal class Renderer2D {
         beginScene(camera, data.defaultQuadShaderProgram)
     }
 
-    fun beginScene(camera: OrthographicCamera, shaderProgram: ShaderProgram) {
+    fun beginScene(camera: OrthographicCamera, shaderProgram: ShaderProgram) =
+        trace("Renderer2D#beginScene") {
         require(isDrawingScene.not()) { "Please complete the current scene before starting a new one." }
         isDrawingScene = true
         data.cameraData.viewProjection = camera.viewProjectionMatrix
@@ -147,7 +148,7 @@ internal class Renderer2D {
         }
         val mat4 = data.cameraData.viewProjection
 
-        trace("Renderer2D#beginBatch") {
+            trace("viewProjection") {
             data.defaultQuadShaderProgram.shader.bind()
             data.defaultQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
@@ -156,6 +157,7 @@ internal class Renderer2D {
 
             data.quadShaderProgram.shader.bind()
             data.quadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+
         }
 
         data.quadIndexCount = 0
@@ -165,15 +167,17 @@ internal class Renderer2D {
         data.textureSlots.fill(null, 1)
     }
 
-    fun endScene() {
-        data.quadVertexBuffer.setData(
-            data.quadShaderProgram.mapVertexData(data.quadVertexBufferBase)
-        )
+    fun endScene() = trace("Renderer2D#endScene") {
+        trace("mapVertexData") {
+            data.quadVertexBuffer.setData(
+                data.quadShaderProgram.mapVertexData(data.quadVertexBufferBase)
+            )
+        }
         flush()
         isDrawingScene = false
     }
 
-    private fun flush() {
+    private fun flush() = trace("flush") {
         if (data.quadIndexCount > 0) {
             // Bind textures
             for (i in 0 until data.textureSlotIndex) {
@@ -207,7 +211,7 @@ internal class Renderer2D {
         texture2D: Texture2D? = null,
         alpha: Float = 1.0f,
         withMask: Boolean = false
-    ) {
+    ) = trace("drawQuad") {
         if (data.quadIndexCount >= MAX_INDICES) {
             flushAndReset()
         }
@@ -266,7 +270,7 @@ internal class Renderer2D {
         texture: Texture,
         alpha: Float = 1.0f,
         withMask: Boolean = false
-    ) {
+    ) = trace("drawQuad[${size.x.toInt()} x ${size.y.toInt()}]") {
         when (texture) {
             is Texture2D -> drawQuad(
                 position = position,
@@ -284,6 +288,7 @@ internal class Renderer2D {
                 withMask = withMask
             )
         }
+        Unit
     }
 
     fun drawQuad(
@@ -355,7 +360,7 @@ internal class Renderer2D {
         isExternalTexture: Float = 0.0f,
         alpha: Float = 1.0f,
         mask: Float
-    ) {
+    ) = trace("submitQuad") {
 
         for (i in 0 until 4) {
             data.quadVertexBufferBase += QuadVertex(

@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.util.trace
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -102,46 +102,54 @@ internal class RenderableRootLayer(
     }
 
     private fun copyTextureToFrameBuffer() = trace(
-        sectionName = "RenderableRootLayer#copyExtTextureToFrameBuffer"
+        "copyExtTextureToFrameBuffer"
     ) {
         with(renderableScope) {
-            bindFrameBuffer(frameBuffer) {
-                drawScene(camera = cameraController.camera) {
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = extOesLayerTexture
-                    )
+            trace("fullSizeBuffer") {
+                bindFrameBuffer(frameBuffer) {
+                    drawScene(camera = cameraController.camera) {
+                        drawQuad(
+                            position = center,
+                            size = size,
+                            texture = extOesLayerTexture
+                        )
+                    }
+                    frameBuffer.colorAttachmentTexture.bind()
+                    frameBuffer.colorAttachmentTexture.generateMipMaps()
                 }
-//                frameBuffer.colorAttachmentTexture.bind()
-//                frameBuffer.colorAttachmentTexture.generateMipMaps()
             }
-            bindFrameBuffer(scaledFrameBuffer) {
-                drawScene {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = frameBuffer.colorAttachmentTexture
-                    )
+            trace("scaledSizeBuffer") {
+                bindFrameBuffer(scaledFrameBuffer) {
+                    drawScene {
+                        drawQuad(
+                            position = scaledCenter,
+                            size = scaledSize,
+                            texture = frameBuffer.colorAttachmentTexture
+                        )
+                    }
+                    scaledFrameBuffer.colorAttachmentTexture.bind()
+                    scaledFrameBuffer.colorAttachmentTexture.generateMipMaps()
                 }
-//                scaledFrameBuffer.colorAttachmentTexture.bind()
-//                scaledFrameBuffer.colorAttachmentTexture.generateMipMaps()
             }
         }
     }
 
     //    context(GLRenderer.RenderCallback)
     @MainThread
-    fun updateTex() {
+    fun updateTex() = trace("RenderableRootLayer#updateTex") {
         require(!isDestroyed) { "Can't update destroyed layer" }
         require(!graphicsLayer.isReleased) { "GraphicsLayer has been released!" }
         require(isInitialized) { "RenderableRootLayer not initialized!" }
 
-        trace("RenderableRootLayer#drawLayerToExtTexture") {
+        trace("drawLayerToExtTexture[$sizeInt]") {
             val hwCanvas = layerSurface.lockHardwareCanvas()
-            hwCanvas.drawColor(Color.BLACK, PorterDuff.Mode.CLEAR)
+            trace("hwCanvasClear") {
+                hwCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+            }
             drawingScope.draw(density, LayoutDirection.Ltr, Canvas(hwCanvas), sizeDec) {
-                drawLayer(graphicsLayer)
+                trace("drawGraphicsLayer") {
+                    drawLayer(graphicsLayer)
+                }
             }
             layerSurface.unlockCanvasAndPost(hwCanvas)
         }

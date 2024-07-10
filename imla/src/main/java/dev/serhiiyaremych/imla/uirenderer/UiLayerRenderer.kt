@@ -154,14 +154,15 @@ public class UiLayerRenderer(
     }
 
     context(DrawScope)
-    public fun recordCanvas(block: DrawScope.() -> Unit) {
+    public fun recordCanvas(block: DrawScope.() -> Unit): Unit =
+        trace("UiLayerRenderer#recordCanvas") {
         if (isRendering.get() || !isRecording.compareAndSet(false, true)) {
             // Rendering is in progress or recording is already in progress, skip recording
             logw(TAG, "skipping recordCanvas during rendering")
             return
         }
         try {
-            trace("UiLayerRenderer#recordCanvas") {
+            trace("recordCanvas") {
                 if (BuildConfig.DEBUG) {
                     require(renderableLayer.graphicsLayer.isReleased.not())
                 }
@@ -173,7 +174,7 @@ public class UiLayerRenderer(
     }
 
     @MainThread
-    public fun onUiLayerUpdated() {
+    public fun onUiLayerUpdated(): Unit = trace("UiLayerRenderer#onUiLayerUpdated") {
         initializeIfNeed()
         if (isRecording.get()) {
             logw(TAG, "skipping onUiLayerUpdated during recording")

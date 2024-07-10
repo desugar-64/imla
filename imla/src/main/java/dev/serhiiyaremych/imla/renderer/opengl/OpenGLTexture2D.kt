@@ -9,6 +9,7 @@ package dev.serhiiyaremych.imla.renderer.opengl
 
 import android.opengl.GLES11Ext
 import android.opengl.GLES30
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import java.nio.Buffer
@@ -46,7 +47,7 @@ internal class OpenGLTexture2D : Texture2D {
         _isDataLoaded = true
     }
 
-    override fun generateMipMaps() {
+    override fun generateMipMaps() = trace("glGenerateMipmap") {
         if (specification.generateMips) {
             GLES30.glGenerateMipmap(/* target = */ target.toGlTextureTarget())
         }
@@ -76,7 +77,7 @@ internal class OpenGLTexture2D : Texture2D {
         _isDataLoaded = true
     }
 
-    override fun bind(slot: Int) {
+    override fun bind(slot: Int) = trace("textureBind") {
         GLES30.glActiveTexture(GLES30.GL_TEXTURE0 + slot)
         GLES30.glBindTexture(target.toGlTextureTarget(), id)
     }

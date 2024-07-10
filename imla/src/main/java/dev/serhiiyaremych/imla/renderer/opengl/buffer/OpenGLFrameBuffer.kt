@@ -8,6 +8,7 @@ package dev.serhiiyaremych.imla.renderer.opengl.buffer
 import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.unit.IntSize
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
@@ -129,12 +130,12 @@ internal class OpenGLFramebuffer(
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
-    override fun bind() {
+    override fun bind() = trace("glBindFramebuffer") {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, rendererId)
         GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
     }
 
-    override fun unbind() {
+    override fun unbind() = trace("glUnBindFramebuffer") {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 

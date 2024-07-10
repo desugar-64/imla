@@ -15,7 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
@@ -61,13 +60,6 @@ public fun BackdropBlur(
             .onPlaced { layoutCoordinates ->
                 contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
             }
-            .drawWithContent {
-                drawContent()
-//                val bm = blurMask
-//                if (bm != null) {
-//                    drawRect(bm)
-//                }
-            }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value
         val clipPath = remember { Path() }
@@ -86,7 +78,6 @@ public fun BackdropBlur(
                     }
                 },
             surfaceSize = contentBoundingBox.size.toIntSize(),
-            isOpaque = false
         ) {
             onSurface { surface, w, h ->
                 Snapshot.withMutableSnapshot {

@@ -8,6 +8,7 @@ package dev.serhiiyaremych.imla.renderer.opengl
 import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.graphics.Color
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.RendererApi
 import dev.serhiiyaremych.imla.renderer.VertexArray
 
@@ -22,16 +23,16 @@ internal class OpenGLRendererAPI : RendererApi {
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
     }
 
-    override fun setClearColor(color: Color) {
+    override fun setClearColor(color: Color) = trace("setClearColor") {
         GLES30.glClearColor(color.red, color.green, color.blue, color.alpha)
     }
 
-    override fun clear() {
+    override fun clear() = trace("glClear") {
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT or GLES30.GL_STENCIL_BUFFER_BIT)
     }
 
     // @formatter:off
-    override fun drawIndexed(vertexArray: VertexArray, indexCount: Int) {
+    override fun drawIndexed(vertexArray: VertexArray, indexCount: Int) = trace("drawIndexed") {
         vertexArray.bind()
         GLES30.glDrawElements(
             /* mode = */ GLES30.GL_TRIANGLES,
@@ -42,7 +43,7 @@ internal class OpenGLRendererAPI : RendererApi {
     }
     // @formatter:on
 
-    override fun setViewPort(x: Int, y: Int, width: Int, height: Int) {
+    override fun setViewPort(x: Int, y: Int, width: Int, height: Int) = trace("glViewport") {
         GLES30.glViewport(x, y, width, height)
     }
 
@@ -61,11 +62,11 @@ internal class OpenGLRendererAPI : RendererApi {
         // @formatter:on
     }
 
-    override fun enableBlending() {
+    override fun enableBlending() = trace("enableBlending") {
         GLES30.glEnable(GLES30.GL_BLEND)
     }
 
-    override fun disableBlending() {
+    override fun disableBlending() = trace("disableBlending") {
         GLES30.glDisable(GLES30.GL_BLEND)
     }
 

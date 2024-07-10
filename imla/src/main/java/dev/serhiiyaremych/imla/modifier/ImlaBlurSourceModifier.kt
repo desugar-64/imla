@@ -69,7 +69,6 @@ internal class ImlaSourceNode(
 
     override fun ContentDrawScope.draw() {
         uiLayerRenderer.recordCanvas { this@draw.drawContent() }
-        uiLayerRenderer.onUiLayerUpdated()
         drawContent()
     }
 

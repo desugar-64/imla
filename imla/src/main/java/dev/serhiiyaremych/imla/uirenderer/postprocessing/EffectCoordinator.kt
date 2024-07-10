@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.uirenderer.postprocessing
 
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.Density
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
@@ -53,13 +54,16 @@ internal class EffectCoordinator(
         val finalComposition =
             mask.applyEffect(renderObject.originalLayer, textureWithNoise, maskTexture)
 
-        RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
-        drawScene(cameraController.camera) {
-            drawQuad(
-                position = center,
-                size = size,
-                texture = finalComposition
-            )
+        // TODO: replace with Blit function
+        trace("drawFinalToScreen") {
+            RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
+            drawScene(cameraController.camera) {
+                drawQuad(
+                    position = center,
+                    size = size,
+                    texture = finalComposition
+                )
+            }
         }
     }
 
