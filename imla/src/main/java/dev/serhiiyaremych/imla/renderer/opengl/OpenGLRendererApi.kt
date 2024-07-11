@@ -9,10 +9,15 @@ import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.RendererApi
 import dev.serhiiyaremych.imla.renderer.VertexArray
+import dev.serhiiyaremych.imla.renderer.opengl.buffer.toGlTarget
 
 internal class OpenGLRendererAPI : RendererApi {
+
+    override val colorBufferBit: Int = GLES30.GL_COLOR_BUFFER_BIT
+    override val linearTextureFilter: Int = GLES30.GL_LINEAR
 
     override fun init() {
         // LOG
@@ -68,6 +73,38 @@ internal class OpenGLRendererAPI : RendererApi {
 
     override fun disableBlending() = trace("disableBlending") {
         GLES30.glDisable(GLES30.GL_BLEND)
+    }
+
+    override fun bindDefaultFramebuffer(bind: Bind) {
+        GLES30.glBindFramebuffer(bind.toGlTarget(), 0)
+    }
+
+    override fun blitFramebuffer(
+        srcX0: Int,
+        srcY0: Int,
+        srcX1: Int,
+        srcY1: Int,
+        dstX0: Int,
+        dstY0: Int,
+        dstX1: Int,
+        dstY1: Int,
+        mask: Int,
+        filter: Int
+    ) {
+        // @formatter:off
+        GLES30.glBlitFramebuffer(
+            /* srcX0 = */  srcX0,
+            /* srcY0 = */  srcY0,
+            /* srcX1 = */  srcX1,
+            /* srcY1 = */  srcY1,
+            /* dstX0 = */  dstX0,
+            /* dstY0 = */  dstY0,
+            /* dstX1 = */  dstX1,
+            /* dstY1 = */  dstY1,
+            /* mask = */   mask,
+            /* filter = */ filter
+        )
+        // @formatter:on
     }
 
     companion object {

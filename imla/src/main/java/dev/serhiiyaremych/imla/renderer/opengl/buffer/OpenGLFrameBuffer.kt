@@ -9,6 +9,10 @@ import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.renderer.Bind
+import dev.serhiiyaremych.imla.renderer.Bind.BOTH
+import dev.serhiiyaremych.imla.renderer.Bind.DRAW
+import dev.serhiiyaremych.imla.renderer.Bind.READ
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
@@ -30,7 +34,8 @@ internal class OpenGLFramebuffer(
     override val colorAttachmentTexture: Texture2D
         get() = _colorAttachmentTexture
 
-    private var rendererId: Int = 0
+    override var rendererId: Int = 0
+        private set
     private var depthAttachment: Int = 0
 
     private val colorAttachmentSpecifications: MutableList<FramebufferTextureSpecification> =
@@ -40,6 +45,7 @@ internal class OpenGLFramebuffer(
         target = Texture.Target.TEXTURE_2D,
         specification = Texture.Specification()
     )
+    private var drawAttachments: IntArray = IntArray(0)
     private val colorAttachments: MutableList<Texture2D> = mutableListOf()
     private var depthAttachmentSpecification: FramebufferTextureSpecification? = null
 
@@ -67,6 +73,7 @@ internal class OpenGLFramebuffer(
             attachments.filter { it.format != FramebufferTextureFormat.DEPTH24STENCIL8 }
         depthAttachmentSpecification =
             attachments.find { it.format == FramebufferTextureFormat.DEPTH24STENCIL8 }
+
         colorAttachmentSpecs.forEachIndexed { index, attachment ->
             createAttachment(
                 width = sampledWidth,
@@ -116,6 +123,7 @@ internal class OpenGLFramebuffer(
                 GLES30.GL_COLOR_ATTACHMENT0 + it
             }
             GLES30.glDrawBuffers(colorAttachmentSpecs.size, buffers, 0)
+            drawAttachments = buffers
             checkGlError("glDrawBuffers all")
         } else {
             // Only depth-pass
@@ -130,8 +138,8 @@ internal class OpenGLFramebuffer(
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
-    override fun bind() = trace("glBindFramebuffer") {
-        GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, rendererId)
+    override fun bind(bind: Bind) = trace("glBindFramebuffer") {
+        GLES30.glBindFramebuffer(bind.toGlTarget(), rendererId)
         GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
     }
 
@@ -243,8 +251,10 @@ internal class OpenGLFramebuffer(
                 /* type = */ specification.format.getDataType(),
                 /* pixels = */ null
             )
+            // @formatter:on
             checkGlError("glTexImage2D")
         }
+
         fun checkGlError(operation: String) {
             val error = GLES30.glGetError()
             if (error != GLES30.GL_NO_ERROR) {
@@ -253,6 +263,14 @@ internal class OpenGLFramebuffer(
             }
         }
 
+    }
+}
+
+internal fun Bind.toGlTarget(): Int {
+    return when (this) {
+        READ -> GLES30.GL_READ_FRAMEBUFFER
+        DRAW -> GLES30.GL_DRAW_FRAMEBUFFER
+        BOTH -> GLES30.GL_FRAMEBUFFER
     }
 }
 

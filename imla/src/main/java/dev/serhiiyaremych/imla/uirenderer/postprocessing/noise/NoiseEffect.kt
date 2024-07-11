@@ -22,9 +22,13 @@ internal class NoiseEffect(assetManager: AssetManager) {
     private val shader = NoiseShaderProgram(assetManager)
 
     private var noiseTextureFrameBuffer: Framebuffer by Delegates.notNull()
-    private var outputFrameBuffer: Framebuffer by Delegates.notNull()
+    private var effectFrameBuffer: Framebuffer by Delegates.notNull()
     private var isNoiseTextureInitialized: Boolean = false
     private var isNoiseTextureDrawn: Boolean = false
+    private var noiseAlpha: Float = 0.0f
+
+    internal val outputFramebuffer: Framebuffer
+        get() = effectFrameBuffer
 
     private fun setup(size: IntSize) {
         if (shouldResize(size)) {
@@ -35,14 +39,14 @@ internal class NoiseEffect(assetManager: AssetManager) {
     private fun init(size: IntSize) = trace("init") {
         if (isNoiseTextureInitialized) {
             noiseTextureFrameBuffer.destroy()
-            outputFrameBuffer.destroy()
+            effectFrameBuffer.destroy()
         }
         val spec = FramebufferSpecification(
             size = size,
             attachmentsSpec = FramebufferAttachmentSpecification()
         )
         noiseTextureFrameBuffer = Framebuffer.create(spec)
-        outputFrameBuffer = Framebuffer.create(spec)
+        effectFrameBuffer = Framebuffer.create(spec)
         isNoiseTextureInitialized = true
     }
 
@@ -69,11 +73,13 @@ internal class NoiseEffect(assetManager: AssetManager) {
 
     context(RenderableScope)
     fun applyEffect(texture: Texture, noiseAlpha: Float): Texture {
-        if (noiseAlpha >= MIN_NOISE_ALPHA) {
+        this.noiseAlpha = noiseAlpha
+        if (isEnabled()) {
+            RenderCommand.enableBlending()
             trace("NoiseEffect#applyEffect") {
                 setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
                 drawNoiseTextureOnce()
-                bindFrameBuffer(outputFrameBuffer) {
+                bindFrameBuffer(effectFrameBuffer) {
                     RenderCommand.clear(Color.Transparent)
                     drawScene(camera = cameraController.camera) {
                         drawQuad(
@@ -90,16 +96,19 @@ internal class NoiseEffect(assetManager: AssetManager) {
                     }
                 }
             }
-            return outputFrameBuffer.colorAttachmentTexture
+            RenderCommand.disableBlending()
+            return effectFrameBuffer.colorAttachmentTexture
         } else {
             return texture
         }
     }
 
+    fun isEnabled(): Boolean = noiseAlpha >= MIN_NOISE_ALPHA
+
     fun dispose() {
         if (isNoiseTextureInitialized) {
             noiseTextureFrameBuffer.destroy()
-            outputFrameBuffer.destroy()
+            effectFrameBuffer.destroy()
         }
         isNoiseTextureInitialized = false
     }

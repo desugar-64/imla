@@ -6,9 +6,10 @@
 package dev.serhiiyaremych.imla.uirenderer
 
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.util.trace
+import androidx.tracing.trace
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float3
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
@@ -42,12 +43,15 @@ internal class RenderableScope(
         viewportHeight = scaledSizeInt.height
     )
 
-
-    inline fun bindFrameBuffer(framebuffer: Framebuffer, draw: Renderer2D.() -> Unit) {
+    inline fun bindFrameBuffer(
+        framebuffer: Framebuffer,
+        bind: Bind = Bind.DRAW,
+        draw: Renderer2D.() -> Unit
+    ) {
         val traceSize = framebuffer.specification.size / framebuffer.specification.downSampleFactor
         trace("bindFrameBuffer[${traceSize.width} x ${traceSize.height}]") {
             try {
-                framebuffer.bind()
+                framebuffer.bind(bind)
                 draw(renderer)
             } finally {
                 framebuffer.unbind()

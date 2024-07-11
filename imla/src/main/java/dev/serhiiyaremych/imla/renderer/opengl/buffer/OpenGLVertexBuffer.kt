@@ -6,6 +6,7 @@
 package dev.serhiiyaremych.imla.renderer.opengl.buffer
 
 import android.opengl.GLES30
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.VertexBuffer
 import dev.serhiiyaremych.imla.renderer.toFloatBuffer
@@ -43,7 +44,7 @@ internal class OpenGLVertexBuffer : VertexBuffer {
         )
     }
 
-    override fun bind() {
+    override fun bind() = trace("vboBind") {
         if (isDestroyed) {
             error("Can't bind destroyed buffer.")
         }
@@ -56,11 +57,14 @@ internal class OpenGLVertexBuffer : VertexBuffer {
         }
     }
 
-    override fun setData(data: FloatArray) {
+    override fun setData(data: FloatArray) = trace("vboSetData") {
         bind()
         this.sizeBytes = data.size * Float.SIZE_BYTES
         this.count = data.size
-        GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, sizeBytes, data.toFloatBuffer())
+
+        trace("glBufferSubData[${count}, ${sizeBytes}bytes]") {
+            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, sizeBytes, data.toFloatBuffer())
+        }
     }
 
     override fun destroy() {

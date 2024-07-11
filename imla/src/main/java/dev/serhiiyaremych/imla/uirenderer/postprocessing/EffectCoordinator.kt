@@ -8,6 +8,8 @@ package dev.serhiiyaremych.imla.uirenderer.postprocessing
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.Density
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.renderer.Bind
+import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
@@ -40,30 +42,47 @@ internal class EffectCoordinator(
         val maskTexture = renderObject.mask
         val (blur, noise, mask) = effects
 
-        val style = renderObject.style
-
-        val blurredTexture = blur.applyEffect(
-            texture = renderObject.scaledLayer,
-            blurRadius = style.blurRadiusPx(),
-            tint = style.tint
+        mask.applyEffect(
+            background = renderObject.originalLayer,
+            blur = noise.applyEffect(
+                texture = blur.applyEffect(
+                    texture = renderObject.scaledLayer,
+                    blurRadius = renderObject.style.blurRadiusPx(),
+                    tint = renderObject.style.tint
+                ),
+                noiseAlpha = renderObject.style.noiseAlpha
+            ),
+            mask = maskTexture
         )
-        RenderCommand.enableBlending()
-        val textureWithNoise = noise.applyEffect(blurredTexture, style.noiseAlpha)
-        RenderCommand.disableBlending()
 
-        val finalComposition =
-            mask.applyEffect(renderObject.originalLayer, textureWithNoise, maskTexture)
+        RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
+        val finalFb = output(blur, noise, mask)
 
-        // TODO: replace with Blit function
-        trace("drawFinalToScreen") {
-            RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt()) // screen effect size
-            drawScene(cameraController.camera) {
-                drawQuad(
-                    position = center,
-                    size = size,
-                    texture = finalComposition
-                )
-            }
+        trace("blitFinalToScreen") {
+            finalFb.bind(Bind.READ)
+            RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
+            RenderCommand.blitFramebuffer(
+                srcX0 = 0,
+                srcY0 = 0,
+                srcX1 = size.x.toInt(),
+                srcY1 = size.y.toInt(),
+                dstX0 = 0,
+                dstY0 = 0,
+                dstX1 = size.x.toInt(),
+                dstY1 = size.y.toInt(),
+                mask = RenderCommand.colorBufferBit,
+                filter = RenderCommand.linearTextureFilter
+            )
+            RenderCommand.bindDefaultFramebuffer(Bind.BOTH)
+        }
+    }
+
+    private fun output(blur: BlurEffect, noise: NoiseEffect, mask: MaskEffect): Framebuffer {
+        return when {
+            mask.isEnabled() -> mask.outputFramebuffer
+            noise.isEnabled() -> noise.outputFramebuffer
+            blur.isEnabled() -> blur.outputFramebuffer
+            else -> TODO("Provide default scrim effect")
         }
     }
 
@@ -77,5 +96,4 @@ internal class EffectCoordinator(
         }
         effectCache.clear()
     }
-
 }

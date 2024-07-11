@@ -26,6 +26,11 @@ internal class MaskEffect(assetManager: AssetManager) {
     private lateinit var finalMaskFrameBuffer: Framebuffer
     private var isInitialized: Boolean = false
 
+    private var maskTexture: Texture? = null
+
+    internal val outputFramebuffer: Framebuffer
+        get() = finalMaskFrameBuffer
+
     private fun shouldResize(size: IntSize): Boolean {
         return !isInitialized || (finalMaskFrameBuffer.specification.size != size)
     }
@@ -52,11 +57,13 @@ internal class MaskEffect(assetManager: AssetManager) {
     }
 
     context(RenderableScope)
-    fun applyEffect(background: Texture, blur: Texture, mask: Texture2D?): Texture {
-
-        if (mask != null) {
+    fun applyEffect(background: Texture, blur: Texture, mask: Texture2D?) =
+        trace("MaskEffect#applyEffect") {
+            maskTexture = mask
+            if (isEnabled()) {
+                requireNotNull(mask)
             setup(IntSize(mask.width, mask.height))
-            trace("MaskEffect#applyEffect") {
+                trace("drawBackground") { // todo: copy texture region instead of drawing
                 bindFrameBuffer(backgroundFramebuffer) {
                     RenderCommand.clear(Color.Transparent)
                     drawScene(cameraController.camera) {
@@ -68,26 +75,29 @@ internal class MaskEffect(assetManager: AssetManager) {
                     }
                 }
 
-                shaderProgram.setMask(mask)
-                shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
-
-                bindFrameBuffer(finalMaskFrameBuffer) {
-                    RenderCommand.clear(Color.Transparent)
-                    drawScene(cameraController.camera, shaderProgram) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = blur,
-                            withMask = true
-                        )
-                    }
+                    trace("setMask") {
+                        shaderProgram.setMask(mask)
+                        shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
                 }
+
+                    trace("drawMask") {
+                        bindFrameBuffer(finalMaskFrameBuffer) {
+                            RenderCommand.clear(Color.Transparent)
+                            drawScene(cameraController.camera, shaderProgram) {
+                                drawQuad(
+                                    position = center,
+                                    size = size,
+                                    texture = blur,
+                                    withMask = true
+                                )
+                            }
+                        }
+                    }
             }
-            return finalMaskFrameBuffer.colorAttachmentTexture
-        } else {
-            return blur
         }
     }
+
+    fun isEnabled(): Boolean = maskTexture != null
 
     fun dispose() {
         if (isInitialized) {

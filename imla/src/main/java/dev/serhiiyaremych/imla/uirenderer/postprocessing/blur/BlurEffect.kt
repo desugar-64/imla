@@ -31,8 +31,12 @@ internal class BlurEffect(
 
     private var horizontalPassFramebuffer: Framebuffer by Delegates.notNull()
     private var verticalPassFramebuffer: Framebuffer by Delegates.notNull()
+    private var blurRadius: Float = 0f
 
     private var isInitialized: Boolean = false
+
+    internal val outputFramebuffer: Framebuffer
+        get() = verticalPassFramebuffer
 
     fun setup(size: IntSize) {
         if (isInitialized.not() || shouldResize(size)) {
@@ -58,8 +62,9 @@ internal class BlurEffect(
         trace("BlurEffect#applyEffect") {
             val effectSize = getSize(texture)
             setup(effectSize)
+            this.blurRadius = blurRadius
 
-            if (blurRadius < MIN_BLUR_RADIUS_PX) {
+            if (isEnabled().not()) {
                 return@trace texture
             }
 
@@ -121,6 +126,8 @@ internal class BlurEffect(
         verticalPassFramebuffer = Framebuffer.create(spec)
     }
 
+    fun isEnabled(): Boolean = blurRadius > MIN_BLUR_RADIUS_PX
+
     fun dispose() {
         horizontalPassFramebuffer.destroy()
         verticalPassFramebuffer.destroy()
@@ -128,6 +135,6 @@ internal class BlurEffect(
     }
 
     companion object {
-        const val MIN_BLUR_RADIUS_PX = 1
+        const val MIN_BLUR_RADIUS_PX = 2
     }
 }

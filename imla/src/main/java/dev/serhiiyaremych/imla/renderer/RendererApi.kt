@@ -10,6 +10,9 @@ package dev.serhiiyaremych.imla.renderer
 import androidx.compose.ui.graphics.Color
 
 internal interface RendererApi {
+    val colorBufferBit: Int
+    val linearTextureFilter: Int
+
     enum class Api { None, OpenGL }
 
     fun init()
@@ -21,6 +24,19 @@ internal interface RendererApi {
     fun colorMask(red: Boolean, green: Boolean, blue: Boolean, alpha: Boolean)
     fun enableBlending()
     fun disableBlending()
+    fun bindDefaultFramebuffer(bind: Bind)
+    fun blitFramebuffer(
+        srcX0: Int,
+        srcY0: Int,
+        srcX1: Int,
+        srcY1: Int,
+        dstX0: Int,
+        dstY0: Int,
+        dstX1: Int,
+        dstY1: Int,
+        mask: Int,
+        filter: Int,
+    )
 
     companion object {
         internal val api: Api = Api.OpenGL

@@ -5,6 +5,7 @@
 
 package dev.serhiiyaremych.imla.renderer.objects
 
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.ShaderDataType
@@ -25,7 +26,8 @@ internal val defaultQuadBufferLayout = BufferLayout {
 
 internal fun defaultQuadVertexMapper(
     quadVertexBufferBase: List<QuadVertex>
-): FloatArray {
+): FloatArray = trace("defaultQuadVertexMapper") {
+    // TODO: Use Bytebuffer to ensure vertex data is aligned
     val verticesData =
         FloatArray(quadVertexBufferBase.count() * QuadVertex.NUMBER_OF_COMPONENTS)
 

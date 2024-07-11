@@ -118,7 +118,7 @@ internal class RenderableRootLayer(
                     frameBuffer.colorAttachmentTexture.generateMipMaps()
                 }
             }
-            trace("scaledSizeBuffer") {
+            trace("scaledSizeBuffer") { // TODO: don't render but blit full size texture to scaled size buffer
                 bindFrameBuffer(scaledFrameBuffer) {
                     drawScene {
                         drawQuad(
@@ -142,7 +142,7 @@ internal class RenderableRootLayer(
         require(isInitialized) { "RenderableRootLayer not initialized!" }
 
         trace("drawLayerToExtTexture[$sizeInt]") {
-            val hwCanvas = layerSurface.lockHardwareCanvas()
+            val hwCanvas = trace("lockHardwareCanvas") { layerSurface.lockHardwareCanvas() }
             trace("hwCanvasClear") {
                 hwCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
             }
@@ -151,7 +151,7 @@ internal class RenderableRootLayer(
                     drawLayer(graphicsLayer)
                 }
             }
-            layerSurface.unlockCanvasAndPost(hwCanvas)
+            trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
         }
     }
 

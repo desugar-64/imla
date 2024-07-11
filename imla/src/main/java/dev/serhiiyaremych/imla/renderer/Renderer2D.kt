@@ -24,7 +24,7 @@ import dev.serhiiyaremych.imla.renderer.camera.OrthographicCamera
 import dev.serhiiyaremych.imla.renderer.objects.QuadShaderProgram
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 
-internal const val MAX_QUADS = 100
+internal const val MAX_QUADS = 50
 internal const val MAX_VERTICES = MAX_QUADS * 4
 internal const val MAX_INDICES = MAX_QUADS * 6
 internal const val MAX_TEXTURE_SLOTS = 8 // query from actual HW
@@ -168,11 +168,9 @@ internal class Renderer2D {
     }
 
     fun endScene() = trace("Renderer2D#endScene") {
-        trace("mapVertexData") {
-            data.quadVertexBuffer.setData(
-                data.quadShaderProgram.mapVertexData(data.quadVertexBufferBase)
-            )
-        }
+        data.quadVertexBuffer.setData(
+            data.quadShaderProgram.mapVertexData(data.quadVertexBufferBase)
+        )
         flush()
         isDrawingScene = false
     }

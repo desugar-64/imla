@@ -10,6 +10,10 @@ package dev.serhiiyaremych.imla.renderer
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.renderer.opengl.buffer.OpenGLFramebuffer
 
+internal enum class Bind {
+    READ, DRAW, BOTH
+}
+
 internal enum class FramebufferTextureFormat {
     // bw masks, noise
     R8,
@@ -39,11 +43,12 @@ internal data class FramebufferSpecification(
 )
 
 internal interface Framebuffer {
+    val rendererId: Int
     val specification: FramebufferSpecification
     val colorAttachmentTexture: Texture2D
 
     fun invalidate()
-    fun bind()
+    fun bind(bind: Bind)
     fun unbind()
     fun resize(width: Int, height: Int)
 

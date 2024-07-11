@@ -92,7 +92,7 @@ public class UiLayerRenderer(
         RenderingPipeline(assetManager, renderer2D, this)
 
     private val mainThreadHandler = Handler(Looper.getMainLooper())
-    private val renderableLayer: RenderableRootLayer = RenderableRootLayer(
+    internal val renderableLayer: RenderableRootLayer = RenderableRootLayer(
         layerDownsampleFactor = downSampleFactor,
         density = density,
         graphicsLayer = graphicsLayer,
@@ -113,6 +113,7 @@ public class UiLayerRenderer(
 
     private val mainDrawCallback = object : GLRenderer.RenderCallback {
         override fun onDrawFrame(eglManager: EGLManager) {
+            // TODO: implement FPS counter
             if (isRendering.compareAndSet(false, true)) {
 //                renderableLayer.updateTex()
             }
