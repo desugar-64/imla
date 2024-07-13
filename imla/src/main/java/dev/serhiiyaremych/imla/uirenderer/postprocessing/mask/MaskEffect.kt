@@ -62,40 +62,40 @@ internal class MaskEffect(assetManager: AssetManager) {
             maskTexture = mask
             if (isEnabled()) {
                 requireNotNull(mask)
-            setup(IntSize(mask.width, mask.height))
+                setup(IntSize(mask.width, mask.height))
                 trace("drawBackground") { // todo: copy texture region instead of drawing
-                bindFrameBuffer(backgroundFramebuffer) {
-                    RenderCommand.clear(Color.Transparent)
-                    drawScene(cameraController.camera) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = background
-                        )
-                    }
-                }
-
-                    trace("setMask") {
-                        shaderProgram.setMask(mask)
-                        shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
-                }
-
-                    trace("drawMask") {
-                        bindFrameBuffer(finalMaskFrameBuffer) {
-                            RenderCommand.clear(Color.Transparent)
-                            drawScene(cameraController.camera, shaderProgram) {
-                                drawQuad(
-                                    position = center,
-                                    size = size,
-                                    texture = blur,
-                                    withMask = true
-                                )
-                            }
+                    bindFrameBuffer(backgroundFramebuffer) {
+                        RenderCommand.clear(Color.Transparent)
+                        drawScene(cameraController.camera) {
+                            drawQuad(
+                                position = center,
+                                size = size,
+                                texture = background
+                            )
                         }
                     }
+                }
+
+                trace("setMaskProp") {
+                    shaderProgram.setMask(mask)
+                    shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
+                }
+
+                trace("drawMask") {
+                    bindFrameBuffer(finalMaskFrameBuffer) {
+                        RenderCommand.clear(Color.Transparent)
+                        drawScene(cameraController.camera, shaderProgram) {
+                            drawQuad(
+                                position = center,
+                                size = size,
+                                texture = blur,
+                                withMask = true
+                            )
+                        }
+                    }
+                }
             }
         }
-    }
 
     fun isEnabled(): Boolean = maskTexture != null
 
