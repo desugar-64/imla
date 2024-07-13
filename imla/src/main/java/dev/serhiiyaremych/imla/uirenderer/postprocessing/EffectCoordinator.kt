@@ -24,7 +24,7 @@ internal class EffectCoordinator(
     private val effectCache: MutableMap<String, EffectsHolder> = mutableMapOf()
 
     private fun createEffects(renderObject: RenderObject): EffectsHolder {
-        val effectSize = renderObject.scaledLayer.subTextureSize
+        val effectSize = renderObject.lowResLayer.subTextureSize
 
         return EffectsHolder(
             blurEffect = BlurEffect(assetManager).apply { setup(effectSize) },
@@ -43,10 +43,10 @@ internal class EffectCoordinator(
         val (blur, noise, mask) = effects
 
         mask.applyEffect(
-            background = renderObject.originalLayer,
+            background = renderObject.highResLayer,
             blur = noise.applyEffect(
                 texture = blur.applyEffect(
-                    texture = renderObject.scaledLayer,
+                    texture = renderObject.lowResLayer,
                     blurRadius = renderObject.style.blurRadiusPx(),
                     tint = renderObject.style.tint
                 ),
@@ -61,6 +61,7 @@ internal class EffectCoordinator(
         trace("blitFinalToScreen") {
             finalFb.bind(Bind.READ)
             RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
+            finalFb.readBuffer(0)
             RenderCommand.blitFramebuffer(
                 srcX0 = 0,
                 srcY0 = 0,

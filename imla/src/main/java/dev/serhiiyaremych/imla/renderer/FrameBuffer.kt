@@ -54,6 +54,7 @@ internal interface Framebuffer {
 
     fun clearAttachment(attachmentIndex: Int, value: Int)
     fun getColorAttachmentRendererID(index: Int = 0): Int
+    fun readBuffer(attachmentIndex: Int)
 
     fun destroy()
     fun setColorAttachmentAt(attachmentIndex: Int)

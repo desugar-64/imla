@@ -41,10 +41,10 @@ class ImlaBenchmark {
         packageName = "dev.serhiiyaremych.imla",
         compilationMode = CompilationMode.Full(),
         metrics = listOf(
-            TraceSectionMetric(
-                "RenderObject#onRender",
-                mode = TraceSectionMetric.Mode.First
-            )
+            metricSection("RenderObject#onRender"),
+            metricSection("copyExtTextureToFrameBuffer"),
+            metricSection("fullSizeBuffer"),
+            metricSection("scaledSizeBuffer"),
         ),
         iterations = 2,
         startupMode = StartupMode.HOT
@@ -67,6 +67,12 @@ class ImlaBenchmark {
             )
         }
     }
+
+    @OptIn(ExperimentalMetricApi::class)
+    private fun metricSection(label: String) = TraceSectionMetric(
+        sectionName = label,
+        mode = TraceSectionMetric.Mode.First
+    )
 
     private fun UiDevice.awaitComposeIdle(timeout: Long = 3000) {
         wait(Until.findObject(By.desc("COMPOSE-IDLE")), timeout)

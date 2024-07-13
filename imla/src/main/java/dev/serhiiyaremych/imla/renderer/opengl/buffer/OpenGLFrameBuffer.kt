@@ -20,8 +20,6 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.renderer.opengl.OpenGLTexture2D
-import dev.serhiiyaremych.imla.renderer.opengl.getDataType
-import dev.serhiiyaremych.imla.renderer.opengl.toGlImageFormat
 import dev.serhiiyaremych.imla.renderer.opengl.toGlInternalFormat
 import dev.serhiiyaremych.imla.renderer.opengl.toGlTextureTarget
 import dev.serhiiyaremych.imla.renderer.toIntBuffer
@@ -138,6 +136,10 @@ internal class OpenGLFramebuffer(
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
+    override fun readBuffer(attachmentIndex: Int) {
+        GLES30.glReadBuffer(GLES30.GL_COLOR_ATTACHMENT0 + attachmentIndex)
+    }
+
     override fun bind(bind: Bind) = trace("glBindFramebuffer") {
         GLES30.glBindFramebuffer(bind.toGlTarget(), rendererId)
         GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
@@ -240,16 +242,12 @@ internal class OpenGLFramebuffer(
             )
         ).apply {
             // @formatter:off
-            GLES30.glTexImage2D(
+            GLES30.glTexStorage2D(
                 /* target = */ GLES30.GL_TEXTURE_2D,
-                /* level = */ 0,
+                /* levels = */ 4,
                 /* internalformat = */ specification.format.toGlInternalFormat(),
                 /* width = */ width,
-                /* height = */ height,
-                /* border = */ 0,
-                /* format = */ specification.format.toGlImageFormat(),
-                /* type = */ specification.format.getDataType(),
-                /* pixels = */ null
+                /* height = */ height
             )
             // @formatter:on
             checkGlError("glTexImage2D")

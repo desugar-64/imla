@@ -20,11 +20,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
@@ -38,10 +40,10 @@ internal class RenderableRootLayer(
 ) {
     val sizeInt: IntSize get() = graphicsLayer.size
     val sizeDec: Size get() = sizeInt.toSize()
-    val layerTexture: Texture2D
-        get() = frameBuffer.colorAttachmentTexture
-    val scaledLayerTexture: Texture2D
-        get() = scaledFrameBuffer.colorAttachmentTexture
+    val highResTexture: Texture2D
+        get() = highResFBO.colorAttachmentTexture
+    val lowResTexture: Texture2D
+        get() = lowResFBO.colorAttachmentTexture
     val scale: Float
         get() = 1.0f / layerDownsampleFactor
 
@@ -54,8 +56,8 @@ internal class RenderableRootLayer(
     private lateinit var layerSurface: Surface
     private lateinit var extOesLayerTexture: Texture2D
 
-    private lateinit var scaledFrameBuffer: Framebuffer
-    private lateinit var frameBuffer: Framebuffer
+    private lateinit var lowResFBO: Framebuffer
+    private lateinit var highResFBO: Framebuffer
 
     private var isInitialized: Boolean = false
     private var isDestroyed: Boolean = false
@@ -74,9 +76,9 @@ internal class RenderableRootLayer(
                     downSampleFactor = layerDownsampleFactor // downsample layer texture later
                 )
 
-                frameBuffer =
+                lowResFBO = Framebuffer.create(specification)
+                highResFBO =
                     Framebuffer.create(specification.copy(downSampleFactor = 1)) // no downsampling
-                scaledFrameBuffer = Framebuffer.create(specification)
 
                 extOesLayerTexture = Texture2D.create(
                     target = Texture.Target.TEXTURE_EXTERNAL_OES,
@@ -88,7 +90,7 @@ internal class RenderableRootLayer(
                 layerSurface = Surface(layerExternalTexture)
 
                 layerExternalTexture.setOnFrameAvailableListener {
-                    it.updateTexImage()
+                    trace("surfaceTexture#updateTexImage") { it.updateTexImage() }
                     copyTextureToFrameBuffer()
                     onLayerTextureUpdated()
                 }
@@ -106,30 +108,39 @@ internal class RenderableRootLayer(
     ) {
         with(renderableScope) {
             trace("fullSizeBuffer") {
-                bindFrameBuffer(frameBuffer) {
-                    drawScene(camera = cameraController.camera) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = extOesLayerTexture
-                        )
-                    }
-                    frameBuffer.colorAttachmentTexture.bind()
-                    frameBuffer.colorAttachmentTexture.generateMipMaps()
+                highResFBO.bind(Bind.DRAW)
+
+                drawScene(camera = cameraController.camera) {
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = extOesLayerTexture
+                    )
                 }
+                highResFBO.colorAttachmentTexture.bind()
+                highResFBO.colorAttachmentTexture.generateMipMaps()
             }
-            trace("scaledSizeBuffer") { // TODO: don't render but blit full size texture to scaled size buffer
-                bindFrameBuffer(scaledFrameBuffer) {
-                    drawScene {
-                        drawQuad(
-                            position = scaledCenter,
-                            size = scaledSize,
-                            texture = frameBuffer.colorAttachmentTexture
-                        )
-                    }
-                    scaledFrameBuffer.colorAttachmentTexture.bind()
-                    scaledFrameBuffer.colorAttachmentTexture.generateMipMaps()
-                }
+            trace("scaledSizeBuffer") {
+                highResFBO.bind(Bind.READ)
+                lowResFBO.bind(Bind.DRAW)
+
+                val highResTexSize = highResFBO.specification.size
+
+                highResFBO.readBuffer(0)
+                RenderCommand.blitFramebuffer(
+                    srcX0 = 0,
+                    srcY0 = 0,
+                    srcX1 = highResTexSize.width,
+                    srcY1 = highResTexSize.height,
+                    dstX0 = 0,
+                    dstY0 = 0,
+                    dstX1 = lowResFBO.colorAttachmentTexture.width,
+                    dstY1 = lowResFBO.colorAttachmentTexture.height,
+                    mask = RenderCommand.colorBufferBit,
+                    filter = RenderCommand.linearTextureFilter,
+                )
+                lowResFBO.colorAttachmentTexture.bind()
+                lowResFBO.colorAttachmentTexture.generateMipMaps()
             }
         }
     }

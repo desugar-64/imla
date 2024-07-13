@@ -25,10 +25,10 @@ import kotlin.properties.Delegates
 
 internal class RenderObject internal constructor(
     internal val id: String,
-    internal val rect: Rect,
-    internal val scaledRect: Rect,
-    internal var originalLayer: SubTexture2D,
-    internal var scaledLayer: SubTexture2D,
+    internal val highResRect: Rect,
+    internal val lowResRect: Rect,
+    internal var highResLayer: SubTexture2D,
+    internal var lowResLayer: SubTexture2D,
     internal val renderableScope: RenderableScope,
 ) {
     private var renderCallback: ((RenderObject) -> Unit)? = null
@@ -62,23 +62,23 @@ internal class RenderObject internal constructor(
     fun updateOffset(offset: IntOffset) = trace("RenderObject#updateOffset") {
         val (x, y) = offset
         val scaledTranslateY =
-            scaledLayer.texture.height - (y * renderableScope.scale) - scaledRect.height
-        val scaledRect = scaledRect.translate(
+            lowResLayer.texture.height - (y * renderableScope.scale) - lowResRect.height
+        val scaledRect = lowResRect.translate(
             translateX = x.toFloat() * renderableScope.scale,
             translateY = scaledTranslateY
         )
         // todo: update coordinates in place
-        scaledLayer = SubTexture2D.createFromCoords(
-            texture = scaledLayer.texture,
+        lowResLayer = SubTexture2D.createFromCoords(
+            texture = lowResLayer.texture,
             rect = scaledRect
         )
 
-        val rect = rect.translate(
+        val rect = highResRect.translate(
             translateX = x.toFloat(),
-            translateY = originalLayer.texture.height - y - rect.height
+            translateY = highResLayer.texture.height - y - highResRect.height
         )
-        originalLayer = SubTexture2D.createFromCoords(
-            texture = originalLayer.texture,
+        highResLayer = SubTexture2D.createFromCoords(
+            texture = highResLayer.texture,
             rect = rect
         )
 
@@ -86,7 +86,7 @@ internal class RenderObject internal constructor(
     }
 
     override fun toString(): String {
-        return "RenderObject(id='$id', rect='$rect', layer='${scaledLayer.id}, ${scaledLayer.subTextureSize}')"
+        return "RenderObject(id='$id', rect='$highResRect', layer='${lowResLayer.id}, ${lowResLayer.subTextureSize}')"
     }
 
 
@@ -101,7 +101,7 @@ internal class RenderObject internal constructor(
         other as RenderObject
 
         if (id != other.id) return false
-        if (rect != other.rect) return false
+        if (highResRect != other.highResRect) return false
         if (style != other.style) return false
 
         return true
@@ -109,7 +109,7 @@ internal class RenderObject internal constructor(
 
     override fun hashCode(): Int {
         var result = id.hashCode()
-        result = 31 * result + rect.hashCode()
+        result = 31 * result + highResRect.hashCode()
         result = 31 * result + style.hashCode()
         return result
     }
@@ -145,8 +145,8 @@ internal class RenderObject internal constructor(
             surface: Surface,
             rect: Rect,
         ): RenderObject {
-            val originalTexture = renderableLayer.layerTexture
-            val scaledTexture = renderableLayer.scaledLayerTexture
+            val originalTexture = renderableLayer.highResTexture
+            val scaledTexture = renderableLayer.lowResTexture
             val region = rect
             val scaledRegion = Matrix().apply {
                 scale(renderableLayer.scale, renderableLayer.scale)
@@ -154,13 +154,13 @@ internal class RenderObject internal constructor(
 
             val renderObject = RenderObject(
                 id = id,
-                rect = region,
-                scaledRect = scaledRegion,
-                originalLayer = SubTexture2D.createFromCoords(
+                highResRect = region,
+                lowResRect = scaledRegion,
+                highResLayer = SubTexture2D.createFromCoords(
                     texture = originalTexture,
                     rect = region
                 ),
-                scaledLayer = SubTexture2D.createFromCoords(
+                lowResLayer = SubTexture2D.createFromCoords(
                     texture = scaledTexture,
                     rect = scaledRegion
                 ),
