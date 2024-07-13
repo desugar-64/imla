@@ -220,9 +220,10 @@ public class UiLayerRenderer(
         surface: Surface?,
         id: String,
         size: IntSize
-    ): String? {
-        if (surface == null || isGLInitialized.get().not() || size == IntSize.Zero) return null
-        return attachSurface(surface, id, size).id
+    ) {
+        if (surface != null) {
+            attachSurface(surface, id, size)
+        }
     }
 
     @Composable

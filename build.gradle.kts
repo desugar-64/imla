@@ -9,4 +9,5 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android) apply false
     alias(libs.plugins.jetbrains.kotlin.serialization) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.android.test) apply false
 }

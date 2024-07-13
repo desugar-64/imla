@@ -20,6 +20,11 @@ android {
     }
 
     buildTypes {
+        create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            matchingFallbacks += listOf("release")
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(

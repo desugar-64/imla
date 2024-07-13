@@ -10,6 +10,7 @@ import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
@@ -45,16 +46,9 @@ public fun BackdropBlur(
     val id = remember { trace("BlurBehindView#id") { UUID.randomUUID().toString() } }
 
     val drawingSurfaceState = remember { mutableStateOf<Surface?>(null) }
-    val drawingSurfaceSizeState = remember { mutableStateOf<IntSize>(IntSize.Zero) }
+    val drawingSurfaceSizeState = remember { mutableStateOf(IntSize.Zero) }
     val contentOffset = remember { mutableStateOf(IntOffset.Zero) }
 
-    val renderObjectId = {
-        uiLayerRenderer.attachRendererSurface(
-            surface = drawingSurfaceState.value,
-            id = id,
-            size = drawingSurfaceSizeState.value,
-        )
-    }
     Box(
         modifier = modifier
             .onPlaced { layoutCoordinates ->
@@ -88,20 +82,30 @@ public fun BackdropBlur(
                     // todo
                 }
                 surface.onDestroyed {
-                    renderObjectId()?.let { uiLayerRenderer.detachRenderObject(it) }
+                    uiLayerRenderer.detachRenderObject(id)
                     drawingSurfaceState.value = null
                 }
             }
+        }
+
+        val isRendererInitialized by uiLayerRenderer.isInitialized
+
+        if (isRendererInitialized) {
+            uiLayerRenderer.attachRendererSurface(
+                surface = drawingSurfaceState.value,
+                id = id,
+                size = drawingSurfaceSizeState.value,
+            )
         }
 
         val topOffset = IntOffset(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
-        uiLayerRenderer.updateOffset(renderObjectId(), topOffset + contentOffset.value)
-        uiLayerRenderer.updateMask(renderObjectId(), blurMask)
+        uiLayerRenderer.updateOffset(id, topOffset + contentOffset.value)
+        uiLayerRenderer.updateMask(id, blurMask)
         trace("BackdropBlurView#renderObject.style") {
-            uiLayerRenderer.updateStyle(renderObjectId(), style)
+            uiLayerRenderer.updateStyle(id, style)
         }
 
         // Render the content and handle offset changes

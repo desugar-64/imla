@@ -6,8 +6,11 @@
 package dev.serhiiyaremych.imla
 
 import android.os.Bundle
+import android.view.Choreographer
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
@@ -53,6 +56,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
                 android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT
             )
         )
+        launchIdlenessTracking()
         setContent {
             ImlaTheme {
                 val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
@@ -218,6 +223,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                 }
+
+                ReportDrawnWhen { uiRenderer.isInitialized.value }
             }
         }
     }
@@ -334,5 +341,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    }
+
+    internal fun ComponentActivity.launchIdlenessTracking() {
+        val contentView: View = findViewById(android.R.id.content)
+        val callback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (Recomposer.runningRecomposers.value.any { it.hasPendingWork }) {
+                    contentView.contentDescription = "COMPOSE-BUSY"
+                } else {
+                    contentView.contentDescription = "COMPOSE-IDLE"
+                }
+                Choreographer.getInstance().postFrameCallback(this)
+            }
+        }
+        Choreographer.getInstance().postFrameCallback(callback)
     }
 }
