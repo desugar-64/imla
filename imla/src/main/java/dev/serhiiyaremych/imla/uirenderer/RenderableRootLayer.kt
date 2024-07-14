@@ -40,8 +40,6 @@ internal class RenderableRootLayer(
 ) {
     val sizeInt: IntSize get() = graphicsLayer.size
     val sizeDec: Size get() = sizeInt.toSize()
-    val highResTexture: Texture2D
-        get() = highResFBO.colorAttachmentTexture
     val lowResTexture: Texture2D
         get() = lowResFBO.colorAttachmentTexture
     val scale: Float
@@ -57,7 +55,8 @@ internal class RenderableRootLayer(
     private lateinit var extOesLayerTexture: Texture2D
 
     private lateinit var lowResFBO: Framebuffer
-    private lateinit var highResFBO: Framebuffer
+    lateinit var highResFBO: Framebuffer
+        private set
 
     private var isInitialized: Boolean = false
     private var isDestroyed: Boolean = false
@@ -117,8 +116,6 @@ internal class RenderableRootLayer(
                         texture = extOesLayerTexture
                     )
                 }
-                highResFBO.colorAttachmentTexture.bind()
-                highResFBO.colorAttachmentTexture.generateMipMaps()
             }
             trace("scaledSizeBuffer") {
                 highResFBO.bind(Bind.READ)
@@ -139,8 +136,6 @@ internal class RenderableRootLayer(
                     mask = RenderCommand.colorBufferBit,
                     filter = RenderCommand.linearTextureFilter,
                 )
-                lowResFBO.colorAttachmentTexture.bind()
-                lowResFBO.colorAttachmentTexture.generateMipMaps()
             }
         }
     }

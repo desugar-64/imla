@@ -11,6 +11,7 @@ import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -76,27 +77,25 @@ internal class BlurEffect(
             // first pass
             trace("horizontalPass") {
                 blurShaderProgram.setHorizontalPass()
-                bindFrameBuffer(horizontalPassFramebuffer) {
-                    drawScene(shaderProgram = blurShaderProgram) {
-                        drawQuad(
-                            position = scaledCenter,
-                            size = scaledSize,
-                            texture = texture
-                        )
-                    }
+                horizontalPassFramebuffer.bind(Bind.DRAW)
+                drawScene(shaderProgram = blurShaderProgram) {
+                    drawQuad(
+                        position = scaledCenter,
+                        size = scaledSize,
+                        texture = texture
+                    )
                 }
             }
             // second pass
             trace("verticalPass") {
                 blurShaderProgram.setVerticalPass()
-                bindFrameBuffer(verticalPassFramebuffer) {
-                    drawScene(shaderProgram = blurShaderProgram) {
-                        drawQuad(
-                            position = scaledCenter,
-                            size = scaledSize,
-                            texture = horizontalPassFramebuffer.colorAttachmentTexture
-                        )
-                    }
+                verticalPassFramebuffer.bind(Bind.DRAW)
+                drawScene(shaderProgram = blurShaderProgram) {
+                    drawQuad(
+                        position = scaledCenter,
+                        size = scaledSize,
+                        texture = horizontalPassFramebuffer.colorAttachmentTexture
+                    )
                 }
             }
         }

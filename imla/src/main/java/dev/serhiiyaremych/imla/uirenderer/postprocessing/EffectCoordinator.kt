@@ -43,7 +43,8 @@ internal class EffectCoordinator(
         val (blur, noise, mask) = effects
 
         mask.applyEffect(
-            background = renderObject.highResLayer,
+            backgroundFramebuffer = renderObject.highResFBO,
+            backgroundRect = renderObject.highResRect,
             blur = noise.applyEffect(
                 texture = blur.applyEffect(
                     texture = renderObject.lowResLayer,
@@ -57,33 +58,43 @@ internal class EffectCoordinator(
 
         RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
         val finalFb = output(blur, noise, mask)
-
-        trace("blitFinalToScreen") {
-            finalFb.bind(Bind.READ)
-            RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
-            finalFb.readBuffer(0)
-            RenderCommand.blitFramebuffer(
-                srcX0 = 0,
-                srcY0 = 0,
-                srcX1 = size.x.toInt(),
-                srcY1 = size.y.toInt(),
-                dstX0 = 0,
-                dstY0 = 0,
-                dstX1 = size.x.toInt(),
-                dstY1 = size.y.toInt(),
-                mask = RenderCommand.colorBufferBit,
-                filter = RenderCommand.linearTextureFilter
-            )
-            RenderCommand.bindDefaultFramebuffer(Bind.BOTH)
+        if (finalFb != null) {
+            trace("blitFinalToScreen") {
+                finalFb.bind(Bind.READ)
+                RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
+                finalFb.readBuffer(0)
+                RenderCommand.blitFramebuffer(
+                    srcX0 = 0,
+                    srcY0 = 0,
+                    srcX1 = size.x.toInt(),
+                    srcY1 = size.y.toInt(),
+                    dstX0 = 0,
+                    dstY0 = 0,
+                    dstX1 = size.x.toInt(),
+                    dstY1 = size.y.toInt(),
+                    mask = RenderCommand.colorBufferBit,
+                    filter = RenderCommand.linearTextureFilter
+                )
+                RenderCommand.bindDefaultFramebuffer(Bind.BOTH)
+            }
+        } else {
+            RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
+            drawScene(cameraController.camera) {
+                drawQuad(
+                    position = center,
+                    size = size,
+                    texture = renderObject.lowResLayer
+                )
+            }
         }
     }
 
-    private fun output(blur: BlurEffect, noise: NoiseEffect, mask: MaskEffect): Framebuffer {
+    private fun output(blur: BlurEffect, noise: NoiseEffect, mask: MaskEffect): Framebuffer? {
         return when {
             mask.isEnabled() -> mask.outputFramebuffer
             noise.isEnabled() -> noise.outputFramebuffer
             blur.isEnabled() -> blur.outputFramebuffer
-            else -> TODO("Provide default scrim effect")
+            else -> null
         }
     }
 

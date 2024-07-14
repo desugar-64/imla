@@ -6,9 +6,11 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
 
 import android.content.res.AssetManager
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -22,7 +24,7 @@ internal class MaskEffect(assetManager: AssetManager) {
 
     private val shaderProgram = MaskShaderProgram(assetManager)
 
-    private lateinit var backgroundFramebuffer: Framebuffer
+    private lateinit var cropBackgroundFramebuffer: Framebuffer
     private lateinit var finalMaskFrameBuffer: Framebuffer
     private var isInitialized: Boolean = false
 
@@ -48,7 +50,7 @@ internal class MaskEffect(assetManager: AssetManager) {
             finalMaskFrameBuffer = Framebuffer.create(spec)
             isInitialized = true
 
-            backgroundFramebuffer = Framebuffer.create(spec)
+            cropBackgroundFramebuffer = Framebuffer.create(spec)
 
             val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
             shaderProgram.shader.bind()
@@ -57,41 +59,51 @@ internal class MaskEffect(assetManager: AssetManager) {
     }
 
     context(RenderableScope)
-    fun applyEffect(background: Texture, blur: Texture, mask: Texture2D?) =
+    fun applyEffect(
+        backgroundFramebuffer: Framebuffer,
+        backgroundRect: Rect,
+        blur: Texture,
+        mask: Texture2D?
+    ) =
         trace("MaskEffect#applyEffect") {
             maskTexture = mask
             if (isEnabled()) {
                 requireNotNull(mask)
                 setup(IntSize(mask.width, mask.height))
-                trace("drawBackground") { // todo: copy texture region instead of drawing
-                    bindFrameBuffer(backgroundFramebuffer) {
-                        RenderCommand.clear(Color.Transparent)
-                        drawScene(cameraController.camera) {
-                            drawQuad(
-                                position = center,
-                                size = size,
-                                texture = background
-                            )
-                        }
-                    }
+                trace("blitBackground") {
+                    backgroundFramebuffer.bind(Bind.READ)
+                    cropBackgroundFramebuffer.bind(Bind.DRAW)
+
+                    backgroundFramebuffer.readBuffer(0)
+                    RenderCommand.blitFramebuffer(
+                        srcX0 = 0,
+                        srcY0 = backgroundRect.top.toInt(),
+                        srcX1 = backgroundRect.width.toInt(),
+                        srcY1 = backgroundRect.height.toInt(),
+                        dstX0 = 0,
+                        dstY0 = 0,
+                        dstX1 = backgroundRect.width.toInt(),
+                        dstY1 = backgroundRect.height.toInt(),
+                        mask = RenderCommand.colorBufferBit,
+                        filter = RenderCommand.linearTextureFilter,
+                    )
                 }
 
                 trace("setMaskProp") {
                     shaderProgram.setMask(mask)
-                    shaderProgram.setBackground(backgroundFramebuffer.colorAttachmentTexture)
+                    shaderProgram.setBackground(cropBackgroundFramebuffer.colorAttachmentTexture)
                 }
 
                 trace("drawMask") {
-                    bindFrameBuffer(finalMaskFrameBuffer) {
-                        RenderCommand.clear(Color.Transparent)
-                        drawScene(cameraController.camera, shaderProgram) {
-                            drawQuad(
-                                position = center,
-                                size = size,
-                                texture = blur,
-                                withMask = true
-                            )
-                        }
+                    finalMaskFrameBuffer.bind(Bind.DRAW)
+                    RenderCommand.clear(Color.Transparent)
+                    drawScene(cameraController.camera, shaderProgram) {
+                        drawQuad(
+                            position = center,
+                            size = size,
+                            texture = blur,
+                            withMask = true
+                        )
                     }
                 }
             }

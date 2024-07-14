@@ -9,6 +9,7 @@ import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -58,13 +59,12 @@ internal class NoiseEffect(assetManager: AssetManager) {
     private fun drawNoiseTextureOnce() {
         if (!isNoiseTextureDrawn) {
             trace("drawNoiseTextureOnce") {
-                bindFrameBuffer(noiseTextureFrameBuffer) {
-                    drawScene(camera = cameraController.camera, shaderProgram = shader) {
-                        drawQuad(
-                            position = center,
-                            size = size
-                        )
-                    }
+                noiseTextureFrameBuffer.bind(Bind.DRAW)
+                drawScene(camera = cameraController.camera, shaderProgram = shader) {
+                    drawQuad(
+                        position = center,
+                        size = size
+                    )
                 }
             }
             isNoiseTextureDrawn = true
@@ -75,25 +75,25 @@ internal class NoiseEffect(assetManager: AssetManager) {
     fun applyEffect(texture: Texture, noiseAlpha: Float): Texture {
         this.noiseAlpha = noiseAlpha
         if (isEnabled()) {
-            RenderCommand.enableBlending()
             trace("NoiseEffect#applyEffect") {
                 setup(IntSize(width = size.x.toInt(), height = size.y.toInt()))
                 drawNoiseTextureOnce()
-                bindFrameBuffer(effectFrameBuffer) {
-                    RenderCommand.clear(Color.Transparent)
-                    drawScene(camera = cameraController.camera) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = texture
-                        )
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = noiseTextureFrameBuffer.colorAttachmentTexture,
-                            alpha = noiseAlpha
-                        )
-                    }
+
+                effectFrameBuffer.bind(Bind.DRAW)
+                RenderCommand.enableBlending()
+                RenderCommand.clear(Color.Transparent)
+                drawScene(camera = cameraController.camera) {
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = texture
+                    )
+                    drawQuad(
+                        position = center,
+                        size = size,
+                        texture = noiseTextureFrameBuffer.colorAttachmentTexture,
+                        alpha = noiseAlpha
+                    )
                 }
             }
             RenderCommand.disableBlending()

@@ -83,6 +83,7 @@ import dev.serhiiyaremych.imla.uirenderer.Style
 import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
 import dev.serhiiyaremych.imla.uirenderer.rememberUiLayerRenderer
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.roundToInt
 
@@ -102,7 +103,7 @@ class MainActivity : ComponentActivity() {
         launchIdlenessTracking()
         setContent {
             ImlaTheme {
-                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
+                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 4)
                 val viewingImage = remember {
                     mutableStateOf("")
                 }
@@ -223,8 +224,17 @@ class MainActivity : ComponentActivity() {
                     }
 
                 }
-
-                ReportDrawnWhen { uiRenderer.isInitialized.value }
+                val fullyDrawn = remember { mutableStateOf(false) }
+                LaunchedEffect(uiRenderer.isInitialized, fullyDrawn) {
+                    snapshotFlow { uiRenderer.isInitialized.value }
+                        .collect {
+                            if (it) {
+                                delay(1000)
+                                fullyDrawn.value = true
+                            }
+                        }
+                }
+                ReportDrawnWhen { fullyDrawn.value }
             }
         }
     }
@@ -245,8 +255,17 @@ class MainActivity : ComponentActivity() {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
             uiLayerRenderer = uiRenderer,
+//            blurMask = Brush.verticalGradient(
+//                colors = listOf(
+//                    Color.White.copy(alpha = 0.0f),
+//                    Color.White.copy(alpha = 0.6f),
+//                    Color.White.copy(alpha = 0.9f),
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 1.0f),
+//                ),
+//            ),
             style = Style(
-                blurRadius = 10.dp,
+                blurRadius = 10.dp / 4,
                 noiseAlpha = 0.2f
             )
         ) {
@@ -298,7 +317,7 @@ class MainActivity : ComponentActivity() {
                 ),
             ),
             style = Style(
-                blurRadius = 10.dp,
+                blurRadius = 10.dp / 4,
                 noiseAlpha = 0.2f
             )
         ) {

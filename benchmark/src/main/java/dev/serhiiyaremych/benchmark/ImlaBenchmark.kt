@@ -46,7 +46,7 @@ class ImlaBenchmark {
             metricSection("fullSizeBuffer"),
             metricSection("scaledSizeBuffer"),
         ),
-        iterations = 2,
+        iterations = 1,
         startupMode = StartupMode.HOT
     ) {
         pressHome()
@@ -56,7 +56,7 @@ class ImlaBenchmark {
         val width = uiDevice.displayWidth
         val height = uiDevice.displayHeight
 
-        repeat(2) {
+        repeat(3) {
             uiDevice.awaitComposeIdle()
             uiDevice.swipe(
                 width / 2,

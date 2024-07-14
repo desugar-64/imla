@@ -101,9 +101,12 @@ public class UiLayerRenderer(
             // graphics layer texture updated, request pipeline render
             renderingPipeline.requestRender {
                 isRendering.set(false)
+                semaphore.release()
             }
         }
     )
+
+    private val semaphore: java.util.concurrent.Semaphore = java.util.concurrent.Semaphore(1)
 
     private val isGLInitialized = AtomicBoolean(false)
 
@@ -185,6 +188,7 @@ public class UiLayerRenderer(
         if (isGLInitialized.get()) {
 //            mainRenderTarget.requestRender()
             renderableLayer.updateTex()
+//            semaphore.acquire()
         } else {
             isRendering.set(false)
             glRenderer.execute {

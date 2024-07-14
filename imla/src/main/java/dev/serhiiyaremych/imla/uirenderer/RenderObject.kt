@@ -19,15 +19,16 @@ import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
+import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import kotlin.properties.Delegates
 
 internal class RenderObject internal constructor(
     internal val id: String,
-    internal val highResRect: Rect,
+    internal var highResRect: Rect,
     internal val lowResRect: Rect,
-    internal var highResLayer: SubTexture2D,
+    internal var highResFBO: Framebuffer,
     internal var lowResLayer: SubTexture2D,
     internal val renderableScope: RenderableScope,
 ) {
@@ -75,12 +76,9 @@ internal class RenderObject internal constructor(
 
         val rect = highResRect.translate(
             translateX = x.toFloat(),
-            translateY = highResLayer.texture.height - y - highResRect.height
+            translateY = y.toFloat()
         )
-        highResLayer = SubTexture2D.createFromCoords(
-            texture = highResLayer.texture,
-            rect = rect
-        )
+        highResRect = rect
 
         invalidate()
     }
@@ -145,7 +143,6 @@ internal class RenderObject internal constructor(
             surface: Surface,
             rect: Rect,
         ): RenderObject {
-            val originalTexture = renderableLayer.highResTexture
             val scaledTexture = renderableLayer.lowResTexture
             val region = rect
             val scaledRegion = Matrix().apply {
@@ -156,10 +153,7 @@ internal class RenderObject internal constructor(
                 id = id,
                 highResRect = region,
                 lowResRect = scaledRegion,
-                highResLayer = SubTexture2D.createFromCoords(
-                    texture = originalTexture,
-                    rect = region
-                ),
+                highResFBO = renderableLayer.highResFBO,
                 lowResLayer = SubTexture2D.createFromCoords(
                     texture = scaledTexture,
                     rect = scaledRegion
