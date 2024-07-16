@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 @Immutable
 public data class Style(
     val blurRadius: Dp,
-    val tint: Color = Color.Cyan.copy(alpha = 0.15f),
+    val tint: Color = Color.Cyan.copy(alpha = 0.2f),
     @FloatRange(from = 0.0, to = 1.0) val noiseAlpha: Float = 0.1f
 ) {
     context(Density)

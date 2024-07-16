@@ -21,6 +21,9 @@ import dev.serhiiyaremych.imla.renderer.objects.defaultQuadVertexMapper
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 
 internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
+    private val horizontalDirection = Float2(x = 1.0f)
+    private val verticalDirection = Float2(y = 1.0f)
+
     override val shader: Shader = Shader.create(
         assetManager = assetManager,
         vertexAsset = "shader/default_quad.vert",
@@ -35,14 +38,14 @@ internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
         shader.setFloat("u_BlurSigma", clampedRadius)
     }
 
+    // horiz=(1.0, 0.0), vert=(0.0, 1.0)
     fun setHorizontalPass() {
         shader.bind()
-        shader.setFloat("u_BlurDirection", 0f)
+        shader.setFloat2("u_BlurDirection", horizontalDirection)
     }
-
     fun setVerticalPass() {
         shader.bind()
-        shader.setFloat("u_BlurDirection", 1f)
+        shader.setFloat2("u_BlurDirection", verticalDirection)
     }
 
     override fun mapVertexData(quadVertexBufferBase: List<QuadVertex>): FloatArray {

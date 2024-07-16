@@ -148,16 +148,20 @@ internal class RenderableRootLayer(
         require(isInitialized) { "RenderableRootLayer not initialized!" }
 
         trace("drawLayerToExtTexture[$sizeInt]") {
-            val hwCanvas = trace("lockHardwareCanvas") { layerSurface.lockHardwareCanvas() }
-            trace("hwCanvasClear") {
-                hwCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-            }
-            drawingScope.draw(density, LayoutDirection.Ltr, Canvas(hwCanvas), sizeDec) {
-                trace("drawGraphicsLayer") {
-                    drawLayer(graphicsLayer)
+            var hwCanvas: android.graphics.Canvas? = null
+            try {
+                hwCanvas = trace("lockHardwareCanvas") { layerSurface.lockHardwareCanvas() }
+                trace("hwCanvasClear") {
+                    hwCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
                 }
+                drawingScope.draw(density, LayoutDirection.Ltr, Canvas(hwCanvas), sizeDec) {
+                    trace("drawGraphicsLayer") {
+                        drawLayer(graphicsLayer)
+                    }
+                }
+            } finally {
+                trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
             }
-            trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
         }
     }
 

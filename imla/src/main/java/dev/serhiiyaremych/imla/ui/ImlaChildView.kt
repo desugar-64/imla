@@ -10,9 +10,11 @@ import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -31,6 +33,9 @@ import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.uirenderer.Style
 import dev.serhiiyaremych.imla.uirenderer.UiLayerRenderer
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import java.util.UUID
 
 @Composable
@@ -90,20 +95,31 @@ public fun BackdropBlur(
 
         val isRendererInitialized by uiLayerRenderer.isInitialized
 
-        if (isRendererInitialized) {
-            uiLayerRenderer.attachRendererSurface(
-                surface = drawingSurfaceState.value,
-                id = id,
-                size = drawingSurfaceSizeState.value,
-            )
-        }
-
         val topOffset = IntOffset(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
-        uiLayerRenderer.updateOffset(id, topOffset + contentOffset.value)
+        LaunchedEffect(id, drawingSurfaceState, uiLayerRenderer, contentBoundingBox) {
+            val rendererFlow = snapshotFlow { isRendererInitialized }
+            val surfaceFlow = snapshotFlow { drawingSurfaceState.value }
+            combine(rendererFlow, surfaceFlow) { a, b -> a to b }
+                .filter { it.first && it.second != null }
+                .distinctUntilChanged()
+                .collect {
+                    uiLayerRenderer.attachRendererSurface(
+                        surface = it.second,
+                        id = id,
+                        size = drawingSurfaceSizeState.value,
+                    )
+                    uiLayerRenderer.updateOffset(id, topOffset + contentOffset.value)
+                    uiLayerRenderer.updateStyle(id, style)
+                    uiLayerRenderer.updateMask(id, blurMask)
+                }
+        }
+
+
         uiLayerRenderer.updateMask(id, blurMask)
+        uiLayerRenderer.updateOffset(id, topOffset + contentOffset.value)
         trace("BackdropBlurView#renderObject.style") {
             uiLayerRenderer.updateStyle(id, style)
         }

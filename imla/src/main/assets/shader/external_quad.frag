@@ -23,8 +23,7 @@ out vec4 color;
 void main()
 {
     vec4 baseColor = vec4(1.);
-    bool flipTexture = int(data.flipTexture) > 0;
-    vec2 texCoord = flipTexture ? vec2(texCoord.x, 1. - texCoord.y) : texCoord;
+    vec2 texCoord = mix(texCoord, vec2(texCoord.x, 1.0 - texCoord.y), data.flipTexture);
 
     switch (int(data.texIndex)) {
         case 0:

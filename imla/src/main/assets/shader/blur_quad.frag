@@ -12,8 +12,8 @@ struct VertexOutput
     float alpha;
     float mask;
 };
-
-uniform float u_BlurDirection;
+// horiz=(1.0, 0.0), vert=(0.0, 1.0)
+uniform vec2 u_BlurDirection;
 uniform vec2 u_TexelSize;
 uniform float u_BlurSigma;
 uniform vec4 u_BlurTint;
@@ -37,33 +37,37 @@ vec3 srgb_from_linear(vec3 lin)
     return pow(lin, vec3(1.0 / GAMMA));
 }
 
+float gaussianWeight(float x, float sigma) {
+    return exp(-0.5 * (x * x) / (sigma * sigma));
+}
+
 void main() {
     bool flipTexture = int(data.flipTexture) > 0;
-    vec2 texCoord = flipTexture ? vec2(texCoord.x, 1. - texCoord.y) : texCoord;
-
-    vec2 loc = texCoord;
-    // horiz=(1.0, 0.0), vert=(0.0, 1.0)
-    vec2 dir = u_BlurDirection < 1.0 ? vec2(1.0 / u_TexelSize.x, 0.0) : vec2(0.0, 1.0 / u_TexelSize.y);
+    vec2 loc = mix(texCoord, vec2(texCoord.x, 1.0 - texCoord.y), data.flipTexture);
+    vec2 dir = u_BlurDirection / u_TexelSize;
     vec4 acc = vec4(0.0);
-    float norm = 0.0;
-    int support = int(u_BlurSigma) * 3;
+    float totalWeight = 0.0;
+    float support = u_BlurSigma * 3.0;
     float sigma = u_BlurSigma;
-    for (int i = -support; i <= support; i++) {
-        float coeff = exp(-0.5 * float(i) * float(i) / (sigma * sigma));
-        vec4 texColor = texture(u_Textures[1], loc + float(i) * dir); // todo: support batching
+    //    int step = 9; // creates an interesting effect of embossed glass
+    float step = 1.0;
+
+    for (float i = -support; i <= support; i += step) {
+        float x = i;
+        float weight = gaussianWeight(x, sigma);
+        vec4 texColor = texture(u_Textures[1], loc + x * dir); // todo: support batching
         #ifdef USE_GAMMA_CORRECTION
         texColor.rgb = linear_from_srgb(texColor.rgb);
-        acc += texColor * coeff;
+        acc += texColor * weight;
         #else
-        acc += texColor * coeff;
+        acc += texColor * weight;
         #endif
-        norm += coeff;
+        totalWeight += weight;
     }
     #ifdef USE_GAMMA_CORRECTION
-    acc = vec4(srgb_from_linear(acc.rgb * (1.0 / norm)), acc.a * (1.0 / norm));
+    acc = vec4(srgb_from_linear(acc.rgb * (1.0 / totalWeight)), acc.a * (1.0 / totalWeight));
     #else
-    acc = acc * (1.0 / norm);
+    acc = acc * (1.0 / totalWeight);
     #endif
-    vec4 tintedColor = vec4(mix(acc.rgb, u_BlurTint.rgb, u_BlurTint.a * u_BlurTint.a), acc.a);
-    color = tintedColor;
+    color = mix(acc, u_BlurTint, u_BlurTint.a * u_BlurTint.a);
 }
