@@ -70,8 +70,8 @@ internal object RenderCommand {
         dstY0: Int,
         dstX1: Int,
         dstY1: Int,
-        mask: Int,
-        filter: Int,
+        mask: Int = colorBufferBit,
+        filter: Int = linearTextureFilter,
     ) {
         rendererAPI.blitFramebuffer(
             srcX0 = srcX0,

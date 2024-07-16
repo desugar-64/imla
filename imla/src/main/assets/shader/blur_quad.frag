@@ -46,7 +46,7 @@ void main() {
     vec2 dir = u_BlurDirection < 1.0 ? vec2(1.0 / u_TexelSize.x, 0.0) : vec2(0.0, 1.0 / u_TexelSize.y);
     vec4 acc = vec4(0.0);
     float norm = 0.0;
-    int support = int(u_BlurSigma);
+    int support = int(u_BlurSigma) * 3;
     float sigma = u_BlurSigma;
     for (int i = -support; i <= support; i++) {
         float coeff = exp(-0.5 * float(i) * float(i) / (sigma * sigma));

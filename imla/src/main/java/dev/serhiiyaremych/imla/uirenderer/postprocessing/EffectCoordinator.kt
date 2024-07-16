@@ -66,24 +66,23 @@ internal class EffectCoordinator(
                 RenderCommand.blitFramebuffer(
                     srcX0 = 0,
                     srcY0 = 0,
-                    srcX1 = size.x.toInt(),
-                    srcY1 = size.y.toInt(),
+                    srcX1 = finalFb.colorAttachmentTexture.width,
+                    srcY1 = finalFb.colorAttachmentTexture.height,
                     dstX0 = 0,
                     dstY0 = 0,
                     dstX1 = size.x.toInt(),
-                    dstY1 = size.y.toInt(),
-                    mask = RenderCommand.colorBufferBit,
-                    filter = RenderCommand.linearTextureFilter
+                    dstY1 = size.y.toInt()
                 )
                 RenderCommand.bindDefaultFramebuffer(Bind.BOTH)
             }
         } else {
             RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
+            RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
             drawScene(cameraController.camera) {
                 drawQuad(
                     position = center,
                     size = size,
-                    texture = renderObject.lowResLayer
+                    texture = blur.outputFramebuffer.colorAttachmentTexture
                 )
             }
         }

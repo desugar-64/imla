@@ -65,7 +65,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
@@ -73,6 +72,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tracing.trace
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.modifier.blurSource
 import dev.serhiiyaremych.imla.ui.BackdropBlur
@@ -103,17 +104,18 @@ class MainActivity : ComponentActivity() {
         launchIdlenessTracking()
         setContent {
             ImlaTheme {
-                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 4)
+                val uiRenderer = rememberUiLayerRenderer(downSampleFactor = 2)
                 val viewingImage = remember {
                     mutableStateOf("")
                 }
                 Box(modifier = Modifier.fillMaxWidth()) {
-
+                    val hazeState = remember { HazeState() }
                     // Full height content
                     Surface(
                         Modifier
                             .fillMaxSize()
-                            .blurSource(uiRenderer),
+                            .blurSource(uiRenderer)
+                            .haze(hazeState),
                     ) {
                         Content(modifier = Modifier
                             .fillMaxSize(),
@@ -124,7 +126,7 @@ class MainActivity : ComponentActivity() {
                     val showBottomSheet = remember { mutableStateOf(false) }
                     Column(modifier = Modifier.matchParentSize()) {
                         // Layer 0 above full height content
-                        BlurryTopAppBar(uiRenderer)
+                        BlurryTopAppBar(uiRenderer, hazeState)
                         Spacer(modifier = Modifier.weight(1f))
                         // Layer 1 full height content
                         BlurryBottomNavBar(uiRenderer) {
@@ -265,7 +267,7 @@ class MainActivity : ComponentActivity() {
 //                ),
 //            ),
             style = Style(
-                blurRadius = 10.dp / 4,
+                blurRadius = 6.dp,
                 noiseAlpha = 0.2f
             )
         ) {
@@ -303,22 +305,22 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     @OptIn(ExperimentalMaterial3Api::class)
-    private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer) {
+    private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer, hazeState: HazeState) {
         BackdropBlur(
-            modifier = Modifier.requiredHeight(150.dp),
+            modifier = Modifier.requiredHeight(250.dp),
             uiLayerRenderer = uiRenderer,
-            blurMask = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 0.9f),
-                    Color.White.copy(alpha = 0.6f),
-                    Color.White.copy(alpha = 0.0f),
-                ),
-            ),
+//            blurMask = Brush.verticalGradient(
+//                colors = listOf(
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 0.9f),
+//                    Color.White.copy(alpha = 0.6f),
+//                    Color.White.copy(alpha = 0.0f),
+//                ),
+//            ),
             style = Style(
-                blurRadius = 10.dp / 4,
-                noiseAlpha = 0.2f
+                blurRadius = 6.dp,
+                noiseAlpha = 0.0f
             )
         ) {
             TopAppBar(
@@ -333,6 +335,22 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
+
+//        Box(
+//            modifier = Modifier.requiredHeight(250.dp).hazeChild(hazeState, style = HazeStyle(tint = Color.Cyan.copy(alpha = 0.15f), blurRadius = 20.dp)),
+//        ) {
+//            TopAppBar(
+//                modifier = Modifier.statusBarsPadding(),
+//                title = { Text("Blur Demo") },
+//                windowInsets = WindowInsets(top = 0.dp),
+//                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+//                navigationIcon = {
+//                    IconButton(onClick = { /* "Open nav drawer" */ }) {
+//                        Icon(Icons.Filled.Menu, contentDescription = null)
+//                    }
+//                }
+//            )
+//        }
     }
 
     @Composable
