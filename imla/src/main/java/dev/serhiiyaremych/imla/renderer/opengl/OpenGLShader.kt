@@ -50,6 +50,10 @@ internal class OpenGLShader(
         uploadUniformIntArray(name, *values)
     }
 
+    override fun setFloatArray(name: String, vararg values: Float) {
+        uploadFloatArray(name, *values)
+    }
+
     override fun setFloat(name: String, value: Float) {
         uploadUniformFloat(name, value)
     }
@@ -82,6 +86,11 @@ internal class OpenGLShader(
     override fun uploadUniformIntArray(name: String, vararg values: Int) {
         val location = uniformLocation(rendererId, name)
         GLES30.glUniform1iv(location, values.size, values, 0)
+    }
+
+    override fun uploadFloatArray(name: String, vararg values: Float) {
+        val location = uniformLocation(rendererId, name)
+        GLES30.glUniform1fv(location, values.size, values, 0)
     }
 
     override fun uploadUniformFloat(name: String, value: Float) {
@@ -181,7 +190,7 @@ internal class OpenGLShader(
     }
 
     override fun hashCode(): Int {
-        return rendererId
+        return rendererId.hashCode()
     }
 
     override fun toString(): String {

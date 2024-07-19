@@ -160,22 +160,22 @@ public class UiLayerRenderer(
     context(DrawScope)
     public fun recordCanvas(block: DrawScope.() -> Unit): Unit =
         trace("UiLayerRenderer#recordCanvas") {
-        if (isRendering.get() || !isRecording.compareAndSet(false, true)) {
-            // Rendering is in progress or recording is already in progress, skip recording
-            logw(TAG, "skipping recordCanvas during rendering")
-            return
-        }
-        try {
-            trace("recordCanvas") {
-                if (BuildConfig.DEBUG) {
-                    require(renderableLayer.graphicsLayer.isReleased.not())
-                }
-                renderableLayer.graphicsLayer.record(block = block)
+            if (isRendering.get() || !isRecording.compareAndSet(false, true)) {
+                // Rendering is in progress or recording is already in progress, skip recording
+                logw(TAG, "skipping recordCanvas during rendering")
+                return
             }
-        } finally {
-            isRecording.set(false)
+            try {
+                trace("recordCanvas") {
+                    if (BuildConfig.DEBUG) {
+                        require(renderableLayer.graphicsLayer.isReleased.not())
+                    }
+                    renderableLayer.graphicsLayer.record(block = block)
+                }
+            } finally {
+                isRecording.set(false)
+            }
         }
-    }
 
     @MainThread
     public fun onUiLayerUpdated(): Unit = trace("UiLayerRenderer#onUiLayerUpdated") {

@@ -93,8 +93,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(
-                android.graphics.Color.TRANSPARENT,
+            statusBarStyle = SystemBarStyle.dark(
                 android.graphics.Color.TRANSPARENT,
             ),
             navigationBarStyle = SystemBarStyle.light(
@@ -319,8 +318,9 @@ class MainActivity : ComponentActivity() {
 //                ),
 //            ),
             style = Style(
-                blurRadius = 6.dp,
-                noiseAlpha = 0.0f
+                blurRadius = 8.dp,
+                noiseAlpha = 0.0f,
+                tint = Color.White.copy(alpha = 0.05f),
             )
         ) {
             TopAppBar(

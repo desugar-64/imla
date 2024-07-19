@@ -125,9 +125,9 @@ internal class Renderer2D {
     }
 
     fun shutdown() {
-        data.defaultQuadShaderProgram.shader.destroy()
-        data.externalQuadShaderProgram.shader.destroy()
-        data.quadShaderProgram.shader.destroy()
+        data.defaultQuadShaderProgram.destroy()
+        data.externalQuadShaderProgram.destroy()
+        data.quadShaderProgram.destroy()
         data.quadVertexArray.destroy()
         data.textureSlots.fill(null)
         _data = null

@@ -12,4 +12,6 @@ internal interface ShaderProgram {
     val vertexBufferLayout: BufferLayout
     val componentsCount: Int
     fun mapVertexData(quadVertexBufferBase: List<QuadVertex>): FloatArray
+
+    fun destroy()
 }

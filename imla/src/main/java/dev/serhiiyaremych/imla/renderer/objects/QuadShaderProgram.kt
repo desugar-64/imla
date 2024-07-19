@@ -82,5 +82,7 @@ internal class QuadShaderProgram(override val shader: Shader) : ShaderProgram {
         return shader.hashCode()
     }
 
-
+    override fun destroy() {
+        shader.destroy()
+    }
 }

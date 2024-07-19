@@ -24,6 +24,7 @@ internal interface Shader {
 
     fun setInt(name: String, value: Int)
     fun setIntArray(name: String, vararg values: Int)
+    fun setFloatArray(name: String, vararg values: Float)
     fun setFloat(name: String, value: Float)
     fun setFloat2(name: String, value: Float2)
     fun setFloat3(name: String, value: Float3)
@@ -34,6 +35,7 @@ internal interface Shader {
     fun uploadUniformInt(name: String, value: Int)
     fun uploadUniformIntArray(name: String, vararg values: Int)
 
+    fun uploadFloatArray(name: String, vararg values: Float)
     fun uploadUniformFloat(name: String, value: Float)
     fun uploadUniformFloat2(name: String, value: Float2)
     fun uploadUniformFloat3(name: String, value: Float3)

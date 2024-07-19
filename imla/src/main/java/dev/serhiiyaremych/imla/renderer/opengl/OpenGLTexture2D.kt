@@ -131,8 +131,9 @@ internal fun Texture.ImageFormat.toGlInternalFormat(): Int {
         Texture.ImageFormat.None -> 0
         Texture.ImageFormat.A8,
         Texture.ImageFormat.R8 -> GLES30.GL_R8
+        Texture.ImageFormat.R16F -> GLES30.GL_R16F
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB8
-        Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA8
+        Texture.ImageFormat.RGBA8 -> GLES30.GL_SRGB8_ALPHA8
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH24_STENCIL8
     }
 }
@@ -143,6 +144,7 @@ internal fun Texture.ImageFormat.getDataType(): Int {
         Texture.ImageFormat.None -> 0 // No type
         Texture.ImageFormat.A8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
+        Texture.ImageFormat.R16F -> GLES30.GL_FLOAT
         Texture.ImageFormat.RGB8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGBA8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_UNSIGNED_INT_24_8
@@ -153,7 +155,7 @@ internal fun Texture.ImageFormat.toGlImageFormat(): Int {
     return when (this) {
         Texture.ImageFormat.None -> 0
         Texture.ImageFormat.A8 -> GLES30.GL_ALPHA
-        Texture.ImageFormat.R8 -> GLES30.GL_RED
+        Texture.ImageFormat.R8, Texture.ImageFormat.R16F -> GLES30.GL_RED
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB
         Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH_STENCIL

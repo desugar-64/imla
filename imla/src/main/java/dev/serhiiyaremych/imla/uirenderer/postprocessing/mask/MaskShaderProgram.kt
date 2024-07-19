@@ -40,4 +40,8 @@ internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
         background.bind(3)
         shader.setInt("u_Background", 3)
     }
+
+    override fun destroy() {
+        shader.destroy()
+    }
 }

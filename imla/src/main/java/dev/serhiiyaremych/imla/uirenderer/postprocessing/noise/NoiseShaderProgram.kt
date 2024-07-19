@@ -24,4 +24,8 @@ internal class NoiseShaderProgram(assetManager: AssetManager) : ShaderProgram {
 
     override fun mapVertexData(quadVertexBufferBase: List<QuadVertex>) =
         defaultQuadVertexMapper(quadVertexBufferBase)
+
+    override fun destroy() {
+        shader.destroy()
+    }
 }

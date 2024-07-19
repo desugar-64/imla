@@ -242,7 +242,7 @@ internal class BlurEffect(
     fun dispose() {
         horizontalPassFramebuffer.destroy()
         verticalPassFramebuffer.destroy()
-        blurShaderProgram.shader.destroy()
+        blurShaderProgram.destroy()
         resultFramebuffer.destroy()
         if (DO_EXTRA_BLURRING_PASS) {
             extraHPassFramebuffer.destroy()

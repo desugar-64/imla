@@ -43,6 +43,7 @@ internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
         shader.bind()
         shader.setFloat2("u_BlurDirection", horizontalDirection)
     }
+
     fun setVerticalPass() {
         shader.bind()
         shader.setFloat2("u_BlurDirection", verticalDirection)
@@ -60,5 +61,9 @@ internal class BlurShaderProgram(assetManager: AssetManager) : ShaderProgram {
     fun setTintColor(tint: Color) {
         shader.bind()
         shader.setFloat4("u_BlurTint", Float4(tint.red, tint.green, tint.blue, tint.alpha))
+    }
+
+    override fun destroy() {
+        shader.destroy()
     }
 }

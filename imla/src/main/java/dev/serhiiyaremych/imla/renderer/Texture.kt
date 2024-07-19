@@ -22,6 +22,7 @@ internal interface Texture {
         None,
         A8,
         R8,
+        R16F,
         RGB8,
         RGBA8,
         DEPTH24STENCIL8
