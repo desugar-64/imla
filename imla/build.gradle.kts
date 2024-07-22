@@ -6,6 +6,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -43,9 +44,6 @@ android {
     kotlinOptions {
         freeCompilerArgs += "-Xcontext-receivers"
         jvmTarget = "17"
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.12"
     }
     buildFeatures {
         compose = true

@@ -71,7 +71,7 @@ class ImlaBenchmark {
     @OptIn(ExperimentalMetricApi::class)
     private fun metricSection(label: String) = TraceSectionMetric(
         sectionName = label,
-        mode = TraceSectionMetric.Mode.First
+        mode = TraceSectionMetric.Mode.Average
     )
 
     private fun UiDevice.awaitComposeIdle(timeout: Long = 3000) {
