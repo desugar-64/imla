@@ -1,25 +1,16 @@
-# Imla - Experimental GPU-Accelerated Blurring for Android
+# Imla - Experimental GPU-Accelerated Blurring for Android Jetpack Compose
 
 > ⚠️ **IMPORTANT**: This project is experimental and not intended for use in production
 > applications.
 
 ## Description
 
-Imla (Ukrainian for "Haze") is an experimental project exploring GPU-accelerated view blurring on
+Imla (Ukrainian for "Haze", pronounced [ˈimlɑ] (eem-lah)) is an experimental project exploring GPU-accelerated view blurring on
 Android. It aims to implement efficient blurring effects using OpenGL, targeting devices from
 Android 6 onwards.
 
 The project serves as a playground for experimenting with GPU rendering and post-processing effects,
 with the potential to evolve into a full-fledged library in the future.
-
-## Demo
-
-| Video Demo Files                                                                        | Video Demo Files                                            |
-|-----------------------------------------------------------------------------------------|-------------------------------------------------------------|
-| [blur_bug.mp4](./demo/blur_bug.mp4)                                                     | [gamma_corrected_blur.mp4](./demo/gamma_corrected_blur.mp4) |
-| [gradient_blur.mp4](./demo/gradient_blur.mp4)                                           | [mosaic_blur.mp4](./demo/mosaic_blur.mp4)                   |
-| [p6_blur_demo.mp4](./demo/p6_blur_demo.mp4)                                             | [p6_noise_blend_demo.mp4](./demo/p6_noise_blend_demo.mp4)   |
-| [blur_gamma_correction_side_by_side.png](./demo/blur_gamma_correction_side_by_side.png) | [mosaic_blur.png](./demo/mosaic_blur.png)                   |
 
 ## Features
 
@@ -29,6 +20,29 @@ with the potential to evolve into a full-fledged library in the future.
 - Blending with noise mask for a frosted glass effect;
 - Blurring masks for gradient blur effects;
 - Supports Android 6+.
+
+## Demo
+Pixel 6
+
+https://github.com/user-attachments/assets/a421bca8-efdf-4e18-b737-df45f7bdaadf
+
+https://github.com/user-attachments/assets/40b64436-fb2a-423b-b2ae-88f72a88e06a
+
+https://github.com/user-attachments/assets/d27ca925-30ab-4772-847b-51df57ef92b0
+
+https://github.com/user-attachments/assets/8ebce81b-f143-4028-a7c3-7f146bdb9e1d
+
+https://github.com/user-attachments/assets/088709c5-5a0b-491c-b61f-2b45e37408f2
+
+https://github.com/user-attachments/assets/3f63c8f8-3739-41ab-b736-3937fad32a3e
+
+Nexus 5(2013)
+
+https://github.com/user-attachments/assets/3802d8ee-6c10-4a9f-8826-4a8041a88730
+
+|                                                                                                                                                  |                                                                                                 |
+|--------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| <img width="640" alt="blur_gamma_correction_side_by_side" src="https://github.com/user-attachments/assets/85ad6c09-de0d-4bbd-89f5-a11a6aa8ac98"> | ![mosaic_blur](https://github.com/user-attachments/assets/71d81431-a2cf-4aca-bb0d-d469ced53cee) |
 
 ## How It Works
 
@@ -75,11 +89,11 @@ Current performance metrics for the blur effect on a Pixel 6 device:
 - BlurEffect#applyEffect: ~1.19ms
 - RenderObject#onRender : ~4.842ms
 
-| Trace                                                   |
-|---------------------------------------------------------|
-| [trace_blur_effect.png](./demo/trace_blur_effect.png)   |
-| [trace_total_pass00.png](./demo/trace_total_pass00.png) |
-| [trace_total_pass01.png](./demo/trace_total_pass01.png) |
+| Trace                                                                                                  |
+|--------------------------------------------------------------------------------------------------------|
+| ![trace_blur_effect](https://github.com/user-attachments/assets/add113c5-4ccf-4ff4-a8c1-37fa404e8048)  |
+| ![trace_total_pass00](https://github.com/user-attachments/assets/78e8a4c5-43ec-4fc6-b0eb-89c6a77a1042) |
+| ![trace_total_pass01](https://github.com/user-attachments/assets/d97a629d-b683-4868-9229-c09331954a5d) |
 
 These timings indicate that the blur effect and rendering process are relatively fast, but there's
 still room for optimization.
