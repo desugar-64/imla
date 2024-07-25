@@ -17,9 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.geometry.Offset
@@ -227,40 +225,6 @@ public class UiLayerRenderer(
     ) {
         if (surface != null) {
             attachSurface(surface, id, size)
-        }
-    }
-
-    @Composable
-    internal fun attachRenderSurfaceAsState(
-        id: String,
-        surface: Surface?,
-        size: IntSize
-    ): State<RenderObject?> {
-        return produceState<RenderObject?>(
-            initialValue = null,
-            isInitialized.value,
-            id,
-            renderableLayer,
-            surface,
-            size
-        ) {
-            val existingRo = renderingPipeline.getRenderObject(id)
-            val ro = when {
-                existingRo != null -> existingRo
-                surface == null || size == IntSize.Zero || !isGLInitialized.get() -> null
-                else -> {
-                    val renderObject = RenderObject.createFromSurface(
-                        id = id,
-                        renderableLayer = renderableLayer,
-                        glRenderer = glRenderer,
-                        surface = surface,
-                        rect = Rect(offset = Offset.Zero, size.toSize()),
-                    )
-                    renderingPipeline.addRenderObject(renderObject)
-                    renderObject
-                }
-            }
-            value = ro
         }
     }
 
