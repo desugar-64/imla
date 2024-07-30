@@ -11,32 +11,29 @@ import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
-import dev.romainguy.kotlin.math.Float2
-import dev.romainguy.kotlin.math.Float3
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
-import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.renderer.camera.OrthographicCameraController
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
 internal class BlurEffect(
-    assetManager: AssetManager
+    assetManager: AssetManager,
+    private val simpleRenderer: SimpleQuadRenderer
 ) {
-
-    private val blurShaderProgram: BlurShaderProgram = BlurShaderProgram(assetManager)
+    private val blurShaderProgram: SimpleBlurShaderProgram =
+        SimpleBlurShaderProgram(assetManager)
 
     private var extraHPassFramebuffer: Framebuffer by Delegates.notNull()
     private var extraVPassFramebuffer: Framebuffer by Delegates.notNull()
-    private var extraPassCameraController: OrthographicCameraController by Delegates.notNull()
 
     private var horizontalPassFramebuffer: Framebuffer by Delegates.notNull()
     private var verticalPassFramebuffer: Framebuffer by Delegates.notNull()
@@ -55,11 +52,6 @@ internal class BlurEffect(
             trace("setup") {
                 init(size)
                 isInitialized = true
-
-
-                val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
-                blurShaderProgram.shader.bind()
-                blurShaderProgram.shader.setIntArray("u_Textures", *samplers)
             }
         }
     }
@@ -83,77 +75,51 @@ internal class BlurEffect(
             trace("setStyle") {
                 blurShaderProgram.setBlurRadius(blurRadius)
                 blurShaderProgram.setTintColor(tint)
-                blurShaderProgram.setBlurringTextureSize(effectSize)
+                blurShaderProgram.setTexSize(effectSize)
             }
 
             // horizontal pass
             trace("horizontalPass") {
                 blurShaderProgram.setHorizontalPass()
                 horizontalPassFramebuffer.bind(Bind.DRAW)
-                drawScene(shaderProgram = blurShaderProgram) {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = texture
-                    )
-                }
+                RenderCommand.clear()
+
+                simpleRenderer.draw(
+                    shader = blurShaderProgram.shader,
+                    texture = texture
+                )
             }
+
             // vertical pass
             trace("verticalPass") {
                 blurShaderProgram.setVerticalPass()
                 verticalPassFramebuffer.bind(Bind.DRAW)
-                drawScene(shaderProgram = blurShaderProgram) {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = horizontalPassFramebuffer.colorAttachmentTexture
-                    )
-                }
+                RenderCommand.clear()
+
+                simpleRenderer.draw(
+                    shader = blurShaderProgram.shader,
+                    texture = horizontalPassFramebuffer.colorAttachmentTexture
+                )
             }
 
             if (DO_EXTRA_BLURRING_PASS) {
-                val additionalEffectSize = IntSize(
-                    width = extraHPassFramebuffer.colorAttachmentTexture.width,
-                    height = extraHPassFramebuffer.colorAttachmentTexture.height
-                )
-                blurShaderProgram.setBlurringTextureSize(
-                    additionalEffectSize
-                )
-                val passCenter = Float3(
-                    x = additionalEffectSize.width / 2f,
-                    y = additionalEffectSize.height / 2f
-                )
-                val passSize = Float2(
-                    x = additionalEffectSize.width.toFloat(),
-                    y = additionalEffectSize.height.toFloat()
-                )
-                trace("additionalHPass") {
+                trace("extraHPass") {
                     extraHPassFramebuffer.bind(Bind.DRAW)
+                    RenderCommand.clear()
                     blurShaderProgram.setHorizontalPass()
-                    drawScene(
-                        camera = extraPassCameraController.camera,
-                        shaderProgram = blurShaderProgram
-                    ) {
-                        drawQuad(
-                            position = passCenter,
-                            size = passSize,
-                            texture = verticalPassFramebuffer.colorAttachmentTexture
-                        )
-                    }
+                    simpleRenderer.draw(
+                        shader = blurShaderProgram.shader,
+                        texture = verticalPassFramebuffer.colorAttachmentTexture
+                    )
                 }
-                trace("additionalVPass") {
+                trace("extraVPass") {
                     extraVPassFramebuffer.bind(Bind.DRAW)
+                    RenderCommand.clear()
                     blurShaderProgram.setVerticalPass()
-                    drawScene(
-                        camera = extraPassCameraController.camera,
-                        shaderProgram = blurShaderProgram
-                    ) {
-                        drawQuad(
-                            position = passCenter,
-                            size = passSize,
-                            texture = extraHPassFramebuffer.colorAttachmentTexture
-                        )
-                    }
+                    simpleRenderer.draw(
+                        shader = blurShaderProgram.shader,
+                        texture = extraHPassFramebuffer.colorAttachmentTexture
+                    )
                 }
             }
 
@@ -185,10 +151,10 @@ internal class BlurEffect(
         srcHeight: Int,
         dstWidth: Int,
         dstHeight: Int
-    ) {
+    ) = trace("blitFramebuffers") {
         srcFramebuffer.bind(Bind.READ)
         dstFramebuffer.bind(Bind.DRAW)
-        srcFramebuffer.readBuffer(0)
+        RenderCommand.clear()
         RenderCommand.blitFramebuffer(
             srcX0 = 0,
             srcY0 = 0,
@@ -226,14 +192,9 @@ internal class BlurEffect(
         resultFramebuffer = Framebuffer.create(spec)
 
         if (DO_EXTRA_BLURRING_PASS) {
-            val additionalPassSpec = spec.copy(downSampleFactor = spec.downSampleFactor * 2)
-            extraHPassFramebuffer = Framebuffer.create(additionalPassSpec)
-            extraVPassFramebuffer = Framebuffer.create(additionalPassSpec)
-            extraPassCameraController =
-                OrthographicCameraController.createPixelUnitsController(
-                    viewportWidth = additionalPassSpec.size.width / additionalPassSpec.downSampleFactor,
-                    viewportHeight = additionalPassSpec.size.height / additionalPassSpec.downSampleFactor
-                )
+            val extraPassSpec = spec.copy(downSampleFactor = spec.downSampleFactor * 2)
+            extraHPassFramebuffer = Framebuffer.create(extraPassSpec)
+            extraVPassFramebuffer = Framebuffer.create(extraPassSpec)
         }
     }
 

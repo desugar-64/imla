@@ -7,7 +7,6 @@ package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
 
 import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Bind
@@ -19,8 +18,12 @@ import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 
-internal class MaskEffect(assetManager: AssetManager) {
+internal class MaskEffect(
+    assetManager: AssetManager,
+    private val simpleQuadRenderer: SimpleQuadRenderer
+) {
 
     private val shaderProgram = MaskShaderProgram(assetManager)
 
@@ -70,11 +73,11 @@ internal class MaskEffect(assetManager: AssetManager) {
             if (isEnabled()) {
                 requireNotNull(mask)
                 setup(IntSize(mask.width, mask.height))
-                trace("blitBackground") {
+                trace("cutBackgroundRegion") {
                     backgroundFramebuffer.bind(Bind.READ)
                     cropBackgroundFramebuffer.bind(Bind.DRAW)
+                    RenderCommand.clear()
 
-                    backgroundFramebuffer.readBuffer(0)
                     RenderCommand.blitFramebuffer(
                         srcX0 = 0,
                         srcY0 = backgroundRect.top.toInt(),
@@ -96,15 +99,8 @@ internal class MaskEffect(assetManager: AssetManager) {
 
                 trace("drawMask") {
                     finalMaskFrameBuffer.bind(Bind.DRAW)
-                    RenderCommand.clear(Color.Transparent)
-                    drawScene(cameraController.camera, shaderProgram) {
-                        drawQuad(
-                            position = center,
-                            size = size,
-                            texture = blur,
-                            withMask = true
-                        )
-                    }
+                    RenderCommand.clear()
+                    simpleQuadRenderer.draw(shader = shaderProgram.shader, texture = blur)
                 }
             }
         }

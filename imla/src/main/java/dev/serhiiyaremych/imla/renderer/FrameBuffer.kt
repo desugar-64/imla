@@ -48,13 +48,13 @@ internal interface Framebuffer {
     val colorAttachmentTexture: Texture2D
 
     fun invalidate()
-    fun bind(bind: Bind)
+    fun bind(bind: Bind = Bind.BOTH)
     fun unbind()
     fun resize(width: Int, height: Int)
 
+    fun invalidateAttachments()
     fun clearAttachment(attachmentIndex: Int, value: Int)
     fun getColorAttachmentRendererID(index: Int = 0): Int
-    fun readBuffer(attachmentIndex: Int)
 
     fun destroy()
     fun setColorAttachmentAt(attachmentIndex: Int)

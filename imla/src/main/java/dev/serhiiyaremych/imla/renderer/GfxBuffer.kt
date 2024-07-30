@@ -7,15 +7,17 @@
 
 package dev.serhiiyaremych.imla.renderer
 
+import dev.serhiiyaremych.imla.renderer.opengl.OpenGLUniformBuffer
 import dev.serhiiyaremych.imla.renderer.opengl.buffer.OpenGLIndexBuffer
 import dev.serhiiyaremych.imla.renderer.opengl.buffer.OpenGLVertexBuffer
+import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
 internal interface GfxBuffer {
-    val count: Int
+    val elements: Int
     val sizeBytes: Int
     fun bind()
     fun unbind()
@@ -91,7 +93,16 @@ internal interface IndexBuffer : GfxBuffer {
     }
 }
 
+internal interface UniformBuffer : GfxBuffer {
+    fun setData(data: FloatArray)
+    fun setData(data: Buffer)
 
+    companion object {
+        fun create(count: Int, bindingPoint: Int): UniformBuffer {
+            return OpenGLUniformBuffer(count, bindingPoint)
+        }
+    }
+}
 internal fun FloatArray.toFloatBuffer(): FloatBuffer = ByteBuffer
     .allocateDirect(size * Float.SIZE_BYTES)
     .order(ByteOrder.nativeOrder())

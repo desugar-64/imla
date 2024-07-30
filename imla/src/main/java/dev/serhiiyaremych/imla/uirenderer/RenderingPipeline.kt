@@ -15,16 +15,18 @@ import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.EffectCoordinator
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import java.util.concurrent.ConcurrentHashMap
 
 internal class RenderingPipeline(
-    assetManager: AssetManager,
+    private val assetManager: AssetManager,
+    private val simpleRenderer: SimpleQuadRenderer,
     private val renderer2D: Renderer2D,
     private val density: Density
 ) {
     private val masks: MutableMap<String, MaskTextureRenderer> = ConcurrentHashMap()
     private val renderObjects: MutableMap<String, RenderObject> = ConcurrentHashMap()
-    private val effectCoordinator = EffectCoordinator(density, assetManager)
+    private val effectCoordinator = EffectCoordinator(density, simpleRenderer, assetManager)
 
     fun getRenderObject(id: String?): RenderObject? {
         return id?.let { renderObjects[it] }
@@ -40,7 +42,9 @@ internal class RenderingPipeline(
             val maskRenderer = masks.getOrPut(renderObject.id) {
                 MaskTextureRenderer(
                     density = density,
+                    assetManager = assetManager,
                     renderer2D = renderer2D,
+                    simpleQuadRenderer = simpleRenderer,
                     onRenderComplete = { tex ->
                         renderObject.mask = tex
                         renderObject.invalidate()

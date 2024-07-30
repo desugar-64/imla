@@ -6,7 +6,6 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.noise
 
 import android.content.res.AssetManager
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.renderer.Bind
@@ -14,13 +13,28 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
-internal class NoiseEffect(assetManager: AssetManager) {
+internal class NoiseEffect(
+    assetManager: AssetManager,
+    private val simpleQuadRenderer: SimpleQuadRenderer
+) {
 
-    private val shader = NoiseShaderProgram(assetManager)
+    private val shader: Shader = Shader.create(
+        assetManager = assetManager,
+        vertexAsset = "shader/simple_quad.vert",
+        fragmentAsset = "shader/noise.frag",
+    ).apply {
+        bindUniformBlock(
+            SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+            SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+        )
+    }
 
     private var noiseTextureFrameBuffer: Framebuffer by Delegates.notNull()
     private var effectFrameBuffer: Framebuffer by Delegates.notNull()
@@ -55,17 +69,11 @@ internal class NoiseEffect(assetManager: AssetManager) {
         return !isNoiseTextureInitialized || noiseTextureFrameBuffer.specification.size != size
     }
 
-    context(RenderableScope)
     private fun drawNoiseTextureOnce() {
         if (!isNoiseTextureDrawn) {
             trace("drawNoiseTextureOnce") {
                 noiseTextureFrameBuffer.bind(Bind.DRAW)
-                drawScene(camera = cameraController.camera, shaderProgram = shader) {
-                    drawQuad(
-                        position = center,
-                        size = size
-                    )
-                }
+                simpleQuadRenderer.draw(shader = shader)
             }
             isNoiseTextureDrawn = true
         }
@@ -80,21 +88,13 @@ internal class NoiseEffect(assetManager: AssetManager) {
                 drawNoiseTextureOnce()
 
                 effectFrameBuffer.bind(Bind.DRAW)
+                RenderCommand.clear()
                 RenderCommand.enableBlending()
-                RenderCommand.clear(Color.Transparent)
-                drawScene(camera = cameraController.camera) {
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = texture
-                    )
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = noiseTextureFrameBuffer.colorAttachmentTexture,
-                        alpha = noiseAlpha
-                    )
-                }
+                simpleQuadRenderer.draw(texture = texture)
+                simpleQuadRenderer.draw(
+                    texture = noiseTextureFrameBuffer.colorAttachmentTexture,
+                    alpha = noiseAlpha
+                )
             }
             RenderCommand.disableBlending()
             return effectFrameBuffer.colorAttachmentTexture

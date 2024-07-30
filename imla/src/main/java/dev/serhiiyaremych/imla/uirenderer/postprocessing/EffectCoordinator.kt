@@ -18,6 +18,7 @@ import dev.serhiiyaremych.imla.uirenderer.postprocessing.noise.NoiseEffect
 
 internal class EffectCoordinator(
     density: Density,
+    private val simpleQuadRenderer: SimpleQuadRenderer,
     private val assetManager: AssetManager
 ) : Density by density {
 
@@ -27,9 +28,9 @@ internal class EffectCoordinator(
         val effectSize = renderObject.lowResLayer.subTextureSize
 
         return EffectsHolder(
-            blurEffect = BlurEffect(assetManager).apply { setup(effectSize) },
-            noiseEffect = NoiseEffect(assetManager),
-            maskEffect = MaskEffect(assetManager)
+            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
+            noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
+            maskEffect = MaskEffect(assetManager, simpleQuadRenderer)
         )
     }
 
@@ -62,7 +63,7 @@ internal class EffectCoordinator(
             trace("blitFinalToScreen") {
                 finalFb.bind(Bind.READ)
                 RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
-                finalFb.readBuffer(0)
+                RenderCommand.clear()
                 RenderCommand.blitFramebuffer(
                     srcX0 = 0,
                     srcY0 = 0,
@@ -73,16 +74,25 @@ internal class EffectCoordinator(
                     dstX1 = size.x.toInt(),
                     dstY1 = size.y.toInt()
                 )
-                RenderCommand.bindDefaultFramebuffer(Bind.BOTH)
             }
         } else {
-            RenderCommand.setViewPort(0, 0, size.x.toInt(), size.y.toInt())
-            RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
-            drawScene(cameraController.camera) {
-                drawQuad(
-                    position = center,
-                    size = size,
-                    texture = blur.outputFramebuffer.colorAttachmentTexture
+            // all effects are disabled, just show original background
+            trace("cutMainBackgroundRegion") {
+                renderObject.highResFBO.bind(Bind.READ)
+                RenderCommand.bindDefaultFramebuffer(bind = Bind.DRAW)
+                RenderCommand.clear()
+
+                RenderCommand.blitFramebuffer(
+                    srcX0 = 0,
+                    srcY0 = renderObject.highResRect.top.toInt(),
+                    srcX1 = renderObject.highResRect.width.toInt(),
+                    srcY1 = renderObject.highResRect.height.toInt(),
+                    dstX0 = 0,
+                    dstY0 = 0,
+                    dstX1 = renderObject.highResRect.width.toInt(),
+                    dstY1 = renderObject.highResRect.height.toInt(),
+                    mask = RenderCommand.colorBufferBit,
+                    filter = RenderCommand.linearTextureFilter,
                 )
             }
         }

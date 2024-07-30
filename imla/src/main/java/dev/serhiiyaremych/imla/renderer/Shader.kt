@@ -22,6 +22,8 @@ internal interface Shader {
     fun bind()
     fun unbind()
 
+    fun bindUniformBlock(blockName: String, bindingPoint: Int)
+
     fun setInt(name: String, value: Int)
     fun setIntArray(name: String, vararg values: Int)
     fun setFloatArray(name: String, vararg values: Float)

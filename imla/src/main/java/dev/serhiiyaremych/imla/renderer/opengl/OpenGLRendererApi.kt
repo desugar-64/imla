@@ -25,7 +25,11 @@ internal class OpenGLRendererAPI : RendererApi {
         Log.d(TAG, "renderer: " + GLES30.glGetString(GLES30.GL_RENDERER))
         Log.d(TAG, "version: " + GLES30.glGetString(GLES30.GL_VERSION))
         GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
-        GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDisable(GLES30.GL_STENCIL_TEST)
+        GLES30.glDisable(GLES30.GL_SCISSOR_TEST)
+        GLES30.glDisable(GLES30.GL_CULL_FACE)
+        setClearColor(Color.Transparent)
     }
 
     override fun setClearColor(color: Color) = trace("setClearColor") {
@@ -41,7 +45,7 @@ internal class OpenGLRendererAPI : RendererApi {
         vertexArray.bind()
         GLES30.glDrawElements(
             /* mode = */ GLES30.GL_TRIANGLES,
-            /* count = */ if (indexCount == 0) requireNotNull(vertexArray.indexBuffer).count else indexCount,
+            /* count = */ if (indexCount == 0) requireNotNull(vertexArray.indexBuffer).elements else indexCount,
             /* type = */ GLES30.GL_UNSIGNED_INT,
             /* offset = */ 0
         )
@@ -90,7 +94,7 @@ internal class OpenGLRendererAPI : RendererApi {
         dstY1: Int,
         mask: Int,
         filter: Int
-    ) {
+    ) = trace("glBlitFramebuffer") {
         // @formatter:off
         GLES30.glBlitFramebuffer(
             /* srcX0 = */  srcX0,

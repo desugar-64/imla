@@ -5,6 +5,7 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
+import android.content.res.AssetManager
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
 import android.view.Surface
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.ext.isGLThread
+import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -27,14 +29,19 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
 // TODO: Refactor it to custom shader
 internal class MaskTextureRenderer(
     density: Density,
+    private val assetManager: AssetManager,
     private val renderer2D: Renderer2D,
+    private val simpleQuadRenderer: SimpleQuadRenderer,
     private val onRenderComplete: (Texture2D) -> Unit
 ) : Density by density {
     private val drawScope = CanvasDrawScope()
@@ -43,6 +50,7 @@ internal class MaskTextureRenderer(
     private lateinit var maskExternalTexture: Texture2D
     private lateinit var surfaceTexture: SurfaceTexture
     private lateinit var renderableScope: RenderableScope
+    private lateinit var extOesShaderProgram: Shader
 
     private lateinit var surface: Surface
 
@@ -55,6 +63,18 @@ internal class MaskTextureRenderer(
 
         if (isInitialized.get()) {
             destroy()
+        }
+
+        extOesShaderProgram = Shader.create(
+            assetManager = assetManager,
+            vertexAsset = "shader/simple_quad.vert",
+            fragmentAsset = "shader/simple_ext_quad.frag"
+        ).apply {
+            bindUniformBlock(
+                SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+                SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+            )
+            setInt("u_Texture", 0)
         }
 
         frameBuffer = Framebuffer.create(
@@ -88,18 +108,9 @@ internal class MaskTextureRenderer(
     private fun copyTextureToFrameBuffer() = trace(
         sectionName = "copyExtTextureToFrameBuffer"
     ) {
-        with(renderableScope) {
-            bindFrameBuffer(frameBuffer) {
-                RenderCommand.clear(Color.Transparent)
-                drawScene {
-                    drawQuad(
-                        position = scaledCenter,
-                        size = scaledSize,
-                        texture = maskExternalTexture,
-                    )
-                }
-            }
-        }
+        frameBuffer.bind(Bind.DRAW)
+        RenderCommand.clear(Color.Transparent)
+        simpleQuadRenderer.draw(shader = extOesShaderProgram, texture = maskExternalTexture)
     }
 
 

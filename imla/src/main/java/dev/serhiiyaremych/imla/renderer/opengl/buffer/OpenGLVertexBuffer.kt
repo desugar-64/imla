@@ -13,22 +13,26 @@ import dev.serhiiyaremych.imla.renderer.toFloatBuffer
 
 internal class OpenGLVertexBuffer : VertexBuffer {
 
-    override var count: Int
+    override var elements: Int
     override var sizeBytes: Int
     override var layout: BufferLayout? = null
     private var bufferId: Int = 0
     private var isDestroyed: Boolean = false
 
     constructor(count: Int) {
-        this.count = count
-        this.sizeBytes = this.count * Float.SIZE_BYTES
-        createVertexBuffer(null, GLES30.GL_DYNAMIC_DRAW)
+        this.elements = count
+        this.sizeBytes = this.elements * Float.SIZE_BYTES
+        trace("vboCreateDynamic") {
+            createVertexBuffer(null, GLES30.GL_DYNAMIC_DRAW)
+        }
     }
 
     constructor(vertices: FloatArray) {
-        this.count = vertices.size
-        this.sizeBytes = count * Float.SIZE_BYTES
-        createVertexBuffer(vertices, GLES30.GL_STATIC_DRAW)
+        this.elements = vertices.size
+        this.sizeBytes = elements * Float.SIZE_BYTES
+        trace("vboCreateStatic") {
+            createVertexBuffer(vertices, GLES30.GL_STATIC_DRAW)
+        }
     }
 
     private fun createVertexBuffer(vertices: FloatArray?, usage: Int) {
@@ -60,9 +64,9 @@ internal class OpenGLVertexBuffer : VertexBuffer {
     override fun setData(data: FloatArray) = trace("vboSetData") {
         bind()
         this.sizeBytes = data.size * Float.SIZE_BYTES
-        this.count = data.size
+        this.elements = data.size
 
-        trace("glBufferSubData[${count}, ${sizeBytes}bytes]") {
+        trace("glBufferSubData[${elements}, ${sizeBytes}bytes]") {
             GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, sizeBytes, data.toFloatBuffer())
         }
     }

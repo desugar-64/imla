@@ -11,18 +11,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 
 internal class SubTexture2D(
     val texture: Texture2D
 ) : Texture by texture {
     val texCoords: Array<Offset> = Array(4) { index ->
-        when (index) {
-            0 -> Offset(0.0f, 0.0f)
-            1 -> Offset(1.0f, 0.0f)
-            2 -> Offset(1.0f, 1.0f)
-            3 -> Offset(0.0f, 1.0f)
-            else -> error("Texture coordinates index overflow")
-        }
+        SimpleQuadRenderer.defaultTextureCoords[index]
     }
 
     var subTextureSize: IntSize = IntSize.Zero
