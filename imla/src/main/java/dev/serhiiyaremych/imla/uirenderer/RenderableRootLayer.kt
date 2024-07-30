@@ -5,6 +5,7 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
+import android.content.res.AssetManager
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
@@ -28,14 +29,19 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 
 internal class RenderableRootLayer(
+    private val assetManager: AssetManager,
     private val layerDownsampleFactor: Int,
     private val density: Density,
     internal val graphicsLayer: GraphicsLayer,
     internal val renderer2D: Renderer2D,
+    private val simpleQuadRenderer: SimpleQuadRenderer,
     private val onLayerTextureUpdated: () -> Unit
 ) {
     val sizeInt: IntSize get() = graphicsLayer.size
@@ -60,6 +66,8 @@ internal class RenderableRootLayer(
 
     private var isInitialized: Boolean = false
     private var isDestroyed: Boolean = false
+
+    private lateinit var extOesShaderProgram: Shader
 
     fun initialize() {
         require(!isDestroyed) { "Can't re-init destroyed layer" }
@@ -93,6 +101,18 @@ internal class RenderableRootLayer(
                     copyTextureToFrameBuffer()
                     onLayerTextureUpdated()
                 }
+
+                extOesShaderProgram = Shader.create(
+                    assetManager = assetManager,
+                    vertexAsset = "shader/simple_quad.vert",
+                    fragmentAsset = "shader/simple_ext_quad.frag"
+                ).apply {
+                    bindUniformBlock(
+                        SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+                        SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+                    )
+                    setInt("u_Texture", 0)
+                }
                 isInitialized = true
             }
         }
@@ -105,42 +125,34 @@ internal class RenderableRootLayer(
     private fun copyTextureToFrameBuffer() = trace(
         "copyExtTextureToFrameBuffer"
     ) {
-        with(renderableScope) {
-            trace("fullSizeBuffer") {
-                highResFBO.bind(Bind.DRAW)
-
-                drawScene(camera = cameraController.camera) {
-                    drawQuad(
-                        position = center,
-                        size = size,
-                        texture = extOesLayerTexture
-                    )
-                }
-            }
-            trace("scaledSizeBuffer") {
-                highResFBO.bind(Bind.READ)
-                lowResFBO.bind(Bind.DRAW)
-
-                val highResTexSize = highResFBO.specification.size
-
-                highResFBO.readBuffer(0)
-                RenderCommand.blitFramebuffer(
-                    srcX0 = 0,
-                    srcY0 = 0,
-                    srcX1 = highResTexSize.width,
-                    srcY1 = highResTexSize.height,
-                    dstX0 = 0,
-                    dstY0 = 0,
-                    dstX1 = lowResFBO.colorAttachmentTexture.width,
-                    dstY1 = lowResFBO.colorAttachmentTexture.height,
-                    mask = RenderCommand.colorBufferBit,
-                    filter = RenderCommand.linearTextureFilter,
-                )
-            }
+        trace("fullSizeBuffer") {
+            highResFBO.bind(Bind.DRAW)
+            RenderCommand.clear()
+            simpleQuadRenderer.draw(extOesShaderProgram, extOesLayerTexture)
         }
+        trace("scaledSizeBuffer") {
+            highResFBO.bind(Bind.READ)
+            lowResFBO.bind(Bind.DRAW)
+            RenderCommand.clear()
+            val highResTexSize = highResFBO.specification.size
+            lowResFBO.invalidateAttachments()
+
+            RenderCommand.blitFramebuffer(
+                srcX0 = 0,
+                srcY0 = 0,
+                srcX1 = highResTexSize.width,
+                srcY1 = highResTexSize.height,
+                dstX0 = 0,
+                dstY0 = 0,
+                dstX1 = lowResFBO.colorAttachmentTexture.width,
+                dstY1 = lowResFBO.colorAttachmentTexture.height,
+                mask = RenderCommand.colorBufferBit,
+                filter = RenderCommand.linearTextureFilter,
+            )
+        }
+
     }
 
-    //    context(GLRenderer.RenderCallback)
     @MainThread
     fun updateTex() = trace("RenderableRootLayer#updateTex") {
         require(!isDestroyed) { "Can't update destroyed layer" }
@@ -160,7 +172,9 @@ internal class RenderableRootLayer(
                     }
                 }
             } finally {
-                trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
+                if (hwCanvas != null) {
+                    trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
+                }
             }
         }
     }

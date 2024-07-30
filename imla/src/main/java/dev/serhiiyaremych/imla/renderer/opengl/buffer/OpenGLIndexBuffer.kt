@@ -11,8 +11,8 @@ import dev.serhiiyaremych.imla.renderer.toIntBuffer
 
 internal class OpenGLIndexBuffer(indices: IntArray) : IndexBuffer {
 
-    override val count: Int = indices.size
-    override val sizeBytes: Int = count * Int.SIZE_BYTES
+    override val elements: Int = indices.size
+    override val sizeBytes: Int = elements * Int.SIZE_BYTES
     private var rendererId: Int = 0
     private var isDestroyed: Boolean = false
 

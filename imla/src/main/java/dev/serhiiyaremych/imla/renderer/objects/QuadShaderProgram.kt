@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.renderer.objects
 
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.BufferLayout
+import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.ShaderDataType
 import dev.serhiiyaremych.imla.renderer.ShaderProgram
@@ -61,9 +62,18 @@ internal fun defaultQuadVertexMapper(
 }
 
 
-internal class QuadShaderProgram(override val shader: Shader) : ShaderProgram {
+internal class QuadShaderProgram(
+    override val shader: Shader,
+    textureSlots: Int = MAX_TEXTURE_SLOTS
+) : ShaderProgram {
     override val vertexBufferLayout: BufferLayout = defaultQuadBufferLayout
     override val componentsCount: Int = vertexBufferLayout.elements.sumOf { it.type.components }
+
+    init {
+        shader.bind()
+        val samplers = IntArray(textureSlots) { index -> index }
+        shader.setIntArray("u_Textures", *samplers)
+    }
 
     override fun mapVertexData(quadVertexBufferBase: List<QuadVertex>): FloatArray {
         return defaultQuadVertexMapper(quadVertexBufferBase)

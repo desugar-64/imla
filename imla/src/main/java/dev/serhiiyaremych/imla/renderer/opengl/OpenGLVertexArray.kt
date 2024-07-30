@@ -6,6 +6,7 @@
 package dev.serhiiyaremych.imla.renderer.opengl
 
 import android.opengl.GLES30
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.IndexBuffer
 import dev.serhiiyaremych.imla.renderer.ShaderDataType
 import dev.serhiiyaremych.imla.renderer.VertexArray
@@ -30,7 +31,7 @@ internal class OpenGLVertexArray : VertexArray {
         rendererId = ids[0]
     }
 
-    override fun bind() {
+    override fun bind() = trace("vaoBind") {
         GLES30.glBindVertexArray(rendererId)
     }
 

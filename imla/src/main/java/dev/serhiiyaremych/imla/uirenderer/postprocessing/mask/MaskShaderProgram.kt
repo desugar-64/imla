@@ -6,27 +6,21 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
 
 import android.content.res.AssetManager
-import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.Shader
-import dev.serhiiyaremych.imla.renderer.ShaderProgram
+import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.renderer.objects.defaultQuadBufferLayout
-import dev.serhiiyaremych.imla.renderer.objects.defaultQuadVertexMapper
-import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 
-internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
-    override val shader: Shader = Shader.create(
+internal class MaskShaderProgram(assetManager: AssetManager) {
+    val shader: Shader = Shader.create(
         assetManager = assetManager,
-        vertexAsset = "shader/default_quad.vert",
-        fragmentAsset = "shader/mask.frag"
-    )
-
-    override val vertexBufferLayout: BufferLayout = defaultQuadBufferLayout
-    override val componentsCount: Int = vertexBufferLayout.elements.sumOf { it.type.components }
-
-    override fun mapVertexData(quadVertexBufferBase: List<QuadVertex>): FloatArray {
-        return defaultQuadVertexMapper(quadVertexBufferBase)
+        vertexAsset = "shader/simple_quad.vert",
+        fragmentAsset = "shader/simple_mask.frag"
+    ).apply {
+        bindUniformBlock(
+            SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+            SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+        )
     }
 
     fun setMask(mask: Texture2D) {
@@ -41,7 +35,7 @@ internal class MaskShaderProgram(assetManager: AssetManager) : ShaderProgram {
         shader.setInt("u_Background", 3)
     }
 
-    override fun destroy() {
+    fun destroy() {
         shader.destroy()
     }
 }

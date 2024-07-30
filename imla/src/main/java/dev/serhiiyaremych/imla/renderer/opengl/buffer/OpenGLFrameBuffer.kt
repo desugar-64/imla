@@ -136,13 +136,17 @@ internal class OpenGLFramebuffer(
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0)
     }
 
-    override fun readBuffer(attachmentIndex: Int) {
-        GLES30.glReadBuffer(GLES30.GL_COLOR_ATTACHMENT0 + attachmentIndex)
+    private fun readBuffer() {
+        GLES30.glReadBuffer(GLES30.GL_COLOR_ATTACHMENT0)
     }
 
-    override fun bind(bind: Bind) = trace("glBindFramebuffer") {
+    override fun bind(bind: Bind) = trace("glBindFramebuffer[$bind]") {
         GLES30.glBindFramebuffer(bind.toGlTarget(), rendererId)
         GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
+
+        if (bind == READ) {
+            readBuffer()
+        }
     }
 
     override fun unbind() = trace("glUnBindFramebuffer") {
@@ -160,6 +164,15 @@ internal class OpenGLFramebuffer(
             )
             invalidate()
         }
+    }
+
+    override fun invalidateAttachments() = trace("invalidateAttachments") {
+        GLES30.glInvalidateFramebuffer(
+            GLES30.GL_DRAW_FRAMEBUFFER,
+            drawAttachments.size,
+            drawAttachments,
+            0
+        )
     }
 
     override fun getColorAttachmentRendererID(index: Int): Int {

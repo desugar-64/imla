@@ -32,7 +32,7 @@ internal const val MAX_TEXTURE_SLOTS = 8 // query from actual HW
 
 internal class Renderer2D {
     private var _data: Renderer2DData? = null
-    private val data: Renderer2DData get() = requireNotNull(_data) { "Renderer2D not initialized!" }
+    internal val data: Renderer2DData get() = _data ?: error("Renderer2D not initialized!")
 
     private var isDrawingScene: Boolean = false
 
@@ -59,9 +59,6 @@ internal class Renderer2D {
                 fragmentAsset = "shader/default_quad.frag"
             )
         )
-        defaultQuadShaderProgram.shader.bind()
-        val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
-        defaultQuadShaderProgram.shader.setIntArray("u_Textures", *samplers)
 
         val quadVertexBuffer: VertexBuffer =
             VertexBuffer.create(MAX_VERTICES * defaultQuadShaderProgram.componentsCount).apply {
@@ -77,8 +74,6 @@ internal class Renderer2D {
                 fragmentAsset = "shader/external_quad.frag"
             )
         )
-        externalQuadShaderProgram.shader.bind()
-        externalQuadShaderProgram.shader.setIntArray("u_Textures", *samplers)
 
         val quadIndexCount = 0
         val quadVertexBufferBase: MutableList<QuadVertex> = ArrayList(MAX_VERTICES)
@@ -103,6 +98,7 @@ internal class Renderer2D {
         _data = Renderer2DData(
             cameraData = CameraData(Mat4.identity()),
             whiteTexture = whiteTexture,
+            setStaticQuadData = false,
             quadVertexArray = quadVertexArray,
             quadVertexBuffer = quadVertexBuffer,
             defaultQuadShaderProgram = defaultQuadShaderProgram,
@@ -111,6 +107,7 @@ internal class Renderer2D {
             quadIndexCount = quadIndexCount,
             quadVertexBufferBase = quadVertexBufferBase,
             textureSlots = textureSlots,
+            quadVertexBufferStatic = null,
             textureSlotIndex = textureSlotIndex,
             defaultQuadVertexPositions = defaultQuadVertexPositions,
             stats = stats
@@ -139,33 +136,33 @@ internal class Renderer2D {
 
     fun beginScene(camera: OrthographicCamera, shaderProgram: ShaderProgram) =
         trace("Renderer2D#beginScene") {
-        require(isDrawingScene.not()) { "Please complete the current scene before starting a new one." }
-        isDrawingScene = true
-        data.cameraData.viewProjection = camera.viewProjectionMatrix
+            require(isDrawingScene.not()) { "Please complete the current scene before starting a new one." }
+            isDrawingScene = true
+            data.cameraData.viewProjection = camera.viewProjectionMatrix
 
-        if (shaderProgram != data.quadShaderProgram) {
-            data.quadShaderProgram = shaderProgram
-        }
-        val mat4 = data.cameraData.viewProjection
+            if (shaderProgram != data.quadShaderProgram) {
+                data.quadShaderProgram = shaderProgram
+            }
+            val mat4 = data.cameraData.viewProjection
 
             trace("viewProjection") {
-            data.defaultQuadShaderProgram.shader.bind()
-            data.defaultQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+                data.defaultQuadShaderProgram.shader.bind()
+                data.defaultQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
-            data.externalQuadShaderProgram.shader.bind()
-            data.externalQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+                data.externalQuadShaderProgram.shader.bind()
+                data.externalQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
-            data.quadShaderProgram.shader.bind()
-            data.quadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
+                data.quadShaderProgram.shader.bind()
+                data.quadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
+            }
+
+            data.quadIndexCount = 0
+            data.quadVertexBufferBase.clear()
+
+            data.textureSlotIndex = 1
+            data.textureSlots.fill(null, 1)
         }
-
-        data.quadIndexCount = 0
-        data.quadVertexBufferBase.clear()
-
-        data.textureSlotIndex = 1
-        data.textureSlots.fill(null, 1)
-    }
 
     fun endScene() = trace("Renderer2D#endScene") {
         data.quadVertexBuffer.setData(
@@ -199,6 +196,26 @@ internal class Renderer2D {
             RenderCommand.drawIndexed(data.quadVertexArray, data.quadIndexCount)
             data.stats.drawCalls++
         }
+    }
+
+    fun drawFullQuadStatic(texture: Texture, alpha: Float) = trace("drawFullQuadStatic") {
+        if (data.setStaticQuadData.not()) {
+            submitQuad(
+                transform = matId,
+                textureCoords = if (texture is SubTexture2D) texture.texCoords else defaultTextureCoords,
+                alpha = alpha,
+                mask = 0f
+            )
+            data.quadVertexBufferStatic = VertexBuffer.create(
+                vertices = data.quadShaderProgram.mapVertexData(data.quadVertexBufferBase)
+            )
+            data.quadVertexArray.addVertexBuffer(data.quadVertexBufferStatic!!)
+            data.setStaticQuadData = true
+            data.quadShaderProgram.shader.bind()
+            data.quadShaderProgram.shader.setFloat("staticRenderer", 1.0f)
+        }
+        flush()
+        isDrawingScene = false
     }
 
     fun drawQuad(
@@ -380,12 +397,13 @@ internal class Renderer2D {
 }
 
 
-private data class CameraData(var viewProjection: Mat4)
+internal data class CameraData(var viewProjection: Mat4)
 
 @Suppress("ArrayInDataClass")
-private data class Renderer2DData(
+internal data class Renderer2DData(
     val cameraData: CameraData,
     var whiteTexture: Texture2D,
+    var setStaticQuadData: Boolean,
 
     val defaultQuadShaderProgram: ShaderProgram,
     val externalQuadShaderProgram: ShaderProgram,
@@ -395,13 +413,15 @@ private data class Renderer2DData(
     var quadShaderProgram: ShaderProgram,
     var quadIndexCount: Int = 0,
     val quadVertexBufferBase: MutableList<QuadVertex> = ArrayList(MAX_VERTICES),
-
-
     val textureSlots: Array<Texture2D?> = Array(MAX_TEXTURE_SLOTS) { null },
+
+    var quadVertexBufferStatic: VertexBuffer?,
+
     var textureSlotIndex: Int = 1, // 0 = white texture slot
     val defaultQuadVertexPositions: Array<Float4> = Array(4) { Float4(0.0f) },
     val stats: RenderStatistics = RenderStatistics(),
-)
+) {
+}
 
 public data class RenderStatistics(
     var drawCalls: Int = 0,
@@ -426,6 +446,13 @@ private val bottomRight = Offset(1.0f, 0.0f)
 private val topRight = Offset(1.0f, 1.0f)
 private val topLeft = Offset(0.0f, 1.0f)
 private val defaultTextureCoords = arrayOf(bottomLeft, bottomRight, topRight, topLeft) // CCW
+
+//private val defaultTextureCoords = arrayOf(
+//    Offset(0.0f, 0.0f), // Bottom Left
+//    Offset(1.0f, 0.0f), // Bottom Right
+//    Offset(0.0f, 1.0f), // Top Left
+//    Offset(1.0f, 1.0f)  // Top Right
+//)
 
 private val whiteColor = Float4(1.0f)
 private val zero3 = Float3(0.0f)

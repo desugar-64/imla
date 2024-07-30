@@ -57,7 +57,7 @@ internal object RenderCommand {
         rendererAPI.disableBlending()
     }
 
-    fun bindDefaultFramebuffer(bind: Bind) {
+    fun bindDefaultFramebuffer(bind: Bind = Bind.BOTH) {
         rendererAPI.bindDefaultFramebuffer(bind)
     }
 

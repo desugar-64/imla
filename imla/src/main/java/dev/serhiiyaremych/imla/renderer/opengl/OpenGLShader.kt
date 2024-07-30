@@ -29,52 +29,67 @@ internal class OpenGLShader(
     private var rendererId: Int = 0
 
     private val locationMap: MutableObjectIntMap<String> = MutableObjectIntMap()
+    private var traceName = "shaderBind"
 
     init {
         compile(vertexSrc, fragmentSrc)
     }
 
-    override fun bind() = trace("shaderBind") {
-        GLES30.glUseProgram(rendererId)
+    override fun bind() {
+        trace(traceName) {
+            GLES30.glUseProgram(rendererId)
+        }
     }
 
-    override fun unbind() = trace("shaderUnBind") {
+    override fun unbind() = trace(traceName) {
         GLES30.glUseProgram(0)
     }
 
-    override fun setInt(name: String, value: Int) {
+    override fun bindUniformBlock(blockName: String, bindingPoint: Int) =
+        trace("bindUniformBlock") {
+            val blockIndex =
+                locationMap.getOrPut(blockName) {
+                    GLES30.glGetUniformBlockIndex(
+                        rendererId,
+                        blockName
+                    )
+                }
+            GLES30.glUniformBlockBinding(rendererId, blockIndex, bindingPoint)
+        }
+
+    override fun setInt(name: String, value: Int) = trace("setInt") {
         uploadUniformInt(name, value)
     }
 
-    override fun setIntArray(name: String, vararg values: Int) {
+    override fun setIntArray(name: String, vararg values: Int) = trace("setIntArray") {
         uploadUniformIntArray(name, *values)
     }
 
-    override fun setFloatArray(name: String, vararg values: Float) {
+    override fun setFloatArray(name: String, vararg values: Float) = trace("setFloatArray") {
         uploadFloatArray(name, *values)
     }
 
-    override fun setFloat(name: String, value: Float) {
+    override fun setFloat(name: String, value: Float) = trace("setFloat") {
         uploadUniformFloat(name, value)
     }
 
-    override fun setFloat2(name: String, value: Float2) {
+    override fun setFloat2(name: String, value: Float2) = trace("setFloat2") {
         uploadUniformFloat2(name, value)
     }
 
-    override fun setFloat3(name: String, value: Float3) {
+    override fun setFloat3(name: String, value: Float3) = trace("setFloat3") {
         uploadUniformFloat3(name, value)
     }
 
-    override fun setFloat4(name: String, value: Float4) {
+    override fun setFloat4(name: String, value: Float4) = trace("setFloat4") {
         uploadUniformFloat4(name, value)
     }
 
-    override fun setMat3(name: String, value: Mat3) {
+    override fun setMat3(name: String, value: Mat3) = trace("setMat3") {
         uploadUniformMat3(name, value)
     }
 
-    override fun setMat4(name: String, value: Mat4) {
+    override fun setMat4(name: String, value: Mat4) = trace("setMat4") {
         uploadUniformMat4(name, value)
     }
 
@@ -156,6 +171,7 @@ internal class OpenGLShader(
         }
 
         rendererId = GLES30.glCreateProgram()
+        traceName = "shaderBind[$rendererId]"
         val program = rendererId
         GLES30.glAttachShader(program, vertexShader)
         GLES30.glAttachShader(program, fragmentShader)

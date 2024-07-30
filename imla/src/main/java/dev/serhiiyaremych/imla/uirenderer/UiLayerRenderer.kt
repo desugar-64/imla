@@ -39,6 +39,8 @@ import dev.serhiiyaremych.imla.BuildConfig
 import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.SimpleRenderer
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class UiRendererObserver(
@@ -82,19 +84,24 @@ public class UiLayerRenderer(
     private val assetManager: AssetManager
 ) : Density by density {
     private val renderer2D: Renderer2D = Renderer2D()
+    private val simpleRenderer: SimpleRenderer = SimpleRenderer()
+    private val simpleQuadRenderer: SimpleQuadRenderer =
+        SimpleQuadRenderer(assetManager, simpleRenderer)
     private val glRenderer: GLRenderer = GLRenderer().apply {
         start("GLUiLayerRenderer")
     }
 
     private val renderingPipeline: RenderingPipeline =
-        RenderingPipeline(assetManager, renderer2D, this)
+        RenderingPipeline(assetManager, simpleQuadRenderer, renderer2D, this)
 
     private val mainThreadHandler = Handler(Looper.getMainLooper())
     internal val renderableLayer: RenderableRootLayer = RenderableRootLayer(
+        assetManager = assetManager,
         layerDownsampleFactor = downSampleFactor,
         density = density,
         graphicsLayer = graphicsLayer,
         renderer2D = renderer2D,
+        simpleQuadRenderer = simpleQuadRenderer,
         onLayerTextureUpdated = {
             // graphics layer texture updated, request pipeline render
             renderingPipeline.requestRender {
@@ -139,6 +146,7 @@ public class UiLayerRenderer(
             glRenderer.execute {
                 RenderCommand.init()
                 renderer2D.init(assetManager)
+                simpleRenderer.init()
 
                 renderableLayer.initialize()
                 mainRenderTarget = glRenderer.createRenderTarget(
