@@ -20,6 +20,7 @@ import dev.romainguy.kotlin.math.rotation
 import dev.romainguy.kotlin.math.scale
 import dev.romainguy.kotlin.math.translation
 import dev.romainguy.kotlin.math.transpose
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.camera.OrthographicCamera
 import dev.serhiiyaremych.imla.renderer.objects.QuadShaderProgram
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
@@ -50,7 +51,6 @@ internal class Renderer2D {
 
             offset += 4
         }
-
         val quadVertexArray: VertexArray = VertexArray.create()
         val defaultQuadShaderProgram = QuadShaderProgram(
             shader = Shader.create(
@@ -59,14 +59,12 @@ internal class Renderer2D {
                 fragmentAsset = "shader/default_quad.frag"
             )
         )
-
         val quadVertexBuffer: VertexBuffer =
             VertexBuffer.create(MAX_VERTICES * defaultQuadShaderProgram.componentsCount).apply {
                 layout = defaultQuadShaderProgram.vertexBufferLayout
             }
         quadVertexArray.addVertexBuffer(quadVertexBuffer)
         quadVertexArray.indexBuffer = IndexBuffer.create(quadIndices)
-
         val externalQuadShaderProgram = QuadShaderProgram(
             shader = Shader.create(
                 assetManager = assetManager,
@@ -74,7 +72,6 @@ internal class Renderer2D {
                 fragmentAsset = "shader/external_quad.frag"
             )
         )
-
         val quadIndexCount = 0
         val quadVertexBufferBase: MutableList<QuadVertex> = ArrayList(MAX_VERTICES)
 

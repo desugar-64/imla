@@ -9,6 +9,7 @@ import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.RendererApi
 import dev.serhiiyaremych.imla.renderer.VertexArray
@@ -24,20 +25,20 @@ internal class OpenGLRendererAPI : RendererApi {
         Log.d(TAG, "vendor: " + GLES30.glGetString(GLES30.GL_VENDOR))
         Log.d(TAG, "renderer: " + GLES30.glGetString(GLES30.GL_RENDERER))
         Log.d(TAG, "version: " + GLES30.glGetString(GLES30.GL_VERSION))
-        GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
-        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
-        GLES30.glDisable(GLES30.GL_STENCIL_TEST)
-        GLES30.glDisable(GLES30.GL_SCISSOR_TEST)
-        GLES30.glDisable(GLES30.GL_CULL_FACE)
+        checkGlError(GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA))
+        checkGlError(GLES30.glDisable(GLES30.GL_DEPTH_TEST))
+        checkGlError(GLES30.glDisable(GLES30.GL_STENCIL_TEST))
+        checkGlError(GLES30.glDisable(GLES30.GL_SCISSOR_TEST))
+        checkGlError(GLES30.glDisable(GLES30.GL_CULL_FACE))
         setClearColor(Color.Transparent)
     }
 
     override fun setClearColor(color: Color) = trace("setClearColor") {
-        GLES30.glClearColor(color.red, color.green, color.blue, color.alpha)
+        checkGlError(GLES30.glClearColor(color.red, color.green, color.blue, color.alpha))
     }
 
     override fun clear() = trace("glClear") {
-        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT or GLES30.GL_STENCIL_BUFFER_BIT)
+        checkGlError(GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT or GLES30.GL_STENCIL_BUFFER_BIT))
     }
 
     // @formatter:off
@@ -53,7 +54,7 @@ internal class OpenGLRendererAPI : RendererApi {
     // @formatter:on
 
     override fun setViewPort(x: Int, y: Int, width: Int, height: Int) = trace("glViewport") {
-        GLES30.glViewport(x, y, width, height)
+        checkGlError(GLES30.glViewport(x, y, width, height))
     }
 
     override fun disableDepthTest() {
@@ -80,7 +81,7 @@ internal class OpenGLRendererAPI : RendererApi {
     }
 
     override fun bindDefaultFramebuffer(bind: Bind) {
-        GLES30.glBindFramebuffer(bind.toGlTarget(), 0)
+        checkGlError(GLES30.glBindFramebuffer(bind.toGlTarget(), 0))
     }
 
     override fun blitFramebuffer(
@@ -96,17 +97,19 @@ internal class OpenGLRendererAPI : RendererApi {
         filter: Int
     ) = trace("glBlitFramebuffer") {
         // @formatter:off
-        GLES30.glBlitFramebuffer(
-            /* srcX0 = */  srcX0,
-            /* srcY0 = */  srcY0,
-            /* srcX1 = */  srcX1,
-            /* srcY1 = */  srcY1,
-            /* dstX0 = */  dstX0,
-            /* dstY0 = */  dstY0,
-            /* dstX1 = */  dstX1,
-            /* dstY1 = */  dstY1,
-            /* mask = */   mask,
-            /* filter = */ filter
+        checkGlError(
+            GLES30.glBlitFramebuffer(
+                /* srcX0 = */  srcX0,
+                /* srcY0 = */  srcY0,
+                /* srcX1 = */  srcX1,
+                /* srcY1 = */  srcY1,
+                /* dstX0 = */  dstX0,
+                /* dstY0 = */  dstY0,
+                /* dstX1 = */  dstX1,
+                /* dstY1 = */  dstY1,
+                /* mask = */   mask,
+                /* filter = */ filter
+            )
         )
         // @formatter:on
     }

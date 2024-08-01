@@ -64,7 +64,6 @@ internal class OpenGLFramebuffer(
         rendererId = id[0]
 
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, rendererId)
-        checkGlError("bind fb")
         val attachments = specification.attachmentsSpec.attachments
 
         val colorAttachmentSpecs =
@@ -87,7 +86,6 @@ internal class OpenGLFramebuffer(
                     /* texture = */ this.id,
                     /* level = */ 0
                 )
-                checkGlError("attach tex $index")
             }
         }
 
@@ -111,8 +109,6 @@ internal class OpenGLFramebuffer(
                     /* texture = */ depthAttachment,
                     /* level = */ 0
                 )
-
-                checkGlError("attach depth")
             }
         }
 
@@ -122,7 +118,6 @@ internal class OpenGLFramebuffer(
             }
             GLES30.glDrawBuffers(colorAttachmentSpecs.size, buffers, 0)
             drawAttachments = buffers
-            checkGlError("glDrawBuffers all")
         } else {
             // Only depth-pass
             GLES30.glDrawBuffers(0, intArrayOf(), 0)
@@ -253,27 +248,7 @@ internal class OpenGLFramebuffer(
                 format = format.toTextureFormat(),
                 flipTexture = flip
             )
-        ).apply {
-            // @formatter:off
-            GLES30.glTexStorage2D(
-                /* target = */ GLES30.GL_TEXTURE_2D,
-                /* levels = */ 4,
-                /* internalformat = */ specification.format.toGlInternalFormat(),
-                /* width = */ width,
-                /* height = */ height
-            )
-            // @formatter:on
-            checkGlError("glTexImage2D")
-        }
-
-        fun checkGlError(operation: String) {
-            val error = GLES30.glGetError()
-            if (error != GLES30.GL_NO_ERROR) {
-//                throw RuntimeException("$operation: glError $error")
-                Log.e(TAG, "checkGlError: glError $error")
-            }
-        }
-
+        )
     }
 }
 

@@ -111,7 +111,6 @@ internal class RenderableRootLayer(
                         SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
                         SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
                     )
-                    setInt("u_Texture", 0)
                 }
                 isInitialized = true
             }

@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.renderer.opengl.buffer
 
 import android.opengl.GLES30
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.VertexBuffer
 import dev.serhiiyaremych.imla.renderer.toFloatBuffer
@@ -37,14 +38,16 @@ internal class OpenGLVertexBuffer : VertexBuffer {
 
     private fun createVertexBuffer(vertices: FloatArray?, usage: Int) {
         val ids = IntArray(1)
-        GLES30.glGenBuffers(1, ids, 0)
+        checkGlError(GLES30.glGenBuffers(1, ids, 0))
         bufferId = ids[0]
-        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, bufferId)
-        GLES30.glBufferData(
-            /* target = */ GLES30.GL_ARRAY_BUFFER,
-            /* size = */ sizeBytes,
-            /* data = */ vertices?.toFloatBuffer(),
-            /* usage = */ usage
+        checkGlError(GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, bufferId))
+        checkGlError(
+            GLES30.glBufferData(
+                /* target = */ GLES30.GL_ARRAY_BUFFER,
+                /* size = */ sizeBytes,
+                /* data = */ vertices?.toFloatBuffer(),
+                /* usage = */ usage
+            )
         )
     }
 
@@ -52,7 +55,7 @@ internal class OpenGLVertexBuffer : VertexBuffer {
         if (isDestroyed) {
             error("Can't bind destroyed buffer.")
         }
-        GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, bufferId)
+        checkGlError(GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, bufferId))
     }
 
     override fun unbind() {
@@ -67,7 +70,9 @@ internal class OpenGLVertexBuffer : VertexBuffer {
         this.elements = data.size
 
         trace("glBufferSubData[${elements}, ${sizeBytes}bytes]") {
-            GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, sizeBytes, data.toFloatBuffer())
+            checkGlError(
+                GLES30.glBufferSubData(GLES30.GL_ARRAY_BUFFER, 0, sizeBytes, data.toFloatBuffer())
+            )
         }
     }
 

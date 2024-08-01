@@ -14,6 +14,7 @@ import dev.romainguy.kotlin.math.Float3
 import dev.romainguy.kotlin.math.Float4
 import dev.romainguy.kotlin.math.Mat3
 import dev.romainguy.kotlin.math.Mat4
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.Shader
 import org.intellij.lang.annotations.Language
 
@@ -37,7 +38,7 @@ internal class OpenGLShader(
 
     override fun bind() {
         trace(traceName) {
-            GLES30.glUseProgram(rendererId)
+            checkGlError(GLES30.glUseProgram(rendererId))
         }
     }
 
@@ -52,9 +53,9 @@ internal class OpenGLShader(
                     GLES30.glGetUniformBlockIndex(
                         rendererId,
                         blockName
-                    )
+                    ).also { checkGlError() }
                 }
-            GLES30.glUniformBlockBinding(rendererId, blockIndex, bindingPoint)
+            checkGlError(GLES30.glUniformBlockBinding(rendererId, blockIndex, bindingPoint))
         }
 
     override fun setInt(name: String, value: Int) = trace("setInt") {
@@ -95,47 +96,47 @@ internal class OpenGLShader(
 
     override fun uploadUniformInt(name: String, value: Int) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform1i(location, value)
+        checkGlError(GLES30.glUniform1i(location, value))
     }
 
     override fun uploadUniformIntArray(name: String, vararg values: Int) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform1iv(location, values.size, values, 0)
+        checkGlError(GLES30.glUniform1iv(location, values.size, values, 0))
     }
 
     override fun uploadFloatArray(name: String, vararg values: Float) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform1fv(location, values.size, values, 0)
+        checkGlError(GLES30.glUniform1fv(location, values.size, values, 0))
     }
 
     override fun uploadUniformFloat(name: String, value: Float) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform1f(location, value)
+        checkGlError(GLES30.glUniform1f(location, value))
     }
 
     override fun uploadUniformFloat2(name: String, value: Float2) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform2f(location, value.x, value.y)
+        checkGlError(GLES30.glUniform2f(location, value.x, value.y))
     }
 
     override fun uploadUniformFloat3(name: String, value: Float3) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform3f(location, value.x, value.y, value.z)
+        checkGlError(GLES30.glUniform3f(location, value.x, value.y, value.z))
     }
 
     override fun uploadUniformFloat4(name: String, value: Float4) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniform4f(location, value.x, value.y, value.z, value.w)
+        checkGlError(GLES30.glUniform4f(location, value.x, value.y, value.z, value.w))
     }
 
     override fun uploadUniformMat3(name: String, value: Mat3) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniformMatrix3fv(location, 1, true, value.toFloatArray(), 0)
+        checkGlError(GLES30.glUniformMatrix3fv(location, 1, true, value.toFloatArray(), 0))
     }
 
     override fun uploadUniformMat4(name: String, value: Mat4) {
         val location = uniformLocation(rendererId, name)
-        GLES30.glUniformMatrix4fv(location, 1, true, value.toFloatArray(), 0)
+        checkGlError(GLES30.glUniformMatrix4fv(location, 1, true, value.toFloatArray(), 0))
     }
 
     override fun destroy() {
@@ -147,8 +148,8 @@ internal class OpenGLShader(
 
     private fun compile(vertexSrc: String, fragmentSrc: String) = trace("shaderCompile") {
         val vertexShader = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER)
-        GLES30.glShaderSource(vertexShader, vertexSrc)
-        GLES30.glCompileShader(vertexShader)
+        checkGlError(GLES30.glShaderSource(vertexShader, vertexSrc))
+        checkGlError(GLES30.glCompileShader(vertexShader))
 
         val status = IntArray(1)
         GLES30.glGetShaderiv(vertexShader, GLES30.GL_COMPILE_STATUS, status, 0)
@@ -159,8 +160,8 @@ internal class OpenGLShader(
         }
 
         val fragmentShader = GLES30.glCreateShader(GLES30.GL_FRAGMENT_SHADER)
-        GLES30.glShaderSource(fragmentShader, fragmentSrc)
-        GLES30.glCompileShader(fragmentShader)
+        checkGlError(GLES30.glShaderSource(fragmentShader, fragmentSrc))
+        checkGlError(GLES30.glCompileShader(fragmentShader))
 
         GLES30.glGetShaderiv(fragmentShader, GLES30.GL_COMPILE_STATUS, status, 0)
         if (status[0] == GLES30.GL_FALSE) {
@@ -173,8 +174,8 @@ internal class OpenGLShader(
         rendererId = GLES30.glCreateProgram()
         traceName = "shaderBind[$rendererId]"
         val program = rendererId
-        GLES30.glAttachShader(program, vertexShader)
-        GLES30.glAttachShader(program, fragmentShader)
+        checkGlError(GLES30.glAttachShader(program, vertexShader))
+        checkGlError(GLES30.glAttachShader(program, fragmentShader))
 
         GLES30.glLinkProgram(program)
 
@@ -186,13 +187,13 @@ internal class OpenGLShader(
             error(errorMessage)
         }
 
-        GLES30.glDetachShader(program, vertexShader)
-        GLES30.glDetachShader(program, fragmentShader)
+        checkGlError(GLES30.glDetachShader(program, vertexShader))
+        checkGlError(GLES30.glDetachShader(program, fragmentShader))
     }
 
     private fun uniformLocation(rendererId: Int, uniformName: String): Int {
         return locationMap.getOrPut(uniformName) {
-            GLES30.glGetUniformLocation(rendererId, uniformName)
+            GLES30.glGetUniformLocation(rendererId, uniformName).also { checkGlError() }
         }
     }
 
