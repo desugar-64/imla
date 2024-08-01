@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.renderer.opengl
 
 import android.opengl.GLES30
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.UniformBuffer
 import dev.serhiiyaremych.imla.renderer.toFloatBuffer
 import java.nio.Buffer
@@ -26,30 +27,36 @@ internal class OpenGLUniformBuffer(
 
     init {
         val ids = IntArray(1)
-        GLES30.glGenBuffers(1, ids, 0)
+        checkGlError(GLES30.glGenBuffers(1, ids, 0))
         rendererId = ids[0]
         bind()
-        GLES30.glBufferData(
-            /* target = */ GLES30.GL_UNIFORM_BUFFER,
-            /* size = */ sizeBytes,
-            /* data = */ null,
-            /* usage = */ GLES30.GL_DYNAMIC_DRAW
+        checkGlError(
+            GLES30.glBufferData(
+                /* target = */ GLES30.GL_UNIFORM_BUFFER,
+                /* size = */ sizeBytes,
+                /* data = */ null,
+                /* usage = */ GLES30.GL_DYNAMIC_DRAW
+            )
         )
-        GLES30.glBindBufferBase(
-            /* target = */ GLES30.GL_UNIFORM_BUFFER,
-            /* index = */ binding,
-            /* buffer = */ rendererId
+        checkGlError(
+            GLES30.glBindBufferBase(
+                /* target = */ GLES30.GL_UNIFORM_BUFFER,
+                /* index = */ binding,
+                /* buffer = */ rendererId
+            )
         )
     }
 
     override fun setData(data: FloatArray) {
         bind()
         trace("uboSetData") {
-            GLES30.glBufferSubData(
-                /* target = */ GLES30.GL_UNIFORM_BUFFER,
-                /* offset = */ 0,
-                /* size = */ data.size * Float.SIZE_BYTES,
-                /* data = */ data.toFloatBuffer()
+            checkGlError(
+                GLES30.glBufferSubData(
+                    /* target = */ GLES30.GL_UNIFORM_BUFFER,
+                    /* offset = */ 0,
+                    /* size = */ data.size * Float.SIZE_BYTES,
+                    /* data = */ data.toFloatBuffer()
+                )
             )
         }
     }
@@ -57,11 +64,13 @@ internal class OpenGLUniformBuffer(
     override fun setData(data: Buffer) {
         bind()
         trace("uboSetData") {
-            GLES30.glBufferSubData(
-                /* target = */ GLES30.GL_UNIFORM_BUFFER,
-                /* offset = */ 0,
-                /* size = */ data.capacity() * Float.SIZE_BYTES,
-                /* data = */ data
+            checkGlError(
+                GLES30.glBufferSubData(
+                    /* target = */ GLES30.GL_UNIFORM_BUFFER,
+                    /* offset = */ 0,
+                    /* size = */ data.capacity() * Float.SIZE_BYTES,
+                    /* data = */ data
+                )
             )
         }
     }
@@ -69,7 +78,7 @@ internal class OpenGLUniformBuffer(
     override fun bind() {
         if (isBound.not()) {
             trace("uboBind") {
-                GLES30.glBindBuffer(GLES30.GL_UNIFORM_BUFFER, rendererId)
+                checkGlError(GLES30.glBindBuffer(GLES30.GL_UNIFORM_BUFFER, rendererId))
             }
             isBound = true
         }

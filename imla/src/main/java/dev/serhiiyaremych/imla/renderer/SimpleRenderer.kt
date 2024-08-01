@@ -27,7 +27,8 @@ internal class SimpleRenderer {
             textureDataUBO = textureDataUBO,
             vao = VertexArray.create(),
         )
-        rendererData.vao.indexBuffer = allocateIndexBuffer()
+        rendererData.vao.bind()
+        rendererData.vao.indexBuffer = allocateIndexBuffer(indices = 6)
         rendererData.vao.addVertexBuffer(allocateVertexBuffer())
         _data = rendererData
     }

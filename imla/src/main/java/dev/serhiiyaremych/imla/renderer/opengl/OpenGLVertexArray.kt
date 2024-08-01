@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.renderer.opengl
 
 import android.opengl.GLES30
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.IndexBuffer
 import dev.serhiiyaremych.imla.renderer.ShaderDataType
 import dev.serhiiyaremych.imla.renderer.VertexArray
@@ -21,18 +22,18 @@ internal class OpenGLVertexArray : VertexArray {
     override var indexBuffer: IndexBuffer? = null
         set(value) {
             field = value
-            GLES30.glBindVertexArray(rendererId)
+            checkGlError(GLES30.glBindVertexArray(rendererId))
             value?.bind()
         }
 
     init {
         val ids = IntArray(1)
-        GLES30.glGenVertexArrays(1, ids, 0)
+        checkGlError(GLES30.glGenVertexArrays(1, ids, 0))
         rendererId = ids[0]
     }
 
     override fun bind() = trace("vaoBind") {
-        GLES30.glBindVertexArray(rendererId)
+        checkGlError(GLES30.glBindVertexArray(rendererId))
     }
 
     override fun unbind() {
@@ -44,7 +45,7 @@ internal class OpenGLVertexArray : VertexArray {
     }
 
     override fun addVertexBuffer(vertexBuffer: VertexBuffer) {
-        GLES30.glBindVertexArray(rendererId)
+        checkGlError(GLES30.glBindVertexArray(rendererId))
         vertexBuffer.bind()
         vertexBuffer.layout?.let { bufferLayout ->
             bufferLayout.forEachIndexed { index, element ->
@@ -56,14 +57,16 @@ internal class OpenGLVertexArray : VertexArray {
                     ShaderDataType.Float2,
                     ShaderDataType.Float3,
                     ShaderDataType.Float4 -> {
-                        GLES30.glEnableVertexAttribArray(index)
-                        GLES30.glVertexAttribPointer(
-                            /* indx = */ index,
-                            /* size = */ element.type.components,
-                            /* type = */ element.type.openGLBaseType,
-                            /* normalized = */ element.normalized,
-                            /* stride = */ bufferLayout.stride,
-                            /* offset = */ element.offset
+                        checkGlError(GLES30.glEnableVertexAttribArray(index))
+                        checkGlError(
+                            GLES30.glVertexAttribPointer(
+                                /* indx = */ index,
+                                /* size = */ element.type.components,
+                                /* type = */ element.type.openGLBaseType,
+                                /* normalized = */ element.normalized,
+                                /* stride = */ bufferLayout.stride,
+                                /* offset = */ element.offset
+                            )
                         )
                     }
 
@@ -72,13 +75,15 @@ internal class OpenGLVertexArray : VertexArray {
                     ShaderDataType.Int3,
                     ShaderDataType.Int4,
                     ShaderDataType.Bool -> {
-                        GLES30.glEnableVertexAttribArray(index)
-                        GLES30.glVertexAttribIPointer(
-                            /* index = */ index,
-                            /* size = */ element.type.components,
-                            /* type = */ element.type.openGLBaseType,
-                            /* stride = */ bufferLayout.stride,
-                            /* offset = */ element.offset
+                        checkGlError(GLES30.glEnableVertexAttribArray(index))
+                        checkGlError(
+                            GLES30.glVertexAttribIPointer(
+                                /* index = */ index,
+                                /* size = */ element.type.components,
+                                /* type = */ element.type.openGLBaseType,
+                                /* stride = */ bufferLayout.stride,
+                                /* offset = */ element.offset
+                            )
                         )
                     }
 
@@ -86,16 +91,18 @@ internal class OpenGLVertexArray : VertexArray {
                     ShaderDataType.Mat4 -> {
                         val count = element.type.components
                         for (i in 0 until count) {
-                            GLES30.glEnableVertexAttribArray(index)
-                            GLES30.glVertexAttribPointer(
-                                /* indx = */ index,
-                                /* size = */ count,
-                                /* type = */ element.type.openGLBaseType,
-                                /* normalized = */ element.normalized,
-                                /* stride = */ bufferLayout.stride,
-                                /* offset = */ (element.offset + Float.SIZE_BYTES * count * i)
+                            checkGlError(GLES30.glEnableVertexAttribArray(index))
+                            checkGlError(
+                                GLES30.glVertexAttribPointer(
+                                    /* indx = */ index,
+                                    /* size = */ count,
+                                    /* type = */ element.type.openGLBaseType,
+                                    /* normalized = */ element.normalized,
+                                    /* stride = */ bufferLayout.stride,
+                                    /* offset = */ (element.offset + Float.SIZE_BYTES * count * i)
+                                )
                             )
-                            GLES30.glVertexAttribDivisor(index, 1)
+                            checkGlError(GLES30.glVertexAttribDivisor(index, 1))
                         }
                     }
                 }
