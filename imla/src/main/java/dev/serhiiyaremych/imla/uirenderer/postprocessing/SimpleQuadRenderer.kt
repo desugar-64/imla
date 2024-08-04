@@ -41,7 +41,6 @@ internal class SimpleQuadRenderer(
     }
 
     private var texCoord: Array<Offset> = defaultTextureCoords
-    private var texSize: Size = Size.Unspecified
     private var flipY: Boolean = false
     private var alpha: Float = 1.0f
 
@@ -122,14 +121,6 @@ internal class SimpleQuadRenderer(
             is Texture2D -> defaultTextureCoords
             is SubTexture2D -> texture.texCoords
             else -> defaultTextureCoords
-        }
-    }
-
-    private fun getTextureSize(texture: Texture): Size {
-        return when (texture) {
-            is Texture2D -> Size(texture.width.toFloat(), texture.height.toFloat())
-            is SubTexture2D -> texture.subTextureSize.toSize()
-            else -> Size.Unspecified
         }
     }
 

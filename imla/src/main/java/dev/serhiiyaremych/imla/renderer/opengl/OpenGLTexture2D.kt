@@ -11,6 +11,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.ext.checkGlError
+import dev.serhiiyaremych.imla.ext.logd
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import java.nio.Buffer
@@ -31,13 +32,13 @@ internal class OpenGLTexture2D : Texture2D {
     constructor(target: Texture.Target, specification: Texture.Specification) : super() {
         this.target = target
         this.specification = specification
-
         val glTarget = target.toGlTextureTarget()
         createGLTexture(glTarget)
 
         if (target != Texture.Target.TEXTURE_EXTERNAL_OES) {
             val maxSize: Int = width.coerceAtLeast(height)
             val maxLevels = (1 + (ln(maxSize.toDouble()) / ln(2.0)).toInt()).coerceAtMost(4)
+            logd("OpenGLTexture2D", "create texture: $target, $specification, mipmaps $maxLevels")
             checkGlError(
                 GLES30.glTexStorage2D(
                     /* target = */ GLES30.GL_TEXTURE_2D,
@@ -89,7 +90,7 @@ internal class OpenGLTexture2D : Texture2D {
     }
 
     override fun generateMipMaps() = trace("glGenerateMipmap") {
-        if (specification.generateMips) {
+        if (specification.generateMips && (specification.size.width > 1 || specification.size.height > 1)) {
             checkGlError(GLES30.glGenerateMipmap(/* target = */ target.toGlTextureTarget()))
         }
     }
@@ -159,6 +160,9 @@ internal class OpenGLTexture2D : Texture2D {
         return "OpenGLTexture2D(target=$target, specification=$specification, width=$width, height=$height, id=$id)"
     }
 
+    companion object {
+        private const val TAG = "OpenGLTexture2D"
+    }
 
 }
 
@@ -178,6 +182,7 @@ internal fun Texture.ImageFormat.toGlInternalFormat(): Int {
         Texture.ImageFormat.R16F -> GLES30.GL_R16F
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB8
         Texture.ImageFormat.RGBA8 -> GLES30.GL_SRGB8_ALPHA8
+        Texture.ImageFormat.RGB10_A2 -> GLES30.GL_RGB10_A2
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH24_STENCIL8
     }
 }
@@ -191,6 +196,7 @@ internal fun Texture.ImageFormat.getDataType(): Int {
         Texture.ImageFormat.R16F -> GLES30.GL_FLOAT
         Texture.ImageFormat.RGB8 -> GLES30.GL_UNSIGNED_BYTE
         Texture.ImageFormat.RGBA8 -> GLES30.GL_UNSIGNED_BYTE
+        Texture.ImageFormat.RGB10_A2 -> GLES30.GL_UNSIGNED_INT_2_10_10_10_REV
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_UNSIGNED_INT_24_8
     }
 }
@@ -201,7 +207,7 @@ internal fun Texture.ImageFormat.toGlImageFormat(): Int {
         Texture.ImageFormat.A8 -> GLES30.GL_ALPHA
         Texture.ImageFormat.R8, Texture.ImageFormat.R16F -> GLES30.GL_RED
         Texture.ImageFormat.RGB8 -> GLES30.GL_RGB
-        Texture.ImageFormat.RGBA8 -> GLES30.GL_RGBA
+        Texture.ImageFormat.RGBA8, Texture.ImageFormat.RGB10_A2 -> GLES30.GL_RGBA
         Texture.ImageFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH_STENCIL
     }
 }

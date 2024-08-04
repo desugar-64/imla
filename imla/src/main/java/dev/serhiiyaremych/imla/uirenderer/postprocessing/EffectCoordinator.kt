@@ -13,6 +13,7 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.DualKawaseBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.noise.NoiseEffect
 
@@ -28,7 +29,8 @@ internal class EffectCoordinator(
         val effectSize = renderObject.lowResLayer.subTextureSize
 
         return EffectsHolder(
-            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
+//            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
+            blurEffect = DualKawaseBlurEffect(assetManager, simpleQuadRenderer),
             noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
             maskEffect = MaskEffect(assetManager, simpleQuadRenderer)
         )
@@ -38,7 +40,10 @@ internal class EffectCoordinator(
         val effects = effectCache.getOrPut(renderObject.id) {
             createEffects(renderObject)
         }
+        RenderCommand.useDefaultProgram()
+        RenderCommand.bindDefaultFramebuffer()
         RenderCommand.setViewPort(0, 0, scaledSize.x.toInt(), scaledSize.y.toInt())
+        RenderCommand.clear()
 
         val maskTexture = renderObject.mask
         val (blur, noise, mask) = effects
@@ -48,7 +53,8 @@ internal class EffectCoordinator(
             backgroundRect = renderObject.highResRect,
             blur = noise.applyEffect(
                 texture = blur.applyEffect(
-                    texture = renderObject.lowResLayer,
+                    highResFBO = renderObject.highResFBO,
+                    fboRect = renderObject.highResRect,
                     blurRadius = renderObject.style.blurRadiusPx(),
                     tint = renderObject.style.tint
                 ),
@@ -98,7 +104,11 @@ internal class EffectCoordinator(
         }
     }
 
-    private fun output(blur: BlurEffect, noise: NoiseEffect, mask: MaskEffect): Framebuffer? {
+    private fun output(
+        blur: DualKawaseBlurEffect,
+        noise: NoiseEffect,
+        mask: MaskEffect
+    ): Framebuffer? {
         return when {
             mask.isEnabled() -> mask.outputFramebuffer
             noise.isEnabled() -> noise.outputFramebuffer

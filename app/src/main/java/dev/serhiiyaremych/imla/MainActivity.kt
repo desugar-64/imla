@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -128,10 +129,10 @@ class MainActivity : ComponentActivity() {
                         // Layer 0 above full height content
                         BlurryTopAppBar(uiRenderer, hazeState)
                         Spacer(modifier = Modifier.weight(1f))
-                        // Layer 1 full height content
-                        BlurryBottomNavBar(uiRenderer) {
-                            showBottomSheet.value = true
-                        }
+//                         Layer 1 full height content
+//                        BlurryBottomNavBar(uiRenderer) {
+//                            showBottomSheet.value = true
+//                        }
                     }
                     AnimatedVisibility(
                         modifier = Modifier
@@ -267,7 +268,7 @@ class MainActivity : ComponentActivity() {
 //                ),
 //            ),
             style = Style(
-                blurRadius = 6.dp,
+                blurRadius = 10.dp,
                 noiseAlpha = 0.2f
             )
         ) {
@@ -307,20 +308,20 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer, hazeState: HazeState) {
         BackdropBlur(
-            modifier = Modifier.requiredHeight(250.dp),
+            modifier = Modifier.fillMaxSize(),
             uiLayerRenderer = uiRenderer,
-            blurMask = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 0.9f),
-                    Color.White.copy(alpha = 0.5f),
-                    Color.White.copy(alpha = 0.0f),
-                ),
-            ),
+//            blurMask = Brush.verticalGradient(
+//                colors = listOf(
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 0.9f),
+//                    Color.White.copy(alpha = 0.5f),
+//                    Color.White.copy(alpha = 0.0f),
+//                ),
+//            ),
             style = Style(
-                blurRadius = 8.dp,
-                noiseAlpha = 0.0f,
+                blurRadius = 10.dp,
+                noiseAlpha = 0.2f,
                 tint = Color.White.copy(alpha = 0.05f),
             )
         ) {

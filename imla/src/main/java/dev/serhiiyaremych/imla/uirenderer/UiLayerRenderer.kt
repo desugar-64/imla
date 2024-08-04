@@ -81,7 +81,7 @@ public class UiLayerRenderer(
     density: Density,
     graphicsLayer: GraphicsLayer,
     downSampleFactor: Int,
-    private val assetManager: AssetManager
+    assetManager: AssetManager
 ) : Density by density {
     private val renderer2D: Renderer2D = Renderer2D()
     private val simpleRenderer: SimpleRenderer = SimpleRenderer()
@@ -145,7 +145,7 @@ public class UiLayerRenderer(
         if (!isGLInitialized.get()) {
             glRenderer.execute {
                 RenderCommand.init()
-                renderer2D.init(assetManager)
+//                renderer2D.init(assetManager)
                 simpleRenderer.init()
 
                 renderableLayer.initialize()

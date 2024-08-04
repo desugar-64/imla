@@ -14,6 +14,7 @@ import androidx.annotation.MainThread
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.unit.Density
@@ -159,21 +160,17 @@ internal class RenderableRootLayer(
         require(isInitialized) { "RenderableRootLayer not initialized!" }
 
         trace("drawLayerToExtTexture[$sizeInt]") {
-            var hwCanvas: android.graphics.Canvas? = null
-            try {
-                hwCanvas = trace("lockHardwareCanvas") { layerSurface.lockHardwareCanvas() }
-                trace("hwCanvasClear") {
-                    hwCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-                }
-                drawingScope.draw(density, LayoutDirection.Ltr, Canvas(hwCanvas), sizeDec) {
+
+            layerSurface.lockHardwareCanvas()?.let { canvas ->
+                canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+                drawingScope.draw(density, LayoutDirection.Ltr, Canvas(canvas), sizeDec) {
                     trace("drawGraphicsLayer") {
-                        drawLayer(graphicsLayer)
+                        scale(scaleX = 1.0f, scaleY = -1f) {
+                            drawLayer(graphicsLayer)
+                        }
                     }
                 }
-            } finally {
-                if (hwCanvas != null) {
-                    trace("unlockCanvasAndPost") { layerSurface.unlockCanvasAndPost(hwCanvas) }
-                }
+                layerSurface.unlockCanvasAndPost(canvas)
             }
         }
     }

@@ -13,7 +13,6 @@ uniform sampler2D u_Texture;
 
 in vec2 maskCoord;
 in vec2 texCoord;
-//in vec2 texSize;
 in float alpha;
 
 out vec4 color;

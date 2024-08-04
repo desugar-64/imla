@@ -99,7 +99,7 @@ public fun BackdropBlur(
             x = contentBoundingBox.left.toInt(),
             y = contentBoundingBox.top.toInt()
         )
-        LaunchedEffect(id, drawingSurfaceState, uiLayerRenderer, contentBoundingBox) {
+        LaunchedEffect(id, drawingSurfaceState.value, uiLayerRenderer, contentBoundingBox) {
             val rendererFlow = snapshotFlow { isRendererInitialized }
             val surfaceFlow = snapshotFlow { drawingSurfaceState.value }
             combine(rendererFlow, surfaceFlow) { a, b -> a to b }

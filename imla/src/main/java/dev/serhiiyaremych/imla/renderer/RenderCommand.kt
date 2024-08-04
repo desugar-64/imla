@@ -61,6 +61,8 @@ internal object RenderCommand {
         rendererAPI.bindDefaultFramebuffer(bind)
     }
 
+    fun useDefaultProgram() = rendererAPI.bindDefaultProgram()
+
     fun blitFramebuffer(
         srcX0: Int,
         srcY0: Int,

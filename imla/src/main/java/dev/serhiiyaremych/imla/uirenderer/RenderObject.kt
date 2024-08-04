@@ -76,7 +76,7 @@ internal class RenderObject internal constructor(
 
         val rect = highResRect.translate(
             translateX = x.toFloat(),
-            translateY = y.toFloat()
+            translateY = highResFBO.colorAttachmentTexture.height - y.toFloat() - highResRect.height
         )
         highResRect = rect
 

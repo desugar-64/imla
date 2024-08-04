@@ -80,8 +80,12 @@ internal class OpenGLRendererAPI : RendererApi {
         GLES30.glDisable(GLES30.GL_BLEND)
     }
 
-    override fun bindDefaultFramebuffer(bind: Bind) {
+    override fun bindDefaultFramebuffer(bind: Bind) = trace("bindDefaultFBO") {
         checkGlError(GLES30.glBindFramebuffer(bind.toGlTarget(), 0))
+    }
+
+    override fun bindDefaultProgram() = trace("useDefaultProgram") {
+        checkGlError(GLES30.glUseProgram(0))
     }
 
     override fun blitFramebuffer(

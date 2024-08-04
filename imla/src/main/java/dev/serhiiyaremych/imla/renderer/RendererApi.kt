@@ -25,6 +25,7 @@ internal interface RendererApi {
     fun enableBlending()
     fun disableBlending()
     fun bindDefaultFramebuffer(bind: Bind)
+    fun bindDefaultProgram()
     fun blitFramebuffer(
         srcX0: Int,
         srcY0: Int,

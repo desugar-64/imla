@@ -26,7 +26,7 @@ internal fun isGLThread(): Boolean {
 }
 
 @Suppress("UNUSED_PARAMETER", "NOTHING_TO_INLINE")
-internal inline fun checkGlError(action: Unit = Unit) {
+internal fun checkGlError(action: Unit = Unit) {
     if (BuildConfig.DEBUG) {
         trace("checkGlError") {
             val error = GLES30.glGetError()

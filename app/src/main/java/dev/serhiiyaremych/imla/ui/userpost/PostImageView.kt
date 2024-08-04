@@ -45,8 +45,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import dev.serhiiyaremych.imla.ui.theme.ImlaTheme
 
-const val LOW_IMAGE_QUALITY = 0.3f
-const val HIGH_IMAGE_QUALITY = 0.6f
+const val LOW_IMAGE_QUALITY = 0.2f
+const val HIGH_IMAGE_QUALITY = 0.5f
 
 private val imageCorners = RoundedCornerShape(4.dp)
 private val startCorners = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)

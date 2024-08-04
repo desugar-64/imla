@@ -25,6 +25,7 @@ internal interface Texture {
         R16F,
         RGB8,
         RGBA8,
+        RGB10_A2,
         DEPTH24STENCIL8
     }
 
