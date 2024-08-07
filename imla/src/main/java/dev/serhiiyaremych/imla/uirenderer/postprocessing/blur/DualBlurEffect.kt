@@ -13,7 +13,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
-import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
@@ -27,91 +26,12 @@ import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
-import kotlin.math.pow
 import kotlin.properties.Delegates
 
-internal data class BlurContext(
-    val framebuffers: List<Framebuffer>,
-    val shaderProgram: KawaseShaderProgram
-) {
-    companion object {
-        const val MAX_PASSES = 3
-        private const val PASS_SCALE = 0.5f
-
-        // Minimum and maximum sampling offsets for each pass count, determined empirically.
-        // Too low: bilinear downsampling artifacts
-        // Too high: diagonal sampling artifacts
-        private val offsetRanges = listOf(
-            1.00f..2.50f, // pass 1
-            1.25f..4.25f, // pass 2
-            1.50f..11.25f, // pass 3
-            1.75f..18.00f, // pass 4
-            2.00f..20.00f  // pass 5
-            /* limited by MAX_PASSES */
-        )
-
-        fun create(assetManager: AssetManager, textureSize: IntSize): BlurContext {
-            val fboSpec = FramebufferSpecification(
-                size = textureSize,
-                attachmentsSpec = FramebufferAttachmentSpecification(
-                    attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2))
-                )
-            )
-            val baseLayerSize = (textureSize.toSize() * PASS_SCALE).toIntSize()
-            val fbos = buildList {
-                for (i in 0..MAX_PASSES) {
-                    add(
-                        Framebuffer.create(
-                            spec = fboSpec.copy(
-                                size = baseLayerSize shr i
-                            )
-                        )
-                    )
-                }
-            }
-
-            return BlurContext(
-                framebuffers = fbos,
-                shaderProgram = KawaseShaderProgram(assetManager)
-            )
-        }
-
-        fun convertGaussianRadius(radius: Float): Pair<Int, Float> {
-//            for (i in 0 until MAX_PASSES) {
-//                val offsetRange = offsetRanges[i]
-//                val offset = (radius * PASS_SCALE / (2.0).pow(i + 1)).toFloat()
-//                if (offset in offsetRange) {
-//                    return (i + 1) to offset
-//                }
-//            }
-
-            return 1 to (radius * PASS_SCALE / (2.0).pow(1)).toFloat()
-        }
-
-    }
-}
-
-/**
- * Performs a bitwise right shift operation on both the width and height of an IntSize.
- * This is equivalent to dividing both dimensions by 2^i.
- *
- * @param i The number of positions to shift right. Must be non-negative.
- * @return A new IntSize with both width and height shifted right by i positions.
- *
- * Example:
- *   val originalSize = IntSize(1024, 768)
- *   val halfSize = originalSize shr 1  // Results in IntSize(512, 384)
- *   val quarterSize = originalSize shr 2  // Results in IntSize(256, 192)
- *
- */
-private infix fun IntSize.shr(i: Int): IntSize {
-    return IntSize(
-        width = width shr i,
-        height = height shr i
-    )
-}
-
-internal class DualKawaseBlurEffect(
+// Credits:
+// GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
+// Bandwidth-efficient graphics, https://community.arm.com/cfs-file/__key/communityserver-blogs-components-weblogfiles/00-00-00-20-66/siggraph2015_2D00_mmg_2D00_marius_2D00_notes.pdf
+internal class DualBlurEffect(
     private val assetManager: AssetManager,
     private val simpleRenderer: SimpleQuadRenderer
 ) {
@@ -144,7 +64,7 @@ internal class DualKawaseBlurEffect(
         highResFBO: Framebuffer,
         fboRect: Rect,
         blurRadius: Float,
-        tint: Color
+        tint: Color // TODO: Implement tinting
     ): Texture = trace("DualKawaseBlurEffect") {
         trace("BlurEffect#applyEffect") {
             val effectSize = fboRect.size.toIntSize()
@@ -153,7 +73,9 @@ internal class DualKawaseBlurEffect(
 
             val enabled = isEnabled()
 
-            val offset = BlurContext.convertGaussianRadius(blurRadius).second
+            // TODO: provide as configuration
+            val offset = 1.0f
+            val passes = 3
             var readFBO: Framebuffer = highResFBO
             var drawFBO = if (enabled) blurContext.framebuffers[0] else resultFramebuffer
 
@@ -184,7 +106,6 @@ internal class DualKawaseBlurEffect(
             readFBO.invalidateAttachments()
             RenderCommand.bindDefaultFramebuffer()
 
-            val passes = BlurContext.MAX_PASSES
 
             val shaderProgram = blurContext.shaderProgram
             shaderProgram.downShader.bind()
@@ -194,11 +115,11 @@ internal class DualKawaseBlurEffect(
                     readFBO = blurContext.framebuffers[i]
                     drawFBO = blurContext.framebuffers[i + 1]
                     val drawSize = drawFBO.specification.size
-                    val halfPixelX = (0.5f / drawSize.width)
-                    val halfPixelY = (0.5f / drawSize.height)
+                    val texelX = (1f / drawSize.width)
+                    val texelY = (1f / drawSize.height)
                     shaderProgram.setOffset(offset = offset, down = true)
-                    shaderProgram.setHalfPixel(
-                        halfPixel = Size(halfPixelX, halfPixelY),
+                    shaderProgram.setTexelSize(
+                        texel = Size(texelX, texelY),
                         down = true
                     )
                     drawFBO.bind(bind = Bind.DRAW)
@@ -222,10 +143,10 @@ internal class DualKawaseBlurEffect(
                     RenderCommand.clear()
 
                     val drawSize = drawFBO.specification.size
-                    val halfPixelX = (0.5f / drawSize.width)
-                    val halfPixelY = (0.5f / drawSize.height)
+                    val texelX = (1f / drawSize.width)
+                    val texelY = (1f / drawSize.height)
                     shaderProgram.setOffset(offset, false)
-                    shaderProgram.setHalfPixel(Size(halfPixelX, halfPixelY), false)
+                    shaderProgram.setTexelSize(Size(texelX, texelY), false)
                     simpleRenderer.draw(shaderProgram.upShader, readFBO.colorAttachmentTexture)
                 }
             }

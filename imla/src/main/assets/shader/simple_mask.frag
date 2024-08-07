@@ -12,7 +12,7 @@ out vec4 color;
 
 void main() {
     vec4 maskColor = texture(u_Mask, maskCoord);
-    vec4 backgroundColor = texture(u_Background, vec2(maskCoord.x, 1.0 - maskCoord.y));
+    vec4 backgroundColor = texture(u_Background, maskCoord);
     vec4 contentColor = texture(u_Texture, vec2(texCoord.x, texCoord.y));
     vec4 finalColor = contentColor;
     finalColor.rgb = mix(backgroundColor.rgb, contentColor.rgb, maskColor.r);

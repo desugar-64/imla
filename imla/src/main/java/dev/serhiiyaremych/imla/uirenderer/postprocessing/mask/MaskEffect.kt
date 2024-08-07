@@ -77,16 +77,15 @@ internal class MaskEffect(
                     backgroundFramebuffer.bind(Bind.READ)
                     cropBackgroundFramebuffer.bind(Bind.DRAW)
                     RenderCommand.clear()
-
                     RenderCommand.blitFramebuffer(
-                        srcX0 = 0,
+                        srcX0 = backgroundRect.left.toInt(),
                         srcY0 = backgroundRect.top.toInt(),
                         srcX1 = backgroundRect.width.toInt(),
-                        srcY1 = backgroundRect.height.toInt(),
+                        srcY1 = backgroundRect.bottom.toInt(),
                         dstX0 = 0,
                         dstY0 = 0,
-                        dstX1 = backgroundRect.width.toInt(),
-                        dstY1 = backgroundRect.height.toInt(),
+                        dstX1 = cropBackgroundFramebuffer.specification.size.width,
+                        dstY1 = cropBackgroundFramebuffer.specification.size.height,
                         mask = RenderCommand.colorBufferBit,
                         filter = RenderCommand.linearTextureFilter,
                     )

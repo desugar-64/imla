@@ -5,13 +5,12 @@
 
 package dev.serhiiyaremych.imla.uirenderer.postprocessing
 
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.DualKawaseBlurEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.DualBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.noise.NoiseEffect
 
 internal data class EffectsHolder(
-    val blurEffect: DualKawaseBlurEffect,
+    val blurEffect: DualBlurEffect,
     val noiseEffect: NoiseEffect,
     val maskEffect: MaskEffect
 ) {

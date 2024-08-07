@@ -25,7 +25,8 @@ import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
-internal class BlurEffect(
+// GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
+internal class SepGaussianBlurEffect(
     assetManager: AssetManager,
     private val simpleRenderer: SimpleQuadRenderer
 ) {

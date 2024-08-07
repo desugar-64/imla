@@ -12,8 +12,7 @@ import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.BlurEffect
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.DualKawaseBlurEffect
+import dev.serhiiyaremych.imla.uirenderer.postprocessing.blur.DualBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.postprocessing.noise.NoiseEffect
 
@@ -30,7 +29,7 @@ internal class EffectCoordinator(
 
         return EffectsHolder(
 //            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
-            blurEffect = DualKawaseBlurEffect(assetManager, simpleQuadRenderer),
+            blurEffect = DualBlurEffect(assetManager, simpleQuadRenderer),
             noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
             maskEffect = MaskEffect(assetManager, simpleQuadRenderer)
         )
@@ -105,7 +104,7 @@ internal class EffectCoordinator(
     }
 
     private fun output(
-        blur: DualKawaseBlurEffect,
+        blur: DualBlurEffect,
         noise: NoiseEffect,
         mask: MaskEffect
     ): Framebuffer? {

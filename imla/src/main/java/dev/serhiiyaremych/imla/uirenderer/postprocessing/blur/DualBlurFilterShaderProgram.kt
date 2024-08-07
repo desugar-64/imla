@@ -6,20 +6,19 @@
 package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
 
 import android.content.res.AssetManager
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import dev.romainguy.kotlin.math.Float2
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import kotlin.properties.Delegates
 
-internal class KawaseShaderProgram(
+internal class DualBlurFilterShaderProgram(
     assetManager: AssetManager
 ) {
     val downShader: Shader = Shader.create(
         assetManager = assetManager,
         vertexAsset = "shader/simple_quad.vert",
-        fragmentAsset = "shader/kawase_blur_down.frag"
+        fragmentAsset = "shader/blur_down.frag"
     ).apply {
         bind()
         setInt("u_Texture", 0)
@@ -32,7 +31,7 @@ internal class KawaseShaderProgram(
     val upShader: Shader = Shader.create(
         assetManager = assetManager,
         vertexAsset = "shader/simple_quad.vert",
-        fragmentAsset = "shader/kawase_blur_up.frag"
+        fragmentAsset = "shader/blur_up.frag"
     ).apply {
         bind()
         setInt("u_Texture", 0)
@@ -54,7 +53,7 @@ internal class KawaseShaderProgram(
     private var halfPixel: Size by Delegates.observable(Size.Zero) { _, old, new ->
         if (old != new && new != Size.Zero) {
             val shader = if (down) downShader else upShader
-            shader.setFloat2("u_Halfpixel", Float2(new.width, new.height))
+            shader.setFloat2("u_Texel", Float2(new.width, new.height))
         }
     }
 
@@ -63,9 +62,9 @@ internal class KawaseShaderProgram(
         this.offset = offset
     }
 
-    fun setHalfPixel(halfPixel: Size, down: Boolean) {
+    fun setTexelSize(texel: Size, down: Boolean) {
         this.down = down
-        this.halfPixel = halfPixel
+        this.halfPixel = texel
     }
 
     fun destroy() {
