@@ -33,7 +33,7 @@ import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
 // TODO: Refactor it to custom shader

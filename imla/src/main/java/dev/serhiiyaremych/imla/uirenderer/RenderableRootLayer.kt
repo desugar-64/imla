@@ -34,7 +34,7 @@ import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 
 internal class RenderableRootLayer(
     private val assetManager: AssetManager,
@@ -47,8 +47,6 @@ internal class RenderableRootLayer(
 ) {
     val sizeInt: IntSize get() = graphicsLayer.size
     val sizeDec: Size get() = sizeInt.toSize()
-    val lowResTexture: Texture2D
-        get() = lowResFBO.colorAttachmentTexture
     val scale: Float
         get() = 1.0f / layerDownsampleFactor
 
@@ -61,7 +59,6 @@ internal class RenderableRootLayer(
     private lateinit var layerSurface: Surface
     private lateinit var extOesLayerTexture: Texture2D
 
-    private lateinit var lowResFBO: Framebuffer
     lateinit var highResFBO: Framebuffer
         private set
 
@@ -79,14 +76,16 @@ internal class RenderableRootLayer(
                 val specification = FramebufferSpecification(
                     size = sizeInt,
                     attachmentsSpec = FramebufferAttachmentSpecification(
-                        listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8))
+                        listOf(
+                            FramebufferTextureSpecification(
+                                format = FramebufferTextureFormat.RGBA8,
+                                flip = true
+                            )
+                        )
                     ),
-                    downSampleFactor = layerDownsampleFactor // downsample layer texture later
                 )
 
-                lowResFBO = Framebuffer.create(specification)
-                highResFBO =
-                    Framebuffer.create(specification.copy(downSampleFactor = 1)) // no downsampling
+                highResFBO = Framebuffer.create(specification)
 
                 extOesLayerTexture = Texture2D.create(
                     target = Texture.Target.TEXTURE_EXTERNAL_OES,
@@ -130,27 +129,6 @@ internal class RenderableRootLayer(
             RenderCommand.clear()
             simpleQuadRenderer.draw(extOesShaderProgram, extOesLayerTexture)
         }
-        trace("scaledSizeBuffer") {
-            highResFBO.bind(Bind.READ)
-            lowResFBO.bind(Bind.DRAW)
-            RenderCommand.clear()
-            val highResTexSize = highResFBO.specification.size
-            lowResFBO.invalidateAttachments()
-
-            RenderCommand.blitFramebuffer(
-                srcX0 = 0,
-                srcY0 = 0,
-                srcX1 = highResTexSize.width,
-                srcY1 = highResTexSize.height,
-                dstX0 = 0,
-                dstY0 = 0,
-                dstX1 = lowResFBO.colorAttachmentTexture.width,
-                dstY1 = lowResFBO.colorAttachmentTexture.height,
-                mask = RenderCommand.colorBufferBit,
-                filter = RenderCommand.linearTextureFilter,
-            )
-        }
-
     }
 
     @MainThread

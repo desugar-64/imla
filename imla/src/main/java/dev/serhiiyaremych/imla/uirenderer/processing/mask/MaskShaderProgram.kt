@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
+package dev.serhiiyaremych.imla.uirenderer.processing.mask
 
 import android.content.res.AssetManager
 import dev.serhiiyaremych.imla.renderer.Shader

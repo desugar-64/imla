@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing
+package dev.serhiiyaremych.imla.uirenderer.processing
 
 import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
@@ -40,15 +38,19 @@ internal class SimpleQuadRenderer(
         FloatArray(renderer.data.textureDataUBO.elements).toFloatBuffer()
     }
 
-    private var texCoord: Array<Offset> = defaultTextureCoords
+    private var texCoord: Array<Offset> = Array(4) { Offset.Unspecified }
     private var flipY: Boolean = false
-    private var alpha: Float = 1.0f
+    private var alpha: Float = -1.0f
 
     fun draw(shader: Shader = simpleQuadShader, texture: Texture? = null, alpha: Float = 1.0f) =
         trace("SimpleQuadRenderer#draw") {
             renderer.data.vao.bind()
             vbo?.bind()
             shader.bind()
+            shader.bindUniformBlock(
+                SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+                SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+            )
             if (texture != null) {
                 texture.bind()
                 uploadTextureDataIfNeed(alpha, texture)

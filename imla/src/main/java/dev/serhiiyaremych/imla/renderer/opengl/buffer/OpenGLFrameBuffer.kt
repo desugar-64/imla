@@ -73,7 +73,8 @@ internal class OpenGLFramebuffer(
                 width = sampledWidth,
                 height = sampledHeight,
                 format = attachment.format,
-                flip = attachment.flip
+                flip = attachment.flip,
+                mipmapFiltering = attachment.mipmapFiltering
             ).apply {
                 colorAttachments.add(this)
                 GLES30.glFramebufferTexture2D(
@@ -96,7 +97,8 @@ internal class OpenGLFramebuffer(
                 width = sampledWidth,
                 height = sampledHeight,
                 format = FramebufferTextureFormat.DEPTH24STENCIL8,
-                flip = it.flip
+                flip = it.flip,
+                mipmapFiltering = false
             ).apply {
                 depthAttachment = this.id
                 GLES30.glFramebufferTexture2D(
@@ -251,13 +253,15 @@ internal class OpenGLFramebuffer(
             width: Int,
             height: Int,
             format: FramebufferTextureFormat,
-            flip: Boolean
+            flip: Boolean,
+            mipmapFiltering: Boolean
         ): Texture2D = Texture2D.create(
             target = Texture.Target.TEXTURE_2D,
             specification = Texture.Specification(
                 size = IntSize(width = width, height = height),
                 format = format.toTextureFormat(),
-                flipTexture = flip
+                flipTexture = flip,
+                mipmapFiltering = mipmapFiltering
             )
         )
     }

@@ -14,7 +14,6 @@ out vec2 maskCoord;
 out vec2 texCoord;
 //out vec2 texSize;
 out float alpha;
-out float flip;
 
 void main() {
     vec2 ndcPos;
@@ -28,6 +27,5 @@ void main() {
     maskCoord.y = abs(textureData.flipTexture - maskCoord.y);
     texCoord = textureData.uv[gl_VertexID % 4];
     texCoord.y = abs(textureData.flipTexture - texCoord.y);
-    flip = textureData.flipTexture;
     //    texSize = textureData.size;
 }

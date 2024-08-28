@@ -5,7 +5,7 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
+package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
@@ -22,7 +22,7 @@ import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
 // GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy

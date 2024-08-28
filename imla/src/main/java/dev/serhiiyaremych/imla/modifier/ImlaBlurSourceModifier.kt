@@ -72,10 +72,8 @@ internal class ImlaSourceNode(
     override fun ContentDrawScope.draw() {
         if (drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
             uiLayerRenderer.recordCanvas { this@draw.drawContent() }
-            drawLayer(uiLayerRenderer.renderableLayer.graphicsLayer)
-        } else {
-            drawContent()
         }
+        drawContent()
     }
 
     companion object {

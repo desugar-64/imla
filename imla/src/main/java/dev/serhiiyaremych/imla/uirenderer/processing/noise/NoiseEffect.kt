@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.noise
+package dev.serhiiyaremych.imla.uirenderer.processing.noise
 
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
@@ -17,7 +17,7 @@ import dev.serhiiyaremych.imla.renderer.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
 internal class NoiseEffect(
@@ -81,6 +81,7 @@ internal class NoiseEffect(
 
     context(RenderableScope)
     fun applyEffect(texture: Texture, noiseAlpha: Float): Texture {
+        return texture
         this.noiseAlpha = noiseAlpha
         if (isEnabled()) {
             trace("NoiseEffect#applyEffect") {

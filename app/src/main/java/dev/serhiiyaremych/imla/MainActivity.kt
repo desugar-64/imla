@@ -27,8 +27,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -75,7 +78,9 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tracing.trace
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.modifier.blurSource
 import dev.serhiiyaremych.imla.ui.BackdropBlur
@@ -127,8 +132,7 @@ class MainActivity : ComponentActivity() {
                     val showBottomSheet = remember { mutableStateOf(false) }
                     Column(modifier = Modifier.matchParentSize()) {
                         // Layer 0 above full height content
-                        BlurryTopAppBar(uiRenderer, hazeState)
-                        Spacer(modifier = Modifier.weight(1f))
+//                        BlurryTopAppBar(uiRenderer, hazeState)
 //                         Layer 1 full height content
 //                        BlurryBottomNavBar(uiRenderer) {
 //                            showBottomSheet.value = true
@@ -268,7 +272,7 @@ class MainActivity : ComponentActivity() {
 //                ),
 //            ),
             style = Style(
-                blurRadius = 10.dp,
+                blurRadius = 3.dp,
                 noiseAlpha = 0.2f
             )
         ) {
@@ -308,7 +312,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer, hazeState: HazeState) {
         BackdropBlur(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.height(350.dp),
             uiLayerRenderer = uiRenderer,
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
@@ -320,7 +324,7 @@ class MainActivity : ComponentActivity() {
 //                ),
 //            ),
             style = Style(
-                blurRadius = 10.dp,
+                blurRadius = 1.dp,
                 noiseAlpha = 0.2f,
                 tint = Color.White.copy(alpha = 0.05f),
             )
@@ -339,7 +343,7 @@ class MainActivity : ComponentActivity() {
         }
 
 //        Box(
-//            modifier = Modifier.requiredHeight(250.dp).hazeChild(hazeState, style = HazeStyle(tint = Color.Cyan.copy(alpha = 0.15f), blurRadius = 20.dp)),
+//            modifier = Modifier.requiredHeight(250.dp).hazeChild(hazeState, style = HazeStyle(blurRadius = 35.dp, noiseFactor = 0.1f)),
 //        ) {
 //            TopAppBar(
 //                modifier = Modifier.statusBarsPadding(),

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.mask
+package dev.serhiiyaremych.imla.uirenderer.processing.mask
 
 import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Rect
@@ -18,7 +18,7 @@ import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 
 internal class MaskEffect(
     assetManager: AssetManager,
@@ -69,6 +69,7 @@ internal class MaskEffect(
         mask: Texture2D?
     ) =
         trace("MaskEffect#applyEffect") {
+            return@trace
             maskTexture = mask
             if (isEnabled()) {
                 requireNotNull(mask)

@@ -5,7 +5,7 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing
+package dev.serhiiyaremych.imla.uirenderer.processing
 
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.renderer.Texture

@@ -53,4 +53,5 @@ void main() {
     sum.a = 1.0;
 
     color = sum;
+    //    color = texture(u_Texture, uv);
 }

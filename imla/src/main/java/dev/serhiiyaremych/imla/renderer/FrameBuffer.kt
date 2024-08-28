@@ -28,13 +28,14 @@ internal enum class FramebufferTextureFormat {
 
 internal data class FramebufferTextureSpecification(
     val format: FramebufferTextureFormat = FramebufferTextureFormat.RGBA8,
-    val flip: Boolean = false
+    val flip: Boolean = false,
+    val mipmapFiltering: Boolean = false
 )
 
 internal data class FramebufferAttachmentSpecification(
     val attachments: List<FramebufferTextureSpecification> = listOf(
-//        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8),
-        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2),
+        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8),
+//        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2),
     )
 )
 

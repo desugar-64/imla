@@ -44,7 +44,7 @@ class ImlaBenchmark {
             metricSection("RenderObject#onRender", TraceSectionMetric.Mode.Average),
             metricSection("copyExtTextureToFrameBuffer", TraceSectionMetric.Mode.Average),
             metricSection("fullSizeBuffer", TraceSectionMetric.Mode.Average),
-            metricSection("scaledSizeBuffer", TraceSectionMetric.Mode.Average),
+//            metricSection("scaledSizeBuffer", TraceSectionMetric.Mode.Average),
         ),
         iterations = 1,
         startupMode = StartupMode.HOT

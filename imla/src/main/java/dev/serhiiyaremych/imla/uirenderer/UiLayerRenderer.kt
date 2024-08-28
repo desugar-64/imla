@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
@@ -40,7 +39,7 @@ import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class UiRendererObserver(
@@ -91,10 +90,8 @@ public class UiLayerRenderer(
         start("GLUiLayerRenderer")
     }
 
-    private val renderingPipeline: RenderingPipeline =
-        RenderingPipeline(assetManager, simpleQuadRenderer, renderer2D, this)
-
     private val mainThreadHandler = Handler(Looper.getMainLooper())
+
     internal val renderableLayer: RenderableRootLayer = RenderableRootLayer(
         assetManager = assetManager,
         layerDownsampleFactor = downSampleFactor,
@@ -103,13 +100,15 @@ public class UiLayerRenderer(
         renderer2D = renderer2D,
         simpleQuadRenderer = simpleQuadRenderer,
         onLayerTextureUpdated = {
-            // graphics layer texture updated, request pipeline render
             renderingPipeline.requestRender {
                 isRendering.set(false)
                 semaphore.release()
             }
         }
     )
+
+    private val renderingPipeline: RenderingPipeline =
+        RenderingPipeline(renderableLayer, assetManager, simpleQuadRenderer, renderer2D, this)
 
     private val semaphore: java.util.concurrent.Semaphore = java.util.concurrent.Semaphore(1)
 
@@ -252,7 +251,7 @@ public class UiLayerRenderer(
         }
     }
 
-    internal fun updateOffset(renderObjectId: String?, offset: IntOffset) {
+    internal fun updateOffset(renderObjectId: String?, offset: Offset) {
         renderingPipeline
             .getRenderObject(renderObjectId)
             ?.updateOffset(offset = offset)

@@ -64,13 +64,23 @@ internal class OpenGLTexture2D : Texture2D {
                 GLES30.GL_CLAMP_TO_EDGE
             )
         )
-        checkGlError(
-            GLES30.glTexParameteri(
-                glTarget,
-                GLES30.GL_TEXTURE_MIN_FILTER,
-                GLES30.GL_LINEAR
+        if (target != Texture.Target.TEXTURE_EXTERNAL_OES && specification.mipmapFiltering) {
+            checkGlError(
+                GLES30.glTexParameteri(
+                    glTarget,
+                    GLES30.GL_TEXTURE_MIN_FILTER,
+                    GLES30.GL_LINEAR_MIPMAP_LINEAR
+                )
             )
-        )
+        } else {
+            checkGlError(
+                GLES30.glTexParameteri(
+                    glTarget,
+                    GLES30.GL_TEXTURE_MIN_FILTER,
+                    GLES30.GL_LINEAR
+                )
+            )
+        }
         checkGlError(
             GLES30.glTexParameteri(
                 glTarget,

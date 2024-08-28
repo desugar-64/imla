@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
+package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Size

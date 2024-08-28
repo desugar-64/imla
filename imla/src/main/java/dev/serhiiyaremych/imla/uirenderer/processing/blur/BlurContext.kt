@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
+package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
@@ -14,45 +14,31 @@ import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
-import kotlin.math.pow
+import dev.serhiiyaremych.imla.renderer.util.SizeUtil
+import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.times
 
 internal data class BlurContext(
     val framebuffers: List<Framebuffer>,
     val shaderProgram: DualBlurFilterShaderProgram
 ) {
     companion object {
-        private const val MAX_PASSES = 5
-        private const val PASS_SCALE = 0.6f
-
-        // Minimum and maximum sampling offsets for each pass count, determined empirically.
-        // Too low: bilinear downsampling artifacts
-        // Too high: diagonal sampling artifacts
-        private val offsetRanges = listOf(
-            1.00f..2.50f, // pass 1
-            1.25f..4.25f, // pass 2
-            1.50f..11.25f, // pass 3
-            1.75f..18.00f, // pass 4
-            2.00f..20.00f  // pass 5
-            /* limited by MAX_PASSES */
-        )
+        const val PASS_SCALE = 0.5f
+        private const val MAX_PASSES = 4
 
         fun create(assetManager: AssetManager, textureSize: IntSize): BlurContext {
             val fboSpec = FramebufferSpecification(
                 size = textureSize,
                 attachmentsSpec = FramebufferAttachmentSpecification(
-                    attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2))
+                    attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8))
                 )
             )
-            val baseLayerSize = (textureSize.toSize() * PASS_SCALE).toIntSize()
+            val baseLayerSize =
+                SizeUtil.closetPOTUp((textureSize.toSize()).toIntSize()) * PASS_SCALE
+
+
             val fbos = buildList {
                 for (i in 0..MAX_PASSES) {
-                    add(
-                        Framebuffer.create(
-                            spec = fboSpec.copy(
-                                size = baseLayerSize shr i
-                            )
-                        )
-                    )
+                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize shr i)))
                 }
             }
 
@@ -62,17 +48,6 @@ internal data class BlurContext(
             )
         }
 
-        fun convertGaussianRadius(radius: Float): Pair<Int, Float> {
-            for (i in 0 until MAX_PASSES) {
-                val offsetRange = offsetRanges[i]
-                val offset = (radius * PASS_SCALE / (2.0).pow(i + 1)).toFloat()
-                if (offset in offsetRange) {
-                    return (i + 1) to offset
-                }
-            }
-
-            return 1 to (radius * PASS_SCALE / (2.0).pow(1)).toFloat()
-        }
 
     }
 }
