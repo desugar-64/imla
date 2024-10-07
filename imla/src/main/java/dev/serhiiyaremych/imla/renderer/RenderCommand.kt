@@ -41,7 +41,7 @@ internal object RenderCommand {
         rendererAPI.drawIndexed(vertexArray, indexCount)
     }
 
-    fun setViewPort(x: Int, y: Int, width: Int, height: Int) {
+    fun setViewPort(x: Int = 0, y: Int = 0, width: Int, height: Int) {
         rendererAPI.setViewPort(x, y, width, height)
     }
 

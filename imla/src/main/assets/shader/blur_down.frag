@@ -5,23 +5,32 @@ precision mediump float;
 
 uniform sampler2D u_Texture;
 uniform vec2 u_Texel;
-uniform float u_Offset;
+uniform vec2 u_ContentOffset;
 
 in vec2 texCoord;
 
 out vec4 color;
 
-const vec2 s = vec2(-1, 1);
+const vec2 S = vec2(-1, 1);
 const float WEIGHT_SUM_INV = 1.0 / 3.125;
+const vec2 UV_MIN = vec2(0.0);
+const vec2 UV_MAX = vec2(1.0);
 
 // Simple approximation
 // Convert sRGB color to linear space
-vec3 gammaDecode(vec3 rgb) {
-    return rgb * rgb;
+vec4 gammaDecode(vec4 rgba) {
+    vec3 rgb = rgba.rgb;
+    return vec4(rgb * rgb, rgba.a);
 }
 // Convert linear color to sRGB space
-vec3 gammaEncode(vec3 rgb) {
-    return sqrt(rgb);
+vec4 gammaEncode(vec4 rgba) {
+    vec3 rgb = rgba.rgb;
+    return vec4(sqrt(rgb), rgba.a);
+}
+
+vec4 safeTexture(sampler2D tex, vec2 uv) {
+//    return texture(tex, clamp(uv, UV_MIN + u_ContentOffset, UV_MAX - u_ContentOffset));
+    return texture(tex, clamp(uv, UV_MIN, UV_MAX));
 }
 
 // Credits:
@@ -39,28 +48,25 @@ void main() {
     vec2 uv = texCoord;
 
     // center point
-    vec4 sum = vec4(gammaDecode(texture(u_Texture, uv).rgb) * 0.125, 0.0); // G
+    vec4 sum = gammaDecode(safeTexture(u_Texture, uv)) * 0.125; // G
     // inner ring corners
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s).rgb) * 0.5; // D
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yy).rgb) * 0.5; // E
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yx).rgb) * 0.5; // I
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.xx).rgb) * 0.5; // J
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S)) * 0.5; // D
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yy)) * 0.5; // E
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yx)) * 0.5; // I
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.xx)) * 0.5; // J
 
     // outer ring corners
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s * 2.0).rgb) * 0.125; // A
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yy * 2.0).rgb) * 0.125; // C
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yx * 2.0).rgb) * 0.125; // M
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.xx * 2.0).rgb) * 0.125; // K
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S * 2.0)) * 0.125; // A
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yy * 2.0)) * 0.125; // C
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yx * 2.0)) * 0.125; // M
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.xx * 2.0)) * 0.125; // K
 
     // middle ring sides
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(s.x, 0.0) * 2.0).rgb) * 0.125; // F
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(0.0, s.y) * 2.0).rgb) * 0.125; // B
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(s.y, 0.0) * 2.0).rgb) * 0.125; // H
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(0.0, s.x) * 2.0).rgb) * 0.125; // L
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(S.x, 0.0) * 2.0)) * 0.125; // F
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(0.0, S.y) * 2.0)) * 0.125; // B
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(S.y, 0.0) * 2.0)) * 0.125; // H
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(0.0, S.x) * 2.0)) * 0.125; // L
 
-    sum.a = 1.0;
-    sum.rgb *= WEIGHT_SUM_INV;
-    sum.rgb = gammaEncode(sum.rgb);
-
-    color = sum;
+    sum *= WEIGHT_SUM_INV;
+    color = gammaEncode(sum);
 }

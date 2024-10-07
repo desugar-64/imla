@@ -62,7 +62,6 @@ internal class SepGaussianBlurEffect(
                 (horizontalPassFramebuffer.specification.size != size || verticalPassFramebuffer.specification.size != size)
     }
 
-    context(RenderableScope)
     fun applyEffect(texture: Texture, blurRadius: Float, tint: Color): Texture {
         trace("BlurEffect#applyEffect") {
             val effectSize = getSize(texture)

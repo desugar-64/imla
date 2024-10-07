@@ -26,8 +26,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
@@ -56,8 +56,8 @@ public fun BackdropBlur(
 
     Box(
         modifier = modifier
-            .onPlaced { layoutCoordinates ->
-                contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
+            .onGloballyPositioned { layoutCoordinates ->
+                contentBoundingBoxState.value = layoutCoordinates.boundsInRoot()
             }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value

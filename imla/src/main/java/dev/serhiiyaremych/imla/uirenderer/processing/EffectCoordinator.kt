@@ -6,18 +6,21 @@
 package dev.serhiiyaremych.imla.uirenderer.processing
 
 import android.content.res.AssetManager
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.toIntSize
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.RenderableRootLayer
+import dev.serhiiyaremych.imla.uirenderer.processing.blend.BlendEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.blur.DualBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.noise.NoiseEffect
-import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.PreProcess
+import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.PreProcessFilter
 
 internal class EffectCoordinator(
     density: Density,
@@ -28,27 +31,28 @@ internal class EffectCoordinator(
 
     private val effectCache: MutableMap<String, EffectsHolder> = mutableMapOf()
 
-    private fun createEffects(renderObject: RenderObject): EffectsHolder {
+    private fun createEffects(): EffectsHolder {
         return EffectsHolder(
-            preProcess = PreProcess(assetManager, simpleQuadRenderer),
+            preProcess = PreProcessFilter(assetManager, simpleQuadRenderer),
 //            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
             blurEffect = DualBlurEffect(assetManager, simpleQuadRenderer),
             noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
-            maskEffect = MaskEffect(assetManager, simpleQuadRenderer)
+            maskEffect = MaskEffect(assetManager, simpleQuadRenderer),
+            blendEffect = BlendEffect(assetManager, simpleQuadRenderer)
         )
     }
 
     fun applyEffects(renderObject: RenderObject) = with(renderObject.renderableScope) {
 
         val effects = effectCache.getOrPut(renderObject.id) {
-            createEffects(renderObject)
+            createEffects()
         }
         RenderCommand.bindDefaultFramebuffer()
         RenderCommand.useDefaultProgram()
         RenderCommand.clear()
 
         val maskTexture = renderObject.mask
-        val (prePrecess, blur, noise, mask) = effects
+        val (prePrecess, blur, noise, mask, blendEffect) = effects
 
         mask.applyEffect(
             backgroundFramebuffer = rootLayer.highResFBO,
@@ -56,8 +60,8 @@ internal class EffectCoordinator(
             blur = noise.applyEffect(
                 texture = blur.applyEffect(
                     inputFbo = prePrecess.preProcess(rootLayer.highResFBO, renderObject.area),
-                    renderTargetSize = renderObject.area.size.toIntSize(),
-                    blurRadius = renderObject.style.blurRadiusPx(),
+                    offset = renderObject.style.offset,
+                    passes = renderObject.style.passes,
                     tint = renderObject.style.tint
                 ),
                 noiseAlpha = renderObject.style.noiseAlpha
@@ -65,28 +69,76 @@ internal class EffectCoordinator(
             mask = maskTexture
         )
 
-        val finalFb = output(blur, noise, mask)
+        val finalFb = /*prePrecess.preProcess(rootLayer.highResFBO, renderObject.area)*/
+            output(blur, noise, mask)
         if (finalFb != null) {
             trace("blitFinalToScreen") {
-                finalFb.bind(Bind.READ, updateViewport = false)
                 RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
                 RenderCommand.setViewPort(
-                    0,
-                    0,
-                    renderObject.area.width.toInt(),
-                    renderObject.area.height.toInt()
+                    x = 0, y = 0,
+                    width = renderObject.area.width.toInt(),
+                    height = renderObject.area.height.toInt()
                 )
                 RenderCommand.clear()
-                RenderCommand.blitFramebuffer(
-                    srcX0 = 0,
-                    srcY0 = 0,
-                    srcX1 = finalFb.colorAttachmentTexture.width,
-                    srcY1 = finalFb.colorAttachmentTexture.height,
-                    dstX0 = 0,
-                    dstY0 = 0,
-                    dstX1 = renderObject.area.width.toInt(),
-                    dstY1 = renderObject.area.height.toInt()
-                )
+                val blurOpacity = when {
+                    renderObject.style.blurOpacity < 0.1f -> 0.0f
+                    renderObject.style.blurOpacity > 0.95f -> 1.0f
+                    else -> renderObject.style.blurOpacity
+                }
+                when {
+                    blurOpacity == 0.0f -> {
+                        RenderCommand.enableBlending()
+                        simpleQuadRenderer.draw(
+                            texture = SubTexture2D.createFromCoords(
+                                texture = rootLayer.highResFBO.colorAttachmentTexture,
+                                rect = renderObject.area.translate(
+                                    Offset(
+                                        x = 0f,
+                                        y = rootLayer.highResFBO.specification.size.height - renderObject.area.height
+                                    )
+                                )
+                            )
+                        )
+                        RenderCommand.disableBlending()
+                    }
+
+                    blurOpacity < 1.0 -> {
+                        blendEffect.blendToDefaultBuffer(
+                            background = rootLayer.highResFBO,
+                            cutBackgroundRegion = renderObject.area,
+                            foreground = finalFb,
+                            cutForegroundRegion = prePrecess.contentCrop,
+                            opacity = blurOpacity,
+                        )
+                    }
+
+                    else -> {
+                        // Cut
+                        finalFb.bind(Bind.READ, updateViewport = false)
+                        RenderCommand.blitFramebuffer(
+                            srcX0 = 0 + prePrecess.contentCrop.left.toInt(),
+                            srcY0 = 0 + prePrecess.contentCrop.top.toInt(),
+                            srcX1 = prePrecess.contentCrop.right.toInt(),
+                            srcY1 = prePrecess.contentCrop.bottom.toInt(),
+                            dstX0 = 0,
+                            dstY0 = 0,
+                            dstX1 = renderObject.area.width.toInt(),
+                            dstY1 = renderObject.area.height.toInt()
+                        )
+                    }
+                }
+
+                // Full
+//                RenderCommand.blitFramebuffer(
+//                    srcX0 = 0,
+//                    srcY0 = 0,
+//                    srcX1 = finalFb.colorAttachmentTexture.width,
+//                    srcY1 = finalFb.colorAttachmentTexture.height,
+//                    dstX0 = 0,
+//                    dstY0 = 0,
+//                    dstX1 = renderObject.area.width.toInt(),
+//                    dstY1 = renderObject.area.height.toInt()
+//                )
 //                simpleQuadRenderer.draw(texture = finalFb.colorAttachmentTexture)
             }
         } else {
@@ -120,8 +172,7 @@ internal class EffectCoordinator(
         return when {
             mask.isEnabled() -> mask.outputFramebuffer
             noise.isEnabled() -> noise.outputFramebuffer
-            blur.isEnabled() -> blur.outputFramebuffer
-            else -> null
+            else -> blur.outputFramebuffer
         }
     }
 

@@ -37,7 +37,25 @@ internal data class FramebufferAttachmentSpecification(
         FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8),
 //        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2),
     )
-)
+) {
+    companion object {
+        fun singleColor(
+            format: FramebufferTextureFormat = FramebufferTextureFormat.RGBA8,
+            mipmapFiltering: Boolean = false,
+            flip: Boolean = false
+        ): FramebufferAttachmentSpecification {
+            return FramebufferAttachmentSpecification(
+                attachments = listOf(
+                    FramebufferTextureSpecification(
+                        format = format,
+                        mipmapFiltering = mipmapFiltering,
+                        flip = flip
+                    )
+                )
+            )
+        }
+    }
+}
 
 internal data class FramebufferSpecification(
     val size: IntSize,

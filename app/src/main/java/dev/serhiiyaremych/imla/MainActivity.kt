@@ -23,15 +23,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -69,7 +64,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
@@ -78,9 +72,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tracing.trace
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.haze
-import dev.chrisbanes.haze.hazeChild
 import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.modifier.blurSource
 import dev.serhiiyaremych.imla.ui.BackdropBlur
@@ -132,11 +124,12 @@ class MainActivity : ComponentActivity() {
                     val showBottomSheet = remember { mutableStateOf(false) }
                     Column(modifier = Modifier.matchParentSize()) {
                         // Layer 0 above full height content
-//                        BlurryTopAppBar(uiRenderer, hazeState)
+                        BlurryTopAppBar(uiRenderer, hazeState)
 //                         Layer 1 full height content
-//                        BlurryBottomNavBar(uiRenderer) {
+                        Spacer(Modifier.weight(1f))
+                        BlurryBottomNavBar(uiRenderer) {
 //                            showBottomSheet.value = true
-//                        }
+                        }
                     }
                     AnimatedVisibility(
                         modifier = Modifier
@@ -148,11 +141,6 @@ class MainActivity : ComponentActivity() {
                         BackdropBlur(
                             modifier = Modifier.matchParentSize(),
                             uiLayerRenderer = uiRenderer,
-                            style = Style(
-                                blurRadius = 10.dp,
-                                tint = Color.Transparent,
-                                noiseAlpha = 0.3f
-                            )
                         ) {
                             SimpleImageViewer(
                                 modifier = Modifier
@@ -181,11 +169,6 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(2f),
-                            style = Style(
-                                blurRadius = blur.intValue.dp,
-                                tint = Color.Transparent,
-                                noiseAlpha = noiseAlpha.floatValue
-                            ),
                             uiLayerRenderer = uiRenderer
                         )
 
@@ -262,6 +245,7 @@ class MainActivity : ComponentActivity() {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
             uiLayerRenderer = uiRenderer,
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f)
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 0.0f),
@@ -271,10 +255,6 @@ class MainActivity : ComponentActivity() {
 //                    Color.White.copy(alpha = 1.0f),
 //                ),
 //            ),
-            style = Style(
-                blurRadius = 3.dp,
-                noiseAlpha = 0.2f
-            )
         ) {
             NavigationBar(
                 modifier = Modifier
@@ -314,6 +294,7 @@ class MainActivity : ComponentActivity() {
         BackdropBlur(
             modifier = Modifier.height(350.dp),
             uiLayerRenderer = uiRenderer,
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f, blurOpacity = 0.7f)
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 1.0f),
@@ -323,11 +304,6 @@ class MainActivity : ComponentActivity() {
 //                    Color.White.copy(alpha = 0.0f),
 //                ),
 //            ),
-            style = Style(
-                blurRadius = 1.dp,
-                noiseAlpha = 0.2f,
-                tint = Color.White.copy(alpha = 0.05f),
-            )
         ) {
             TopAppBar(
                 modifier = Modifier.statusBarsPadding(),

@@ -37,7 +37,10 @@ internal class OpenGLTexture2D : Texture2D {
 
         if (target != Texture.Target.TEXTURE_EXTERNAL_OES) {
             val maxSize: Int = width.coerceAtLeast(height)
-            val maxLevels = (1 + (ln(maxSize.toDouble()) / ln(2.0)).toInt()).coerceAtMost(4)
+            val maxLevels =
+                if (specification.generateMips) (1 + (ln(maxSize.toDouble()) / ln(2.0)).toInt()).coerceAtMost(
+                    6
+                ) else 1
             logd("OpenGLTexture2D", "create texture: $target, $specification, mipmaps $maxLevels")
             checkGlError(
                 GLES30.glTexStorage2D(

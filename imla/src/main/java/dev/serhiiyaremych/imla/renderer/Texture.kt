@@ -32,7 +32,7 @@ internal interface Texture {
     data class Specification(
         val size: IntSize = IntSize(1, 1),
         val format: ImageFormat = ImageFormat.RGBA8,
-        val generateMips: Boolean = true,
+        val generateMips: Boolean = false,
         var flipTexture: Boolean = false,
         val mipmapFiltering: Boolean = false
     )

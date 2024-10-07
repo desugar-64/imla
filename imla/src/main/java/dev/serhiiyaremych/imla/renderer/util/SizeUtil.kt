@@ -22,14 +22,14 @@ internal object SizeUtil {
         return powersOfTwo.first { it >= arbitrarySize }
     }
 
-    fun closetPOTDown(arbitrarySize: IntSize): IntSize {
+    fun closestPOTDown(arbitrarySize: IntSize): IntSize {
         return IntSize(
             width = closestPOTDown(arbitrarySize.width),
             height = closestPOTDown(arbitrarySize.height)
         )
     }
 
-    fun closetPOTUp(arbitrarySize: IntSize): IntSize {
+    fun closestPOTUp(arbitrarySize: IntSize): IntSize {
         return IntSize(
             width = closestPOTUp(arbitrarySize.width),
             height = closestPOTUp(arbitrarySize.height)

@@ -16,8 +16,6 @@ out vec2 texCoord;
 out float alpha;
 
 void main() {
-    vec2 ndcPos;
-
     // Set the final position of the vertex in clip space
     gl_Position = vec4(aPosition, 0.0, 1.0);
 

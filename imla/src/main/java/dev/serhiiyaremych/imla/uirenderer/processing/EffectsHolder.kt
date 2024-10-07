@@ -5,16 +5,18 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing
 
+import dev.serhiiyaremych.imla.uirenderer.processing.blend.BlendEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.blur.DualBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.noise.NoiseEffect
-import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.PreProcess
+import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.PreProcessFilter
 
 internal data class EffectsHolder(
-    val preProcess: PreProcess,
+    val preProcess: PreProcessFilter,
     val blurEffect: DualBlurEffect,
     val noiseEffect: NoiseEffect,
-    val maskEffect: MaskEffect
+    val maskEffect: MaskEffect,
+    val blendEffect: BlendEffect
 ) {
     fun dispose() {
         blurEffect.dispose()

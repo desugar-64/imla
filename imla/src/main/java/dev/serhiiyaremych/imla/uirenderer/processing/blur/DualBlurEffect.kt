@@ -8,6 +8,9 @@
 package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
+import androidx.annotation.FloatRange
+import androidx.annotation.IntRange
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
@@ -22,7 +25,6 @@ import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
@@ -35,8 +37,6 @@ internal class DualBlurEffect(
 ) {
     private var resultFramebuffer: Framebuffer by Delegates.notNull()
     private var blurContext: BlurContext by Delegates.notNull()
-
-    private var blurRadius: Float = 0f
 
     private var isInitialized: Boolean = false
 
@@ -57,22 +57,19 @@ internal class DualBlurEffect(
                 (resultFramebuffer.specification.size != size)
     }
 
-    context(RenderableScope)
     fun applyEffect(
         inputFbo: Framebuffer,
-        renderTargetSize: IntSize,
-        blurRadius: Float,
-        tint: Color // TODO: Implement tinting
+        @FloatRange(from = 0.1, to = 2.0)
+        offset: Float,
+        @IntRange(from = 0, to = BlurContext.MAX_PASSES.toLong())
+        passes: Int,
+        tint: Color
     ): Texture = trace("DualKawaseBlurEffect") {
         trace("BlurEffect#applyEffect") {
-            setup(renderTargetSize)
-            this.blurRadius = blurRadius
-
-            val enabled = isEnabled()
+            setup(inputFbo.specification.size / inputFbo.specification.downSampleFactor)
+            val enabled = offset > 0.0 && passes > 0
 
             // TODO: provide as configuration
-            val offset = 1f//BlurContext.convertGaussianRadius(blurRadius).second
-            val passes = 3
             var readFBO: Framebuffer = inputFbo
             var drawFBO = if (enabled) blurContext.framebuffers[0] else resultFramebuffer
 
@@ -94,14 +91,10 @@ internal class DualBlurEffect(
                     filter = RenderCommand.linearTextureFilter,
                 )
             }
+
             if (enabled.not()) {
                 return resultFramebuffer.colorAttachmentTexture
             }
-
-//            readFBO.bind(updateViewport = false)
-//            readFBO.invalidateAttachments()
-//            RenderCommand.bindDefaultFramebuffer()
-
 
             val shaderProgram = blurContext.shaderProgram
             shaderProgram.downShader.bind()
@@ -113,7 +106,10 @@ internal class DualBlurEffect(
                     val drawSize = drawFBO.specification.size
                     val texelX = (1f / drawSize.width) * offset
                     val texelY = (1f / drawSize.height) * offset
-                    shaderProgram.setOffset(offset = offset, down = true)
+                    val layerScale = inputFbo.specification.size.width / drawSize.width.toFloat()
+//                    val texOffset =
+//                        (contentOffset / layerScale) / Offset(x = drawSize.width.toFloat(), y = drawSize.height.toFloat())
+//                    shaderProgram.setContentOffset(offset = texOffset, down = true)
                     shaderProgram.setTexelSize(
                         texel = Size(texelX, texelY),
                         down = true
@@ -133,16 +129,24 @@ internal class DualBlurEffect(
             trace("upsample") {
                 for (i in 0 until passes) {
                     // Upsampling uses buffers in the reverse direction
-                    readFBO = blurContext.framebuffers[passes - i]
-                    drawFBO = blurContext.framebuffers[passes - i - 1]
+                    val readIndex = passes - i
+                    val drawIndex = passes - i - 1
+                    readFBO = blurContext.framebuffers[readIndex]
+                    drawFBO = blurContext.framebuffers[drawIndex]
                     drawFBO.bind(Bind.DRAW)
                     RenderCommand.clear()
 
                     val drawSize = drawFBO.specification.size
                     val texelX = (1f / drawSize.width) * offset
                     val texelY = (1f / drawSize.height) * offset
-                    shaderProgram.setOffset(offset, false)
+                    val layerScale = inputFbo.specification.size.width / drawSize.width.toFloat()
+//                    val texOffset =
+//                        (contentOffset / layerScale) / Offset(x = drawSize.width.toFloat(), y = drawSize.height.toFloat())
+//                    shaderProgram.setContentOffset(offset = texOffset, down = false)
                     shaderProgram.setTexelSize(Size(texelX, texelY), false)
+                    if (drawIndex == 0) {
+                        shaderProgram.setTint(tint)
+                    }
                     simpleRenderer.draw(shaderProgram.upShader, readFBO.colorAttachmentTexture)
                 }
             }
@@ -215,8 +219,6 @@ internal class DualBlurEffect(
         resultFramebuffer = Framebuffer.create(spec)
     }
 
-    fun isEnabled(): Boolean = blurRadius > MIN_BLUR_RADIUS_PX
-
     fun dispose() {
         if (isInitialized) {
             blurContext.shaderProgram.destroy()
@@ -228,5 +230,19 @@ internal class DualBlurEffect(
 
     companion object {
         const val MIN_BLUR_RADIUS_PX = 2
+    }
+
+    private infix fun Offset.shr(i: Int): Offset {
+        return Offset(
+            x = (x.toInt() shr i).toFloat(),
+            y = (y.toInt() shr i).toFloat()
+        )
+    }
+
+    private operator fun Offset.div(offset: Offset): Offset {
+        return Offset(
+            x = this.x / offset.x,
+            y = this.y / offset.y
+        )
     }
 }

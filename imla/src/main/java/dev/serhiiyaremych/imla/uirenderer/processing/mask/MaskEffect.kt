@@ -69,7 +69,6 @@ internal class MaskEffect(
         mask: Texture2D?
     ) =
         trace("MaskEffect#applyEffect") {
-            return@trace
             maskTexture = mask
             if (isEnabled()) {
                 requireNotNull(mask)

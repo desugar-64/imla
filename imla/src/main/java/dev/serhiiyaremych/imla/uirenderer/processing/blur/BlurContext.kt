@@ -13,8 +13,6 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
-import dev.serhiiyaremych.imla.renderer.util.SizeUtil
 import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.times
 
 internal data class BlurContext(
@@ -23,18 +21,14 @@ internal data class BlurContext(
 ) {
     companion object {
         const val PASS_SCALE = 0.5f
-        private const val MAX_PASSES = 4
+        const val MAX_PASSES = 4
 
         fun create(assetManager: AssetManager, textureSize: IntSize): BlurContext {
             val fboSpec = FramebufferSpecification(
                 size = textureSize,
-                attachmentsSpec = FramebufferAttachmentSpecification(
-                    attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8))
-                )
+                attachmentsSpec = FramebufferAttachmentSpecification.singleColor(format = FramebufferTextureFormat.RGB10_A2)
             )
-            val baseLayerSize =
-                SizeUtil.closetPOTUp((textureSize.toSize()).toIntSize()) * PASS_SCALE
-
+            val baseLayerSize = textureSize * PASS_SCALE
 
             val fbos = buildList {
                 for (i in 0..MAX_PASSES) {

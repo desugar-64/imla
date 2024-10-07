@@ -261,6 +261,7 @@ internal class OpenGLFramebuffer(
                 size = IntSize(width = width, height = height),
                 format = format.toTextureFormat(),
                 flipTexture = flip,
+                generateMips = mipmapFiltering,
                 mipmapFiltering = mipmapFiltering
             )
         )

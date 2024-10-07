@@ -5,24 +5,32 @@ precision mediump float;
 
 uniform sampler2D u_Texture;
 uniform vec2 u_Texel;
-uniform float u_Offset;
+uniform vec4 u_Tint;
 
 in vec2 texCoord;
 
 out vec4 color;
 
+const vec2 S = vec2(-1, 1);
+const float WEIGHT_SUM_INV = 1.0 / 16.0;
+const vec2 UV_MIN = vec2(0.0);
+const vec2 UV_MAX = vec2(1.0);
+
 // Simple approximation
 // Convert sRGB color to linear space
-vec3 gammaDecode(vec3 rgb) {
-    return rgb * rgb;
+vec4 gammaDecode(vec4 rgba) {
+    vec3 rgb = rgba.rgb;
+    return vec4(rgb * rgb, rgba.a);
 }
 // Convert linear color to sRGB space
-vec3 gammaEncode(vec3 rgb) {
-    return sqrt(rgb);
+vec4 gammaEncode(vec4 rgba) {
+    vec3 rgb = rgba.rgb;
+    return vec4(sqrt(rgb), rgba.a);
 }
 
-const vec2 s = vec2(-1, 1);
-const float WEIGHT_SUM_INV = 1.0 / 16.0;
+vec4 safeTexture(sampler2D tex, vec2 uv) {
+    return texture(tex, clamp(uv, UV_MIN, UV_MAX));
+}
 
 // Credits:
 // Jorge Jimenez,
@@ -34,24 +42,21 @@ const float WEIGHT_SUM_INV = 1.0 / 16.0;
 void main() {
     vec2 uv = texCoord;
     // center point
-    vec4 sum = vec4(gammaDecode(texture(u_Texture, uv).rgb) * 4.0, 0.0);
+    vec4 sum = gammaDecode(safeTexture(u_Texture, uv)) * 4.0;
 
     // corners
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s).rgb); // tl
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yy).rgb); // tr
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.yx).rgb); // br
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * s.xx).rgb); // bl
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S)); // tl
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yy)); // tr
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.yx)); // br
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * S.xx)); // bl
 
     // sides
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(s.x, 0.0)).rgb) * 2.0; // ml
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(0.0, s.y)).rgb) * 2.0; // mt
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(s.y, 0.0)).rgb) * 2.0; // mr
-    sum.rgb += gammaDecode(texture(u_Texture, uv + u_Texel * vec2(0.0, s.x)).rgb) * 2.0; // mb
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(S.x, 0.0))) * 2.0; // ml
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(0.0, S.y))) * 2.0; // mt
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(S.y, 0.0))) * 2.0; // mr
+    sum += gammaDecode(safeTexture(u_Texture, uv + u_Texel * vec2(0.0, S.x))) * 2.0; // mb
 
-    sum.rgb *= WEIGHT_SUM_INV;
-    sum.rgb = gammaEncode(sum.rgb);
-    sum.a = 1.0;
-
-    color = sum;
-    //    color = texture(u_Texture, uv);
+    sum *= WEIGHT_SUM_INV;
+    color = gammaEncode(sum);
+    color = mix(color, u_Tint, u_Tint.a * u_Tint.a);
 }
