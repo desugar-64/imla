@@ -64,6 +64,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
@@ -245,7 +246,7 @@ class MainActivity : ComponentActivity() {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
             uiLayerRenderer = uiRenderer,
-            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f)
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f, blurOpacity = 0.9f)
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 0.0f),
@@ -294,7 +295,7 @@ class MainActivity : ComponentActivity() {
         BackdropBlur(
             modifier = Modifier.height(350.dp),
             uiLayerRenderer = uiRenderer,
-            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f, blurOpacity = 0.7f)
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.3f),
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 1.0f),

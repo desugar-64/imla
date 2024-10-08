@@ -7,16 +7,16 @@ package dev.serhiiyaremych.imla.uirenderer.processing
 
 import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.toIntSize
+import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.RenderableRootLayer
-import dev.serhiiyaremych.imla.uirenderer.processing.blend.BlendEffect
+import dev.serhiiyaremych.imla.uirenderer.processing.blend.PostBlendEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.blur.DualBlurEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.mask.MaskEffect
 import dev.serhiiyaremych.imla.uirenderer.processing.noise.NoiseEffect
@@ -38,7 +38,7 @@ internal class EffectCoordinator(
             blurEffect = DualBlurEffect(assetManager, simpleQuadRenderer),
             noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
             maskEffect = MaskEffect(assetManager, simpleQuadRenderer),
-            blendEffect = BlendEffect(assetManager, simpleQuadRenderer)
+            blendEffect = PostBlendEffect(simpleQuadRenderer)
         )
     }
 
@@ -56,8 +56,8 @@ internal class EffectCoordinator(
 
         mask.applyEffect(
             backgroundFramebuffer = rootLayer.highResFBO,
-            backgroundRect = renderObject.area,
-            blur = noise.applyEffect(
+            backgroundCrop = renderObject.area,
+            foreground = noise.applyEffect(
                 texture = blur.applyEffect(
                     inputFbo = prePrecess.preProcess(rootLayer.highResFBO, renderObject.area),
                     offset = renderObject.style.offset,
@@ -66,13 +66,13 @@ internal class EffectCoordinator(
                 ),
                 noiseAlpha = renderObject.style.noiseAlpha
             ),
+            foregroundCrop = prePrecess.contentCrop,
             mask = maskTexture
         )
 
-        val finalFb = /*prePrecess.preProcess(rootLayer.highResFBO, renderObject.area)*/
-            output(blur, noise, mask)
+        val finalFb = output(blur, noise, mask)
         if (finalFb != null) {
-            trace("blitFinalToScreen") {
+            trace("finalBlendLayers") {
                 RenderCommand.bindDefaultFramebuffer(Bind.DRAW)
                 RenderCommand.setViewPort(
                     x = 0, y = 0,
@@ -80,66 +80,16 @@ internal class EffectCoordinator(
                     height = renderObject.area.height.toInt()
                 )
                 RenderCommand.clear()
-                val blurOpacity = when {
-                    renderObject.style.blurOpacity < 0.1f -> 0.0f
-                    renderObject.style.blurOpacity > 0.95f -> 1.0f
-                    else -> renderObject.style.blurOpacity
-                }
-                when {
-                    blurOpacity == 0.0f -> {
-                        RenderCommand.enableBlending()
-                        simpleQuadRenderer.draw(
-                            texture = SubTexture2D.createFromCoords(
-                                texture = rootLayer.highResFBO.colorAttachmentTexture,
-                                rect = renderObject.area.translate(
-                                    Offset(
-                                        x = 0f,
-                                        y = rootLayer.highResFBO.specification.size.height - renderObject.area.height
-                                    )
-                                )
-                            )
-                        )
-                        RenderCommand.disableBlending()
-                    }
-
-                    blurOpacity < 1.0 -> {
-                        blendEffect.blendToDefaultBuffer(
-                            background = rootLayer.highResFBO,
-                            cutBackgroundRegion = renderObject.area,
-                            foreground = finalFb,
-                            cutForegroundRegion = prePrecess.contentCrop,
-                            opacity = blurOpacity,
-                        )
-                    }
-
-                    else -> {
-                        // Cut
-                        finalFb.bind(Bind.READ, updateViewport = false)
-                        RenderCommand.blitFramebuffer(
-                            srcX0 = 0 + prePrecess.contentCrop.left.toInt(),
-                            srcY0 = 0 + prePrecess.contentCrop.top.toInt(),
-                            srcX1 = prePrecess.contentCrop.right.toInt(),
-                            srcY1 = prePrecess.contentCrop.bottom.toInt(),
-                            dstX0 = 0,
-                            dstY0 = 0,
-                            dstX1 = renderObject.area.width.toInt(),
-                            dstY1 = renderObject.area.height.toInt()
-                        )
-                    }
-                }
-
-                // Full
-//                RenderCommand.blitFramebuffer(
-//                    srcX0 = 0,
-//                    srcY0 = 0,
-//                    srcX1 = finalFb.colorAttachmentTexture.width,
-//                    srcY1 = finalFb.colorAttachmentTexture.height,
-//                    dstX0 = 0,
-//                    dstY0 = 0,
-//                    dstX1 = renderObject.area.width.toInt(),
-//                    dstY1 = renderObject.area.height.toInt()
-//                )
-//                simpleQuadRenderer.draw(texture = finalFb.colorAttachmentTexture)
+                blendEffect.blendToDefaultBuffer(
+                    background = rootLayer.highResFBO,
+                    cutBackgroundRegion = renderObject.area,
+                    foreground = finalFb,
+                    cutForegroundRegion = if (maskTexture != null) Rect(
+                        offset = Offset.Zero,
+                        size = finalFb.specification.size.toSize()
+                    ) else prePrecess.contentCrop,
+                    opacity = renderObject.style.blurOpacity,
+                )
             }
         } else {
             // all effects are disabled, just show original background

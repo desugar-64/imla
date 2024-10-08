@@ -47,20 +47,42 @@ internal class SimpleQuadRenderer(
             renderer.data.vao.bind()
             vbo?.bind()
             shader.bind()
-            shader.bindUniformBlock(
-                SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
-                SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
-            )
             if (texture != null) {
                 texture.bind()
-                uploadTextureDataIfNeed(alpha, texture)
+                uploadTextureDataIfNeed(alpha, texture.flipTexture, getTextureCoordinates(texture))
             }
             renderer.flush()
         }
 
-    private fun uploadTextureDataIfNeed(alpha: Float, texture: Texture) {
-        val texCoord: Array<Offset> = getTextureCoordinates(texture)
-        val flipY: Boolean = texture.flipTexture
+    fun draw(
+        shader: Shader = simpleQuadShader,
+        texture: Texture2D? = null,
+        textureCoordinates: Array<Offset>? = null,
+        alpha: Float = 1.0f
+    ) =
+        trace("SimpleQuadRenderer#draw") {
+            renderer.data.vao.bind()
+            vbo?.bind()
+            shader.bind()
+            if (texture != null) {
+                texture.bind()
+                uploadTextureDataIfNeed(
+                    alpha,
+                    texture.flipTexture,
+                    textureCoordinates ?: getTextureCoordinates(texture)
+                )
+            }
+            renderer.flush()
+        }
+
+
+    private fun uploadTextureDataIfNeed(
+        alpha: Float,
+        flipTexture: Boolean,
+        textureCoordinates: Array<Offset>
+    ) {
+        val texCoord: Array<Offset> = textureCoordinates
+        val flipY: Boolean = flipTexture
         val texCoordinatesChanged = isTexCoordinatesChanged(texCoord)
         val flipChanged = isFlipChanged(flipY)
         val alphaChanged = isAlphaChanged(alpha)

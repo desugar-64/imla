@@ -64,7 +64,7 @@ internal class DualBlurEffect(
         @IntRange(from = 0, to = BlurContext.MAX_PASSES.toLong())
         passes: Int,
         tint: Color
-    ): Texture = trace("DualKawaseBlurEffect") {
+    ): Texture2D = trace("DualKawaseBlurEffect") {
         trace("BlurEffect#applyEffect") {
             setup(inputFbo.specification.size / inputFbo.specification.downSampleFactor)
             val enabled = offset > 0.0 && passes > 0

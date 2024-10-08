@@ -88,4 +88,10 @@ internal object RenderCommand {
             filter = filter
         )
     }
+
+    inline fun withBlendingModeEnabled(block: () -> Unit) {
+        enableBlending()
+        block()
+        disableBlending()
+    }
 }
