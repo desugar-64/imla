@@ -168,8 +168,6 @@ internal class DualBlurEffect(
 //                }
 //            }
         }
-        RenderCommand.useDefaultProgram()
-        RenderCommand.bindDefaultFramebuffer()
         return resultFramebuffer.colorAttachmentTexture
     }
 

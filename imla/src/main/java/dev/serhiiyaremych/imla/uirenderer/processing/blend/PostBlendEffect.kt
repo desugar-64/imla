@@ -8,6 +8,7 @@ package dev.serhiiyaremych.imla.uirenderer.processing.blend
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
@@ -24,7 +25,7 @@ internal class PostBlendEffect(
         foreground: Framebuffer,
         cutForegroundRegion: Rect,
         opacity: Float,
-    ) {
+    ) = trace("blendToDefaultBuffer") {
         val renderTargetSize = cutBackgroundRegion.size
         val clampedBlurOpacity = when {
             opacity < 0.1f -> 0.0f
@@ -57,7 +58,7 @@ internal class PostBlendEffect(
         foreground: Framebuffer,
         cutForegroundRegion: Rect,
         renderTargetSize: Size
-    ) {
+    ) = trace("blitForeground") {
         foreground.bind(Bind.READ, updateViewport = false)
         RenderCommand.bindDefaultFramebuffer(bind = Bind.DRAW)
         RenderCommand.setViewPort(
@@ -79,7 +80,7 @@ internal class PostBlendEffect(
         background: Framebuffer,
         cutBackgroundRegion: Rect,
         renderTargetSize: Size
-    ) {
+    ) = trace("blitBackground") {
         background.bind(Bind.READ, updateViewport = false)
         RenderCommand.bindDefaultFramebuffer(bind = Bind.DRAW)
         RenderCommand.setViewPort(
@@ -107,7 +108,7 @@ internal class PostBlendEffect(
         foreground: Framebuffer,
         cutForegroundRegion: Rect,
         opacity: Float
-    ) {
+    ) = trace("blendLayers") {
         val backgroundSize = background.specification.size
         cropCoordinates[0] = Offset(
             x = cutBackgroundRegion.left / backgroundSize.width,

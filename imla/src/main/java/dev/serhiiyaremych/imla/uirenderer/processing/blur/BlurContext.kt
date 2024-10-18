@@ -7,8 +7,6 @@ package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.toIntSize
-import androidx.compose.ui.unit.toSize
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
@@ -20,7 +18,7 @@ internal data class BlurContext(
     val shaderProgram: DualBlurFilterShaderProgram
 ) {
     companion object {
-        const val PASS_SCALE = 0.5f
+        const val PASS_SCALE = 0.67f
         const val MAX_PASSES = 4
 
         fun create(assetManager: AssetManager, textureSize: IntSize): BlurContext {
@@ -28,11 +26,22 @@ internal data class BlurContext(
                 size = textureSize,
                 attachmentsSpec = FramebufferAttachmentSpecification.singleColor(format = FramebufferTextureFormat.RGB10_A2)
             )
-            val baseLayerSize = textureSize * PASS_SCALE
 
+            var baseLayerSize = textureSize * PASS_SCALE
+            fun resizeToDivisibleByFour() {
+                baseLayerSize = IntSize(
+                    width = if (baseLayerSize.width % 4 == 0) baseLayerSize.width else baseLayerSize.width + (4 - (baseLayerSize.width % 4)),
+                    height = if (baseLayerSize.height % 4 == 0) baseLayerSize.height else baseLayerSize.height + (4 - (baseLayerSize.height % 4)),
+                )
+            }
+
+            resizeToDivisibleByFour()
             val fbos = buildList {
                 for (i in 0..MAX_PASSES) {
-                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize shr i)))
+                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize)))
+//                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize shr i)))
+                    baseLayerSize *= PASS_SCALE
+                    resizeToDivisibleByFour()
                 }
             }
 
@@ -41,8 +50,6 @@ internal data class BlurContext(
                 shaderProgram = DualBlurFilterShaderProgram(assetManager)
             )
         }
-
-
     }
 }
 

@@ -289,7 +289,7 @@ internal class PreProcessFilter(
             )
             val potUpSize = SizeUtil.closestPOTUp(extendedSize)
             // render target if half size of pot input texture
-            target = Framebuffer.create(spec.copy(size = potUpSize * BlurContext.PASS_SCALE))
+            target = Framebuffer.create(spec.copy(size = potUpSize * 0.5f))
 
             val targetSize = target.specification.size
             val fitScale = calculateFitScale(

@@ -47,9 +47,6 @@ internal class EffectCoordinator(
         val effects = effectCache.getOrPut(renderObject.id) {
             createEffects()
         }
-        RenderCommand.bindDefaultFramebuffer()
-        RenderCommand.useDefaultProgram()
-        RenderCommand.clear()
 
         val maskTexture = renderObject.mask
         val (prePrecess, blur, noise, mask, blendEffect) = effects
@@ -89,26 +86,6 @@ internal class EffectCoordinator(
                         size = finalFb.specification.size.toSize()
                     ) else prePrecess.contentCrop,
                     opacity = renderObject.style.blurOpacity,
-                )
-            }
-        } else {
-            // all effects are disabled, just show original background
-            trace("cutMainBackgroundRegion") {
-                rootLayer.highResFBO.bind(Bind.READ)
-                RenderCommand.bindDefaultFramebuffer(bind = Bind.DRAW)
-                RenderCommand.clear()
-
-                RenderCommand.blitFramebuffer(
-                    srcX0 = 0,
-                    srcY0 = renderObject.area.top.toInt(),
-                    srcX1 = renderObject.area.width.toInt(),
-                    srcY1 = renderObject.area.height.toInt(),
-                    dstX0 = 0,
-                    dstY0 = 0,
-                    dstX1 = renderObject.area.width.toInt(),
-                    dstY1 = renderObject.area.height.toInt(),
-                    mask = RenderCommand.colorBufferBit,
-                    filter = RenderCommand.linearTextureFilter,
                 )
             }
         }
