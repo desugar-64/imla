@@ -344,9 +344,9 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer, hazeState: HazeState) {
         BackdropBlur(
-            modifier = Modifier.height(350.dp),
+            modifier = Modifier.height(320.dp),
             uiLayerRenderer = uiRenderer,
-            style = Style.default.copy(passes = 3, offset = 1.2f, noiseAlpha = 0.0f),
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f),
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 1.0f),

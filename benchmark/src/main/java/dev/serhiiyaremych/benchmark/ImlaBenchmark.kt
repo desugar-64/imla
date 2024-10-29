@@ -45,13 +45,13 @@ class ImlaBenchmark {
         metrics = listOf(
             FrameTimingMetric(),
             FrameTimingGfxInfoMetric(),
+            metricSection("RenderingPipeline#applyAllEffects", TraceSectionMetric.Mode.Average),
             metricSection("RenderObject#onRender", TraceSectionMetric.Mode.Average),
             metricSection("copyExtTextureToFrameBuffer", TraceSectionMetric.Mode.Average),
             metricSection("fullSizeBuffer", TraceSectionMetric.Mode.Average),
-//            metricSection("scaledSizeBuffer", TraceSectionMetric.Mode.Average),
         ),
-        iterations = 1,
-        startupMode = StartupMode.HOT
+        iterations = 4,
+        startupMode = StartupMode.WARM
     ) {
         pressHome()
         startActivityAndWait()

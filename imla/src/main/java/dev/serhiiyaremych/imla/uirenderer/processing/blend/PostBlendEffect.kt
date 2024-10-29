@@ -67,7 +67,7 @@ internal class PostBlendEffect(
         )
         RenderCommand.blitFramebuffer(
             srcX0 = cutForegroundRegion.left.toInt(),
-            srcY0 = cutForegroundRegion.top.toInt(),
+            srcY0 = (foreground.specification.size.height - cutForegroundRegion.bottom).toInt(),
             srcX1 = cutForegroundRegion.right.toInt(),
             srcY1 = cutForegroundRegion.bottom.toInt(),
             dstX0 = 0, dstY0 = 0,

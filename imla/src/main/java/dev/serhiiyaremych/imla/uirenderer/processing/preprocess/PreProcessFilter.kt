@@ -170,8 +170,7 @@ internal class PreProcessFilter(
         )
     }
 
-    var cut: Framebuffer by Delegates.notNull()
-        private set
+    private var cut: Framebuffer by Delegates.notNull()
 
     private var target: Framebuffer by Delegates.notNull()
 
@@ -308,10 +307,10 @@ internal class PreProcessFilter(
                 size = fitToScaleSize.toSize()
             )
             contentCrop = Rect(
-                left = centeredBounds.left + (leftExtend / 2f) + 1f,
-                top = centeredBounds.top + (topExtend / 2f) + 1f,
-                right = centeredBounds.right - (rightExtend / 2f) - 1f,
-                bottom = centeredBounds.bottom - (bottomExtend / 2f) - 1f,
+                left = centeredBounds.left + (leftExtend * fitScale),
+                top = centeredBounds.top + (topExtend * fitScale),
+                right = centeredBounds.right - (rightExtend * fitScale),
+                bottom = centeredBounds.bottom - (bottomExtend * fitScale),
             )
 
             isInitialized = true
