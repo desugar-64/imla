@@ -110,9 +110,9 @@ still room for optimization.
 
 ## Future Plans
 
-[ ] Implement Dual Kawase Blurring Filter for improved performance;
-[ ] Optimize the rendering pipeline and OpenGL abstractions;
-[ ] Address synchronization issues between the main thread and OpenGL thread.
+- [x] Implement Dual Kawase Blurring Filter for improved performance;
+- [ ] Optimize the rendering pipeline and OpenGL abstractions;
+- [ ] Address synchronization issues between the main thread and OpenGL thread.
 
 ## Contributing
 
