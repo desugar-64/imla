@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -69,8 +70,10 @@ internal class ImlaSourceNode(
     }
 
     override fun ContentDrawScope.draw() {
-        uiLayerRenderer.recordCanvas { this@draw.drawContent() }
-        drawLayer(uiLayerRenderer.renderableLayer.graphicsLayer)
+        if (drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
+            uiLayerRenderer.recordCanvas { this@draw.drawContent() }
+        }
+        drawContent()
     }
 
     companion object {

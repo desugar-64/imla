@@ -41,7 +41,7 @@ internal object RenderCommand {
         rendererAPI.drawIndexed(vertexArray, indexCount)
     }
 
-    fun setViewPort(x: Int, y: Int, width: Int, height: Int) {
+    fun setViewPort(x: Int = 0, y: Int = 0, width: Int, height: Int) {
         rendererAPI.setViewPort(x, y, width, height)
     }
 
@@ -60,6 +60,8 @@ internal object RenderCommand {
     fun bindDefaultFramebuffer(bind: Bind = Bind.BOTH) {
         rendererAPI.bindDefaultFramebuffer(bind)
     }
+
+    fun useDefaultProgram() = rendererAPI.bindDefaultProgram()
 
     fun blitFramebuffer(
         srcX0: Int,
@@ -85,5 +87,11 @@ internal object RenderCommand {
             mask = mask,
             filter = filter
         )
+    }
+
+    inline fun withBlendingModeEnabled(block: () -> Unit) {
+        enableBlending()
+        block()
+        disableBlending()
     }
 }

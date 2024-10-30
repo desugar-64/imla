@@ -25,14 +25,16 @@ internal interface Texture {
         R16F,
         RGB8,
         RGBA8,
+        RGB10_A2,
         DEPTH24STENCIL8
     }
 
     data class Specification(
         val size: IntSize = IntSize(1, 1),
         val format: ImageFormat = ImageFormat.RGBA8,
-        val generateMips: Boolean = true,
-        val flipTexture: Boolean = false
+        val generateMips: Boolean = false,
+        var flipTexture: Boolean = false,
+        val mipmapFiltering: Boolean = false
     )
 
 

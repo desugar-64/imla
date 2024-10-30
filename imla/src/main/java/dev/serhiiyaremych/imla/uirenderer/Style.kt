@@ -6,26 +6,32 @@
 package dev.serhiiyaremych.imla.uirenderer
 
 import androidx.annotation.FloatRange
+import androidx.annotation.IntRange
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.serhiiyaremych.imla.uirenderer.processing.blur.BlurContext
 
 @Immutable
 public data class Style(
-    val blurRadius: Dp,
+    @FloatRange(from = 0.1, to = 2.0)
+    val offset: Float,
+    @IntRange(from = 0, to = BlurContext.MAX_PASSES.toLong())
+    val passes: Int,
     val tint: Color = Color.Cyan.copy(alpha = 0.2f),
-    @FloatRange(from = 0.0, to = 1.0) val noiseAlpha: Float = 0.1f
+    @FloatRange(from = 0.0, to = 1.0) val noiseAlpha: Float = 0.1f,
+    @FloatRange(from = 0.0, to = 1.0) val blurOpacity: Float = 1.0f,
 ) {
-    context(Density)
-    internal fun blurRadiusPx(): Float {
-        return blurRadius.toPx()
-    }
+//    internal fun blurRadiusPx(): Float {
+//        return blurRadius.toPx()
+//    }
 
-    internal companion object {
-        val default = Style(
-            blurRadius = 8.dp,
+    public companion object {
+        public val default: Style = Style(
+            offset = 0.8f,
+            passes = 2,
             tint = Color.Transparent,
             noiseAlpha = 0.2f
         )

@@ -75,6 +75,17 @@ internal interface Shader {
         ): Shader {
             return OpenGLShader(name, vertexSrc, fragmentSrc)
         }
+
+        fun create(
+            assetManager: AssetManager,
+            @Language("GLSL") fragmentSrc: String
+        ): Shader {
+            return OpenGLShader(
+                name = "simple_quad",
+                vertexSrc = readWithCloseStream(assetManager.open("shader/simple_quad.vert")),
+                fragmentSrc = fragmentSrc
+            )
+        }
     }
 }
 

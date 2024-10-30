@@ -5,7 +5,7 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.blur
+package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import android.content.res.AssetManager
 import androidx.compose.ui.graphics.Color
@@ -22,10 +22,11 @@ import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.uirenderer.RenderableScope
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
-internal class BlurEffect(
+// GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
+internal class SepGaussianBlurEffect(
     assetManager: AssetManager,
     private val simpleRenderer: SimpleQuadRenderer
 ) {
@@ -61,7 +62,6 @@ internal class BlurEffect(
                 (horizontalPassFramebuffer.specification.size != size || verticalPassFramebuffer.specification.size != size)
     }
 
-    context(RenderableScope)
     fun applyEffect(texture: Texture, blurRadius: Float, tint: Color): Texture {
         trace("BlurEffect#applyEffect") {
             val effectSize = getSize(texture)

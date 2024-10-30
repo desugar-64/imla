@@ -18,6 +18,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
@@ -25,9 +26,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
@@ -45,19 +45,19 @@ public fun BackdropBlur(
     uiLayerRenderer: UiLayerRenderer,
     blurMask: Brush? = null,
     clipShape: Shape = RectangleShape,
-    content: @Composable BoxScope.(onOffsetChanged: (IntOffset) -> Unit) -> Unit = {}
+    content: @Composable BoxScope.(onOffsetChanged: (Offset) -> Unit) -> Unit = {}
 ) {
     val contentBoundingBoxState = remember { mutableStateOf(Rect.Zero) }
     val id = remember { trace("BlurBehindView#id") { UUID.randomUUID().toString() } }
 
     val drawingSurfaceState = remember { mutableStateOf<Surface?>(null) }
     val drawingSurfaceSizeState = remember { mutableStateOf(IntSize.Zero) }
-    val contentOffset = remember { mutableStateOf(IntOffset.Zero) }
+    val contentOffset = remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = modifier
-            .onPlaced { layoutCoordinates ->
-                contentBoundingBoxState.value = layoutCoordinates.boundsInParent()
+            .onGloballyPositioned { layoutCoordinates ->
+                contentBoundingBoxState.value = layoutCoordinates.boundsInRoot()
             }
     ) {
         val contentBoundingBox = contentBoundingBoxState.value
@@ -95,11 +95,11 @@ public fun BackdropBlur(
 
         val isRendererInitialized by uiLayerRenderer.isInitialized
 
-        val topOffset = IntOffset(
-            x = contentBoundingBox.left.toInt(),
-            y = contentBoundingBox.top.toInt()
+        val topOffset = Offset(
+            x = contentBoundingBox.left,
+            y = contentBoundingBox.top
         )
-        LaunchedEffect(id, drawingSurfaceState, uiLayerRenderer, contentBoundingBox) {
+        LaunchedEffect(id, drawingSurfaceState.value, uiLayerRenderer, contentBoundingBox) {
             val rendererFlow = snapshotFlow { isRendererInitialized }
             val surfaceFlow = snapshotFlow { drawingSurfaceState.value }
             combine(rendererFlow, surfaceFlow) { a, b -> a to b }

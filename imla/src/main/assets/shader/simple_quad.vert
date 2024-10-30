@@ -14,11 +14,8 @@ out vec2 maskCoord;
 out vec2 texCoord;
 //out vec2 texSize;
 out float alpha;
-out float flip;
 
 void main() {
-    vec2 ndcPos;
-
     // Set the final position of the vertex in clip space
     gl_Position = vec4(aPosition, 0.0, 1.0);
 
@@ -28,6 +25,5 @@ void main() {
     maskCoord.y = abs(textureData.flipTexture - maskCoord.y);
     texCoord = textureData.uv[gl_VertexID % 4];
     texCoord.y = abs(textureData.flipTexture - texCoord.y);
-    flip = textureData.flipTexture;
     //    texSize = textureData.size;
 }

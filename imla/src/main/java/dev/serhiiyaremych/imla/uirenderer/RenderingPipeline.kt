@@ -8,17 +8,21 @@
 package dev.serhiiyaremych.imla.uirenderer
 
 import android.content.res.AssetManager
+import android.view.View
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
+import androidx.tracing.Trace
+import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.EffectCoordinator
-import dev.serhiiyaremych.imla.uirenderer.postprocessing.SimpleQuadRenderer
+import dev.serhiiyaremych.imla.uirenderer.processing.EffectCoordinator
+import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.ConcurrentHashMap
 
 internal class RenderingPipeline(
+    rootLayer: RenderableRootLayer,
     private val assetManager: AssetManager,
     private val simpleRenderer: SimpleQuadRenderer,
     private val renderer2D: Renderer2D,
@@ -26,7 +30,8 @@ internal class RenderingPipeline(
 ) {
     private val masks: MutableMap<String, MaskTextureRenderer> = ConcurrentHashMap()
     private val renderObjects: MutableMap<String, RenderObject> = ConcurrentHashMap()
-    private val effectCoordinator = EffectCoordinator(density, simpleRenderer, assetManager)
+    private val effectCoordinator =
+        EffectCoordinator(density, rootLayer, simpleRenderer, assetManager)
 
     fun getRenderObject(id: String?): RenderObject? {
         return id?.let { renderObjects[it] }
@@ -82,10 +87,17 @@ internal class RenderingPipeline(
         }
 
         var remainingRenders = renderObjectsCount
+        val id = View.generateViewId()
+        Trace.beginAsyncSection("requestRender", id)
         renderObjects.forEach { (_, renderObject) ->
             renderObject.invalidate {
                 if (--remainingRenders == 0) {
                     onRenderComplete()
+
+                    RenderCommand.bindDefaultFramebuffer()
+                    RenderCommand.useDefaultProgram()
+                    RenderCommand.clear()
+                    Trace.endAsyncSection("requestRender", id)
                 }
             }
         }

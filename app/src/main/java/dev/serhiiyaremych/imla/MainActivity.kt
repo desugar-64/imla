@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -65,9 +64,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -87,7 +86,7 @@ import dev.serhiiyaremych.imla.uirenderer.rememberUiLayerRenderer
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.roundToInt
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -127,8 +126,8 @@ class MainActivity : ComponentActivity() {
                     Column(modifier = Modifier.matchParentSize()) {
                         // Layer 0 above full height content
                         BlurryTopAppBar(uiRenderer, hazeState)
-                        Spacer(modifier = Modifier.weight(1f))
-                        // Layer 1 full height content
+//                         Layer 1 full height content
+                        Spacer(Modifier.weight(1f))
                         BlurryBottomNavBar(uiRenderer) {
                             showBottomSheet.value = true
                         }
@@ -143,11 +142,6 @@ class MainActivity : ComponentActivity() {
                         BackdropBlur(
                             modifier = Modifier.matchParentSize(),
                             uiLayerRenderer = uiRenderer,
-                            style = Style(
-                                blurRadius = 10.dp,
-                                tint = Color.Transparent,
-                                noiseAlpha = 0.3f
-                            )
                         ) {
                             SimpleImageViewer(
                                 modifier = Modifier
@@ -163,23 +157,32 @@ class MainActivity : ComponentActivity() {
                     if (showBottomSheet.value) {
                         val sheetState = rememberModalBottomSheetState()
 
-                        val blur = remember {
-                            mutableIntStateOf(1)
+                        val blurOpacity = remember {
+                            mutableFloatStateOf(1f)
                         }
                         val sheetHeight = remember {
                             mutableIntStateOf(0)
                         }
-                        val noiseAlpha = remember {
+                        val noiseState = remember {
                             mutableFloatStateOf(0.1f)
                         }
+                        val offsetState = remember {
+                            mutableFloatStateOf(0.8f)
+                        }
+                        val passesState = remember {
+                            mutableFloatStateOf(1f)
+                        }
+
+                        val passes = (passesState.floatValue * (4 - 1) + 1).toInt().coerceIn(1, 4)
                         BackdropBlur(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .zIndex(2f),
-                            style = Style(
-                                blurRadius = blur.intValue.dp,
-                                tint = Color.Transparent,
-                                noiseAlpha = noiseAlpha.floatValue
+                            style = Style.default.copy(
+                                noiseAlpha = noiseState.floatValue,
+                                offset = offsetState.floatValue,
+                                passes = passes,
+                                blurOpacity = blurOpacity.floatValue
                             ),
                             uiLayerRenderer = uiRenderer
                         )
@@ -191,7 +194,7 @@ class MainActivity : ComponentActivity() {
                             sheetState = sheetState,
                             scrimColor = Color.Transparent,
                             onDismissRequest = { showBottomSheet.value = false },
-                            containerColor = Color.White.copy(alpha = 0.4f)
+                            containerColor = Color.White.copy(alpha = (1.0f - blurOpacity.floatValue) + 0.3f)
                         ) {
                             Column(
                                 Modifier
@@ -199,17 +202,55 @@ class MainActivity : ComponentActivity() {
                                     .safeGesturesPadding(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("Blur Settings")
+                                Text("Blur Settings", fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(16.dp))
+                                Text(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    text = "Blur opacity ${
+                                        String.format(
+                                            locale = Locale.ENGLISH,
+                                            "%.1f",
+                                            blurOpacity.floatValue
+                                        )
+                                    }"
+                                )
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Noise")
+                                    val noiseStr = String.format(
+                                        locale = Locale.ENGLISH,
+                                        format = "%.1f", noiseState.floatValue
+                                    )
+                                    Text("Noise($noiseStr)")
                                     Spacer(Modifier.width(16.dp))
                                     Slider(
-                                        noiseAlpha.floatValue,
-                                        onValueChange = { noiseAlpha.floatValue = it },
+                                        value = noiseState.floatValue,
+                                        onValueChange = { noiseState.floatValue = it },
                                         valueRange = 0.0f..1.0f
                                     )
                                 }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val offsetStr = String.format(
+                                        locale = Locale.ENGLISH,
+                                        format = "%.1f", offsetState.floatValue
+                                    )
+                                    Text("Offset($offsetStr)")
+                                    Spacer(Modifier.width(16.dp))
+                                    Slider(
+                                        value = offsetState.floatValue,
+                                        onValueChange = { offsetState.floatValue = it },
+                                        valueRange = 0.5f..2.2f
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Passes($passes)")
+                                    Spacer(Modifier.width(16.dp))
+                                    Slider(
+                                        value = passesState.floatValue,
+                                        onValueChange = { passesState.floatValue = it },
+                                        valueRange = 0f..1f,
+                                        steps = 2
+                                    )
+                                }
+
                             }
 
                         }
@@ -218,8 +259,7 @@ class MainActivity : ComponentActivity() {
                                 .distinctUntilChanged()
                                 .collect {
                                     val expandFraction = 1.0f - (it / sheetHeight.intValue)
-                                    blur.intValue =
-                                        (32f * expandFraction).roundToInt().coerceAtLeast(1)
+                                    blurOpacity.floatValue = expandFraction.coerceIn(0f, 1f)
                                 }
                         }
 
@@ -257,6 +297,7 @@ class MainActivity : ComponentActivity() {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 ),
             uiLayerRenderer = uiRenderer,
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f, blurOpacity = 0.9f)
 //            blurMask = Brush.verticalGradient(
 //                colors = listOf(
 //                    Color.White.copy(alpha = 0.0f),
@@ -266,10 +307,6 @@ class MainActivity : ComponentActivity() {
 //                    Color.White.copy(alpha = 1.0f),
 //                ),
 //            ),
-            style = Style(
-                blurRadius = 6.dp,
-                noiseAlpha = 0.2f
-            )
         ) {
             NavigationBar(
                 modifier = Modifier
@@ -307,22 +344,18 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer, hazeState: HazeState) {
         BackdropBlur(
-            modifier = Modifier.requiredHeight(250.dp),
+            modifier = Modifier.height(320.dp),
             uiLayerRenderer = uiRenderer,
-            blurMask = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 1.0f),
-                    Color.White.copy(alpha = 0.9f),
-                    Color.White.copy(alpha = 0.5f),
-                    Color.White.copy(alpha = 0.0f),
-                ),
-            ),
-            style = Style(
-                blurRadius = 8.dp,
-                noiseAlpha = 0.0f,
-                tint = Color.White.copy(alpha = 0.05f),
-            )
+            style = Style.default.copy(passes = 3, noiseAlpha = 0.1f),
+//            blurMask = Brush.verticalGradient(
+//                colors = listOf(
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 1.0f),
+//                    Color.White.copy(alpha = 0.9f),
+//                    Color.White.copy(alpha = 0.5f),
+//                    Color.White.copy(alpha = 0.0f),
+//                ),
+//            ),
         ) {
             TopAppBar(
                 modifier = Modifier.statusBarsPadding(),
@@ -338,7 +371,7 @@ class MainActivity : ComponentActivity() {
         }
 
 //        Box(
-//            modifier = Modifier.requiredHeight(250.dp).hazeChild(hazeState, style = HazeStyle(tint = Color.Cyan.copy(alpha = 0.15f), blurRadius = 20.dp)),
+//            modifier = Modifier.requiredHeight(250.dp).hazeChild(hazeState, style = HazeStyle(blurRadius = 35.dp, noiseFactor = 0.1f)),
 //        ) {
 //            TopAppBar(
 //                modifier = Modifier.statusBarsPadding(),

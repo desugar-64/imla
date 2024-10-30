@@ -7,6 +7,8 @@ package dev.serhiiyaremych.benchmark
 
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.ExperimentalMetricApi
+import androidx.benchmark.macro.FrameTimingGfxInfoMetric
+import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.TraceSectionMetric
 import androidx.benchmark.macro.junit4.MacrobenchmarkRule
@@ -41,13 +43,15 @@ class ImlaBenchmark {
         packageName = "dev.serhiiyaremych.imla",
         compilationMode = CompilationMode.Full(),
         metrics = listOf(
+            FrameTimingMetric(),
+            FrameTimingGfxInfoMetric(),
+            metricSection("RenderingPipeline#applyAllEffects", TraceSectionMetric.Mode.Average),
             metricSection("RenderObject#onRender", TraceSectionMetric.Mode.Average),
             metricSection("copyExtTextureToFrameBuffer", TraceSectionMetric.Mode.Average),
             metricSection("fullSizeBuffer", TraceSectionMetric.Mode.Average),
-            metricSection("scaledSizeBuffer", TraceSectionMetric.Mode.Average),
         ),
-        iterations = 1,
-        startupMode = StartupMode.HOT
+        iterations = 4,
+        startupMode = StartupMode.WARM
     ) {
         pressHome()
         startActivityAndWait()

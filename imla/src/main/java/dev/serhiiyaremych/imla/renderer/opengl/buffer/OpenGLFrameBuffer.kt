@@ -9,6 +9,7 @@ import android.opengl.GLES30
 import android.util.Log
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
+import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Bind.BOTH
 import dev.serhiiyaremych.imla.renderer.Bind.DRAW
@@ -19,8 +20,6 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.renderer.opengl.OpenGLTexture2D
-import dev.serhiiyaremych.imla.renderer.opengl.toGlInternalFormat
 import dev.serhiiyaremych.imla.renderer.opengl.toGlTextureTarget
 import dev.serhiiyaremych.imla.renderer.toIntBuffer
 
@@ -30,7 +29,7 @@ internal class OpenGLFramebuffer(
     override var specification: FramebufferSpecification = spec
         private set
     override val colorAttachmentTexture: Texture2D
-        get() = _colorAttachmentTexture
+        get() = _colorAttachmentTexture!!
 
     override var rendererId: Int = 0
         private set
@@ -39,10 +38,8 @@ internal class OpenGLFramebuffer(
     private val colorAttachmentSpecifications: MutableList<FramebufferTextureSpecification> =
         mutableListOf()
 
-    private var _colorAttachmentTexture: Texture2D = OpenGLTexture2D(
-        target = Texture.Target.TEXTURE_2D,
-        specification = Texture.Specification()
-    )
+    private var _colorAttachmentTexture: Texture2D? = null
+
     private var drawAttachments: IntArray = IntArray(0)
     private val colorAttachments: MutableList<Texture2D> = mutableListOf()
     private var depthAttachmentSpecification: FramebufferTextureSpecification? = null
@@ -76,7 +73,8 @@ internal class OpenGLFramebuffer(
                 width = sampledWidth,
                 height = sampledHeight,
                 format = attachment.format,
-                flip = attachment.flip
+                flip = attachment.flip,
+                mipmapFiltering = attachment.mipmapFiltering
             ).apply {
                 colorAttachments.add(this)
                 GLES30.glFramebufferTexture2D(
@@ -89,8 +87,8 @@ internal class OpenGLFramebuffer(
             }
         }
 
-        if (_colorAttachmentTexture.id != colorAttachments.first().id) {
-            _colorAttachmentTexture.destroy()
+        if (_colorAttachmentTexture?.id != colorAttachments.first().id) {
+            _colorAttachmentTexture?.destroy()
             _colorAttachmentTexture = colorAttachments.first()
         }
 
@@ -99,7 +97,8 @@ internal class OpenGLFramebuffer(
                 width = sampledWidth,
                 height = sampledHeight,
                 format = FramebufferTextureFormat.DEPTH24STENCIL8,
-                flip = it.flip
+                flip = it.flip,
+                mipmapFiltering = false
             ).apply {
                 depthAttachment = this.id
                 GLES30.glFramebufferTexture2D(
@@ -135,9 +134,13 @@ internal class OpenGLFramebuffer(
         GLES30.glReadBuffer(GLES30.GL_COLOR_ATTACHMENT0)
     }
 
-    override fun bind(bind: Bind) = trace("glBindFramebuffer[$bind]") {
+    override fun bind(bind: Bind, updateViewport: Boolean) = trace("glBindFramebuffer[$bind]") {
         GLES30.glBindFramebuffer(bind.toGlTarget(), rendererId)
-        GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
+        if (updateViewport) {
+            trace("glViewport") {
+                GLES30.glViewport(0, 0, sampledWidth, sampledHeight)
+            }
+        }
 
         if (bind == READ) {
             readBuffer()
@@ -162,11 +165,13 @@ internal class OpenGLFramebuffer(
     }
 
     override fun invalidateAttachments() = trace("invalidateAttachments") {
-        GLES30.glInvalidateFramebuffer(
-            GLES30.GL_DRAW_FRAMEBUFFER,
-            drawAttachments.size,
-            drawAttachments,
-            0
+        checkGlError(
+            GLES30.glInvalidateFramebuffer(
+                GLES30.GL_FRAMEBUFFER,
+                drawAttachments.size,
+                drawAttachments,
+                0
+            )
         )
     }
 
@@ -181,11 +186,13 @@ internal class OpenGLFramebuffer(
         val textureFormat = spec.format
         val type = when (textureFormat) {
             FramebufferTextureFormat.RGBA8, FramebufferTextureFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
+            FramebufferTextureFormat.RGB10_A2 -> GLES30.GL_UNSIGNED_INT_2_10_10_10_REV
             FramebufferTextureFormat.DEPTH24STENCIL8 -> GLES30.GL_UNSIGNED_INT_24_8
         }
         val components = when (textureFormat) {
             FramebufferTextureFormat.R8 -> 1
             FramebufferTextureFormat.RGBA8 -> 4
+            FramebufferTextureFormat.RGB10_A2 -> 4
             FramebufferTextureFormat.DEPTH24STENCIL8 -> 1
         }
         val emptyPixels = IntArray(
@@ -224,6 +231,11 @@ internal class OpenGLFramebuffer(
         )
     }
 
+    override fun toString(): String {
+        return "OpenGLFramebuffer(rendererId=$rendererId, specification=$specification, drawAttachments=${drawAttachments.contentToString()}, sampledWidth=$sampledWidth, sampledHeight=$sampledHeight)"
+    }
+
+
     private companion object {
         private const val TAG = "OpenGLFramebuffer"
         const val MAX_FRAMEBUFFER_SIZE = 8192
@@ -232,6 +244,7 @@ internal class OpenGLFramebuffer(
             return when (format) {
                 FramebufferTextureFormat.R8 -> GLES30.GL_R8
                 FramebufferTextureFormat.RGBA8 -> GLES30.GL_RGBA8
+                FramebufferTextureFormat.RGB10_A2 -> GLES30.GL_RGB10_A2
                 FramebufferTextureFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH24_STENCIL8
             }
         }
@@ -240,13 +253,16 @@ internal class OpenGLFramebuffer(
             width: Int,
             height: Int,
             format: FramebufferTextureFormat,
-            flip: Boolean
+            flip: Boolean,
+            mipmapFiltering: Boolean
         ): Texture2D = Texture2D.create(
             target = Texture.Target.TEXTURE_2D,
             specification = Texture.Specification(
                 size = IntSize(width = width, height = height),
                 format = format.toTextureFormat(),
-                flipTexture = flip
+                flipTexture = flip,
+                generateMips = mipmapFiltering,
+                mipmapFiltering = mipmapFiltering
             )
         )
     }
@@ -264,6 +280,7 @@ private fun FramebufferTextureFormat.toTextureFormat(): Texture.ImageFormat {
     return when (this) {
         FramebufferTextureFormat.R8 -> Texture.ImageFormat.R8
         FramebufferTextureFormat.RGBA8 -> Texture.ImageFormat.RGBA8
+        FramebufferTextureFormat.RGB10_A2 -> Texture.ImageFormat.RGB10_A2
         FramebufferTextureFormat.DEPTH24STENCIL8 -> Texture.ImageFormat.DEPTH24STENCIL8
     }
 }

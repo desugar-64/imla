@@ -13,7 +13,6 @@ uniform sampler2D u_Texture;
 
 in vec2 maskCoord;
 in vec2 texCoord;
-//in vec2 texSize;
 in float alpha;
 
 out vec4 color;
@@ -21,19 +20,11 @@ out vec4 color;
 
 //Classic gamma correction functions
 vec3 linear_from_srgb(vec3 srgb) {
-    return vec3(
-        srgb.r <= 0.04045 ? srgb.r / 12.92 : pow((srgb.r + 0.055) / 1.055, GAMMA),
-        srgb.g <= 0.04045 ? srgb.g / 12.92 : pow((srgb.g + 0.055) / 1.055, GAMMA),
-        srgb.b <= 0.04045 ? srgb.b / 12.92 : pow((srgb.b + 0.055) / 1.055, GAMMA)
-    );
+    return srgb * srgb;
 }
 
 vec3 srgb_from_linear(vec3 lin) {
-    return vec3(
-        lin.r <= 0.0031308 ? lin.r * 12.92 : 1.055 * pow(lin.r, 1.0 / GAMMA) - 0.055,
-        lin.g <= 0.0031308 ? lin.g * 12.92 : 1.055 * pow(lin.g, 1.0 / GAMMA) - 0.055,
-        lin.b <= 0.0031308 ? lin.b * 12.92 : 1.055 * pow(lin.b, 1.0 / GAMMA) - 0.055
-    );
+    return sqrt(lin);
 }
 
 float gaussianWeight(float x, float sigma) {

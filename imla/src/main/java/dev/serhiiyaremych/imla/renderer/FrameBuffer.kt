@@ -20,6 +20,7 @@ internal enum class FramebufferTextureFormat {
 
     // Color
     RGBA8,
+    RGB10_A2,
 
     // Depth/stencil
     DEPTH24STENCIL8,
@@ -27,14 +28,34 @@ internal enum class FramebufferTextureFormat {
 
 internal data class FramebufferTextureSpecification(
     val format: FramebufferTextureFormat = FramebufferTextureFormat.RGBA8,
-    val flip: Boolean = false
+    val flip: Boolean = false,
+    val mipmapFiltering: Boolean = false
 )
 
 internal data class FramebufferAttachmentSpecification(
     val attachments: List<FramebufferTextureSpecification> = listOf(
         FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8),
+//        FramebufferTextureSpecification(format = FramebufferTextureFormat.RGB10_A2),
     )
-)
+) {
+    companion object {
+        fun singleColor(
+            format: FramebufferTextureFormat = FramebufferTextureFormat.RGBA8,
+            mipmapFiltering: Boolean = false,
+            flip: Boolean = false
+        ): FramebufferAttachmentSpecification {
+            return FramebufferAttachmentSpecification(
+                attachments = listOf(
+                    FramebufferTextureSpecification(
+                        format = format,
+                        mipmapFiltering = mipmapFiltering,
+                        flip = flip
+                    )
+                )
+            )
+        }
+    }
+}
 
 internal data class FramebufferSpecification(
     val size: IntSize,
@@ -48,7 +69,7 @@ internal interface Framebuffer {
     val colorAttachmentTexture: Texture2D
 
     fun invalidate()
-    fun bind(bind: Bind = Bind.BOTH)
+    fun bind(bind: Bind = Bind.BOTH, updateViewport: Boolean = true)
     fun unbind()
     fun resize(width: Int, height: Int)
 

@@ -64,6 +64,7 @@ android {
 dependencies {
 
     api(platform(libs.compose.bom))
+    implementation(libs.androidx.ui.util)
     implementation(libs.androidx.collection)
     implementation(libs.kotlin.math)
     implementation(libs.androidx.foundation)

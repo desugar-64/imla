@@ -71,11 +71,11 @@ The post-processing pipeline includes:
 1. Down-sampling the background
    texture, [RenderableRootLayer.kt](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/RenderableRootLayer.kt);
 2. Applying a two-pass blur algorithm with gamma
-   correction, [BlurEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/postprocessing/blur/BlurEffect.kt);
+   correction, [BlurEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/processing/blur/BlurEffect.kt);
 3. Blending with a noise texture for a frosted glass
-   effect, [NoiseEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/postprocessing/noise/NoiseEffect.kt);
+   effect, [NoiseEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/processing/noise/NoiseEffect.kt);
 4. (Optional) Application of a mask for progressive or gradient blur
-   effects, [MaskEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/postprocessing/mask/MaskEffect.kt).
+   effects, [MaskEffect](imla/src/main/java/dev/serhiiyaremych/imla/uirenderer/processing/mask/MaskEffect.kt).
 
 Importantly, all blur color processing is performed in the linear color space, with appropriate
 gamma decoding and encoding applied to ensure colors blend naturally, preserving vibrancy and
@@ -110,9 +110,9 @@ still room for optimization.
 
 ## Future Plans
 
-[ ] Implement Dual Kawase Blurring Filter for improved performance;
-[ ] Optimize the rendering pipeline and OpenGL abstractions;
-[ ] Address synchronization issues between the main thread and OpenGL thread.
+- [x] Implement Dual Kawase Blurring Filter for improved performance;
+- [ ] Optimize the rendering pipeline and OpenGL abstractions;
+- [ ] Address synchronization issues between the main thread and OpenGL thread.
 
 ## Contributing
 

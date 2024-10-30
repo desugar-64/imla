@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.uirenderer.postprocessing.noise
+package dev.serhiiyaremych.imla.uirenderer.processing.noise
 
 import android.content.res.AssetManager
 import dev.serhiiyaremych.imla.renderer.BufferLayout

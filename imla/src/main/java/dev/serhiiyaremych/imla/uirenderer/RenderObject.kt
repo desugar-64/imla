@@ -12,24 +12,19 @@ import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.os.Build
 import android.view.Surface
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import kotlin.properties.Delegates
 
 internal class RenderObject internal constructor(
     internal val id: String,
-    internal var highResRect: Rect,
-    internal val lowResRect: Rect,
-    internal var highResFBO: Framebuffer,
-    internal var lowResLayer: SubTexture2D,
+    internal var area: Rect,
     internal val renderableScope: RenderableScope,
 ) {
     private var renderCallback: ((RenderObject) -> Unit)? = null
@@ -60,31 +55,13 @@ internal class RenderObject internal constructor(
         this.renderCallback = onRender
     }
 
-    fun updateOffset(offset: IntOffset) = trace("RenderObject#updateOffset") {
-        val (x, y) = offset
-        val scaledTranslateY =
-            lowResLayer.texture.height - (y * renderableScope.scale) - lowResRect.height
-        val scaledRect = lowResRect.translate(
-            translateX = x.toFloat() * renderableScope.scale,
-            translateY = scaledTranslateY
-        )
-        // todo: update coordinates in place
-        lowResLayer = SubTexture2D.createFromCoords(
-            texture = lowResLayer.texture,
-            rect = scaledRect
-        )
-
-        val rect = highResRect.translate(
-            translateX = x.toFloat(),
-            translateY = y.toFloat()
-        )
-        highResRect = rect
-
+    fun updateOffset(offset: Offset) = trace("RenderObject#updateOffset") {
+        area = area.translate(translateX = offset.x, translateY = offset.y)
         invalidate()
     }
 
     override fun toString(): String {
-        return "RenderObject(id='$id', rect='$highResRect', layer='${lowResLayer.id}, ${lowResLayer.subTextureSize}')"
+        return "RenderObject(id='$id', rect='$area'')"
     }
 
 
@@ -99,7 +76,7 @@ internal class RenderObject internal constructor(
         other as RenderObject
 
         if (id != other.id) return false
-        if (highResRect != other.highResRect) return false
+        if (area != other.area) return false
         if (style != other.style) return false
 
         return true
@@ -107,7 +84,7 @@ internal class RenderObject internal constructor(
 
     override fun hashCode(): Int {
         var result = id.hashCode()
-        result = 31 * result + highResRect.hashCode()
+        result = 31 * result + area.hashCode()
         result = 31 * result + style.hashCode()
         return result
     }
@@ -143,24 +120,12 @@ internal class RenderObject internal constructor(
             surface: Surface,
             rect: Rect,
         ): RenderObject {
-            val scaledTexture = renderableLayer.lowResTexture
-            val region = rect
-            val scaledRegion = Matrix().apply {
-                scale(renderableLayer.scale, renderableLayer.scale)
-            }.map(region)
-
             val renderObject = RenderObject(
                 id = id,
-                highResRect = region,
-                lowResRect = scaledRegion,
-                highResFBO = renderableLayer.highResFBO,
-                lowResLayer = SubTexture2D.createFromCoords(
-                    texture = scaledTexture,
-                    rect = scaledRegion
-                ),
+                area = rect,
                 renderableScope = RenderableScope(
                     scale = renderableLayer.scale,
-                    originalSizeInt = region.size.toIntSize(),
+                    originalSizeInt = rect.size.toIntSize(),
                     renderer = renderableLayer.renderer2D
                 ),
             ).apply {
