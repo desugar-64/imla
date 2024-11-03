@@ -24,14 +24,11 @@ public data class Style(
     @FloatRange(from = 0.0, to = 1.0) val noiseAlpha: Float = 0.1f,
     @FloatRange(from = 0.0, to = 1.0) val blurOpacity: Float = 1.0f,
 ) {
-//    internal fun blurRadiusPx(): Float {
-//        return blurRadius.toPx()
-//    }
 
     public companion object {
         public val default: Style = Style(
             offset = 0.8f,
-            passes = 2,
+            passes = 3,
             tint = Color.Transparent,
             noiseAlpha = 0.2f
         )
