@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.1"
+agp = "8.7.2"
 coilCompose = "2.7.0"
 collection = "1.4.5"
 composeBomAlpha = "2024.10.01"
