@@ -72,7 +72,7 @@ internal class QuadShaderProgram(
     init {
         shader.bind()
         val samplers = IntArray(textureSlots) { index -> index }
-        shader.setIntArray("u_Textures", *samplers)
+        shader.setIntArray("u_Textures", samplers)
     }
 
     override fun mapVertexData(quadVertexBufferBase: List<QuadVertex>): FloatArray {

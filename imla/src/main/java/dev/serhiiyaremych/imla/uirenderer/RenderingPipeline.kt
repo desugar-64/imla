@@ -17,6 +17,7 @@ import androidx.graphics.opengl.GLRenderer
 import androidx.tracing.Trace
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.stats.ShaderStats
 import dev.serhiiyaremych.imla.uirenderer.processing.EffectCoordinator
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.ConcurrentHashMap
@@ -98,6 +99,8 @@ internal class RenderingPipeline(
                     RenderCommand.useDefaultProgram()
                     RenderCommand.clear()
                     Trace.endAsyncSection("requestRender", id)
+                    ShaderStats.printStats()
+                    ShaderStats.reset()
                 }
             }
         }

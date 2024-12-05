@@ -58,7 +58,7 @@ internal class MaskEffect(
 
             val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
             shaderProgram.shader.bind()
-            shaderProgram.shader.setIntArray("u_Textures", *samplers)
+            shaderProgram.shader.setIntArray("u_Textures", samplers)
         }
     }
 

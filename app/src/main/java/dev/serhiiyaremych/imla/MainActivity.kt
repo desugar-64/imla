@@ -67,7 +67,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -124,12 +127,28 @@ class MainActivity : ComponentActivity() {
                             onScroll = { /*uiRenderer.onUiLayerUpdated()*/ })
                     }
                     val showBottomSheet = remember { mutableStateOf(false) }
+                    val cornerShape = RoundedCornerShape(12.dp)
+                    Brush.radialGradient()
                     BackdropBlur(
                         modifier = Modifier
-                            .size(320.dp, 480.dp)
+                            .fillMaxSize()
+                            .shadow(2.dp, cornerShape)
+                            .border(
+                                1.dp, Color.Cyan.copy(alpha = 0.4f).compositeOver(Color.White),
+                                cornerShape
+                            )
                             .align(Alignment.Center),
                         rendererState = uiRenderer,
-                        clipShape = RoundedCornerShape(8.dp)
+                        blurMask = Brush.radialGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.0f),
+                                Color.White.copy(alpha = 0.5f),
+//                                Color.White.copy(alpha = 0.9f),
+//                                Color.White.copy(alpha = 1.0f),
+                                Color.White.copy(alpha = 1.0f),
+                            ),
+                        ),
+                        clipShape = cornerShape
                     )
                     AnimatedVisibility(
                         modifier = Modifier
@@ -414,7 +433,7 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    internal fun ComponentActivity.launchIdlenessTracking() {
+    private fun ComponentActivity.launchIdlenessTracking() {
         val contentView: View = findViewById(android.R.id.content)
         val callback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
