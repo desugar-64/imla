@@ -7,6 +7,7 @@ package dev.serhiiyaremych.imla.ui
 
 import android.view.Surface
 import androidx.compose.foundation.AndroidExternalSurface
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,7 +45,7 @@ public fun BackdropBlur(
     blurMask: Brush? = null,
     clipShape: Shape = RectangleShape,
     content: @Composable (onOffsetChanged: (Offset) -> Unit) -> Unit = {}
-) {
+): Unit = Box {
     val contentBoundingBoxState = remember { mutableStateOf(Rect.Zero) }
     val id = remember { trace("BlurBehindView#id") { UUID.randomUUID().toString() } }
 

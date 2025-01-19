@@ -5,25 +5,26 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
-import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float4
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import kotlin.properties.Delegates
 
 internal class DualBlurFilterShaderProgram(
-    assetManager: AssetManager
+    shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder
 ) {
-    val downShader: Shader = Shader.create(
-        assetManager = assetManager,
-        vertexAsset = "shader/simple_quad.vert",
-        fragmentAsset = "shader/blur_down.frag"
+    val downShader: Shader = shaderLibrary.loadShaderFromFile(
+        vertFileName = "simple_quad",
+        fragFileName = "blur_down"
     ).apply {
-        bind()
+        bind(shaderBinder)
         setInt("u_Texture", 0)
         bindUniformBlock(
             SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
@@ -31,12 +32,11 @@ internal class DualBlurFilterShaderProgram(
         )
     }
 
-    val upShader: Shader = Shader.create(
-        assetManager = assetManager,
-        vertexAsset = "shader/simple_quad.vert",
-        fragmentAsset = "shader/blur_up.frag"
+    val upShader: Shader = shaderLibrary.loadShaderFromFile(
+        vertFileName = "simple_quad",
+        fragFileName = "blur_up"
     ).apply {
-        bind()
+        bind(shaderBinder)
         setInt("u_Texture", 0)
         bindUniformBlock(
             SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,

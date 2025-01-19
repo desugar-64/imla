@@ -5,12 +5,13 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
-import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.times
 
 internal data class BlurContext(
@@ -21,7 +22,11 @@ internal data class BlurContext(
         const val PASS_SCALE = 0.67f
         const val MAX_PASSES = 4
 
-        fun create(assetManager: AssetManager, textureSize: IntSize): BlurContext {
+        fun create(
+            shaderLibrary: ShaderLibrary,
+            shaderBinder: ShaderBinder,
+            textureSize: IntSize
+        ): BlurContext {
             val fboSpec = FramebufferSpecification(
                 size = textureSize,
                 attachmentsSpec = FramebufferAttachmentSpecification.singleColor(format = FramebufferTextureFormat.RGB10_A2)
@@ -47,7 +52,7 @@ internal data class BlurContext(
 
             return BlurContext(
                 framebuffers = fbos,
-                shaderProgram = DualBlurFilterShaderProgram(assetManager)
+                shaderProgram = DualBlurFilterShaderProgram(shaderLibrary, shaderBinder)
             )
         }
     }

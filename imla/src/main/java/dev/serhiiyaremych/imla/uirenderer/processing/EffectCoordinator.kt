@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing
 
-import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Density
@@ -14,6 +13,8 @@ import androidx.tracing.trace
 import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
 import dev.serhiiyaremych.imla.uirenderer.RenderableRootLayer
 import dev.serhiiyaremych.imla.uirenderer.processing.blend.PostBlendEffect
@@ -26,18 +27,19 @@ internal class EffectCoordinator(
     density: Density,
     private val rootLayer: RenderableRootLayer,
     private val simpleQuadRenderer: SimpleQuadRenderer,
-    private val assetManager: AssetManager
+    private val shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder
 ) : Density by density {
 
     private val effectCache: MutableMap<String, EffectsHolder> = mutableMapOf()
 
     private fun createEffects(): EffectsHolder {
         return EffectsHolder(
-            preProcess = PreProcessFilter(assetManager, simpleQuadRenderer),
+            preProcess = PreProcessFilter(shaderLibrary, simpleQuadRenderer, shaderBinder),
 //            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
-            blurEffect = DualBlurEffect(assetManager, simpleQuadRenderer),
-            noiseEffect = NoiseEffect(assetManager, simpleQuadRenderer),
-            maskEffect = MaskEffect(assetManager, simpleQuadRenderer),
+            blurEffect = DualBlurEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
+            noiseEffect = NoiseEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
+            maskEffect = MaskEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
             blendEffect = PostBlendEffect(simpleQuadRenderer)
         )
     }

@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.mask
 
-import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
@@ -16,16 +15,19 @@ import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 
 internal class MaskEffect(
-    assetManager: AssetManager,
+    shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder,
     private val simpleQuadRenderer: SimpleQuadRenderer
 ) {
 
-    private val shaderProgram = MaskShaderProgram(assetManager)
+    private val shaderProgram = MaskShaderProgram(shaderLibrary, shaderBinder)
 
     private lateinit var cropBackgroundFramebuffer: Framebuffer
     private lateinit var finalMaskFrameBuffer: Framebuffer
@@ -57,8 +59,8 @@ internal class MaskEffect(
             cropBackgroundFramebuffer = Framebuffer.create(spec)
 
             val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
-            shaderProgram.shader.bind()
-            shaderProgram.shader.setIntArray("u_Textures", *samplers)
+            shaderProgram.shader.bind(shaderBinder)
+            shaderProgram.shader.setIntArray("u_Textures", samplers)
         }
     }
 

@@ -22,9 +22,11 @@ import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
@@ -32,7 +34,8 @@ import kotlin.properties.Delegates
 // GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
 // Bandwidth-efficient graphics, https://community.arm.com/cfs-file/__key/communityserver-blogs-components-weblogfiles/00-00-00-20-66/siggraph2015_2D00_mmg_2D00_marius_2D00_notes.pdf
 internal class DualBlurEffect(
-    private val assetManager: AssetManager,
+    private val shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder,
     private val simpleRenderer: SimpleQuadRenderer
 ) {
     private var resultFramebuffer: Framebuffer by Delegates.notNull()
@@ -97,7 +100,7 @@ internal class DualBlurEffect(
             }
 
             val shaderProgram = blurContext.shaderProgram
-            shaderProgram.downShader.bind()
+            shaderProgram.downShader.bind(shaderBinder)
             // Downsample
             trace("downsample") {
                 for (i in 0 until passes) {
@@ -106,10 +109,6 @@ internal class DualBlurEffect(
                     val drawSize = drawFBO.specification.size
                     val texelX = (1f / drawSize.width) * offset
                     val texelY = (1f / drawSize.height) * offset
-                    val layerScale = inputFbo.specification.size.width / drawSize.width.toFloat()
-//                    val texOffset =
-//                        (contentOffset / layerScale) / Offset(x = drawSize.width.toFloat(), y = drawSize.height.toFloat())
-//                    shaderProgram.setContentOffset(offset = texOffset, down = true)
                     shaderProgram.setTexelSize(
                         texel = Size(texelX, texelY),
                         down = true
@@ -124,7 +123,7 @@ internal class DualBlurEffect(
                 }
 
             }
-            shaderProgram.upShader.bind()
+            shaderProgram.upShader.bind(shaderBinder)
             // Upsample
             trace("upsample") {
                 for (i in 0 until passes) {
@@ -139,10 +138,6 @@ internal class DualBlurEffect(
                     val drawSize = drawFBO.specification.size
                     val texelX = (1f / drawSize.width) * offset
                     val texelY = (1f / drawSize.height) * offset
-                    val layerScale = inputFbo.specification.size.width / drawSize.width.toFloat()
-//                    val texOffset =
-//                        (contentOffset / layerScale) / Offset(x = drawSize.width.toFloat(), y = drawSize.height.toFloat())
-//                    shaderProgram.setContentOffset(offset = texOffset, down = false)
                     shaderProgram.setTexelSize(Size(texelX, texelY), false)
                     if (drawIndex == 0) {
                         shaderProgram.setTint(tint)
@@ -213,7 +208,7 @@ internal class DualBlurEffect(
                 attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8))
             )
         )
-        blurContext = BlurContext.create(assetManager = assetManager, textureSize = size)
+        blurContext = BlurContext.create(shaderLibrary, shaderBinder, size)
         resultFramebuffer = Framebuffer.create(spec)
     }
 

@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
-import android.content.res.AssetManager
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
 import android.view.Surface
@@ -29,17 +28,20 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
 // TODO: Refactor it to custom shader
 internal class MaskTextureRenderer(
     density: Density,
-    private val assetManager: AssetManager,
+    private val shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder,
     private val renderer2D: Renderer2D,
     private val simpleQuadRenderer: SimpleQuadRenderer,
     private val onRenderComplete: (Texture2D) -> Unit
@@ -49,7 +51,6 @@ internal class MaskTextureRenderer(
     private lateinit var frameBuffer: Framebuffer
     private lateinit var maskExternalTexture: Texture2D
     private lateinit var surfaceTexture: SurfaceTexture
-    private lateinit var renderableScope: RenderableScope
     private lateinit var extOesShaderProgram: Shader
 
     private lateinit var surface: Surface
@@ -65,16 +66,15 @@ internal class MaskTextureRenderer(
             destroy()
         }
 
-        extOesShaderProgram = Shader.create(
-            assetManager = assetManager,
-            vertexAsset = "shader/simple_quad.vert",
-            fragmentAsset = "shader/simple_ext_quad.frag"
-        ).apply {
-            bindUniformBlock(
-                SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
-                SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
-            )
-        }
+        extOesShaderProgram = shaderLibrary
+            .loadShaderFromFile(vertFileName = "simple_quad", fragFileName = "simple_ext_quad")
+            .apply {
+                bind(shaderBinder)
+                bindUniformBlock(
+                    SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+                    SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+                )
+            }
 
         frameBuffer = Framebuffer.create(
             FramebufferSpecification(
@@ -89,7 +89,6 @@ internal class MaskTextureRenderer(
             format = Texture.ImageFormat.RGBA8,
             flipTexture = true
         )
-        renderableScope = RenderableScope(1.0f, size, renderer2D)
         maskExternalTexture =
             Texture2D.create(target = Texture.Target.TEXTURE_EXTERNAL_OES, specification = texSpec)
         maskExternalTexture.bind()
@@ -124,28 +123,28 @@ internal class MaskTextureRenderer(
 
     fun renderMask(glRenderer: GLRenderer, brush: Brush, size: IntSize) =
         trace("MaskTextureRenderer#renderMask") {
-        if (invalidateBySize(size)) glRenderer.execute { this.initialize(size) }
+            if (invalidateBySize(size)) glRenderer.execute { this.initialize(size) }
 
-        if (shouldRedraw(brush)) {
-            glRenderer.execute {
-                trace("MaskTextureRenderer#shouldRedraw") {
-                    val hwCanvas = surface.lockHardwareCanvas()
-                    hwCanvas.drawColor(Color.Transparent.toArgb(), PorterDuff.Mode.CLEAR)
-                    drawScope.draw(
-                        density = this,
-                        layoutDirection = LayoutDirection.Ltr,
-                        canvas = Canvas(hwCanvas),
-                        size = size.toSize()
-                    ) {
-                        drawRect(brush)
+            if (shouldRedraw(brush)) {
+                glRenderer.execute {
+                    trace("MaskTextureRenderer#shouldRedraw") {
+                        val hwCanvas = surface.lockHardwareCanvas()
+                        hwCanvas.drawColor(Color.Transparent.toArgb(), PorterDuff.Mode.CLEAR)
+                        drawScope.draw(
+                            density = this,
+                            layoutDirection = LayoutDirection.Ltr,
+                            canvas = Canvas(hwCanvas),
+                            size = size.toSize()
+                        ) {
+                            drawRect(brush)
+                        }
+                        surface.unlockCanvasAndPost(hwCanvas)
                     }
-                    surface.unlockCanvasAndPost(hwCanvas)
                 }
+            } else {
+                this.onRenderComplete(maskExternalTexture)
             }
-        } else {
-            this.onRenderComplete(maskExternalTexture)
         }
-    }
 
     fun destroy() {
         if (isInitialized.get()) {

@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
-import android.content.res.AssetManager
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.SurfaceTexture
@@ -30,14 +29,17 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 
 internal class RenderableRootLayer(
-    private val assetManager: AssetManager,
+    private val shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder,
     private val layerDownsampleFactor: Int,
     private val density: Density,
     internal val graphicsLayer: GraphicsLayer,
@@ -102,11 +104,11 @@ internal class RenderableRootLayer(
                     onLayerTextureUpdated()
                 }
 
-                extOesShaderProgram = Shader.create(
-                    assetManager = assetManager,
-                    vertexAsset = "shader/simple_quad.vert",
-                    fragmentAsset = "shader/simple_ext_quad.frag"
+                extOesShaderProgram = shaderLibrary.loadShaderFromFile(
+                    vertFileName = "simple_quad",
+                    fragFileName = "simple_ext_quad"
                 ).apply {
+                    bind(shaderBinder)
                     bindUniformBlock(
                         SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
                         SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT

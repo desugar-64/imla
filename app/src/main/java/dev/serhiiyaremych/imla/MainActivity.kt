@@ -29,10 +29,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeGesturesPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,7 +69,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -110,7 +115,7 @@ class MainActivity : ComponentActivity() {
                 val viewingImage = remember {
                     mutableStateOf("")
                 }
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     // Full height content
                     Surface(
                         Modifier
@@ -123,14 +128,41 @@ class MainActivity : ComponentActivity() {
                             onImageClick = { viewingImage.value = it },
                             onScroll = { /*uiRenderer.onUiLayerUpdated()*/ })
                     }
+
                     val showBottomSheet = remember { mutableStateOf(false) }
-                    BackdropBlur(
-                        modifier = Modifier
-                            .size(320.dp, 480.dp)
-                            .align(Alignment.Center),
-                        rendererState = uiRenderer,
-                        clipShape = RoundedCornerShape(8.dp)
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Layer 0 above full height content
+                        BlurryTopAppBar(uiRenderer)
+//                         Layer 1 full height content
+                        Spacer(Modifier.weight(1f))
+//                        BackdropBlur(Modifier.requiredSize(120.dp), uiRenderer)
+                        Spacer(Modifier.weight(1f))
+                        BlurryBottomNavBar(uiRenderer) {
+                            showBottomSheet.value = true
+                        }
+                    }
+                    val cornerShape = RoundedCornerShape(12.dp)
+//                    BackdropBlur(
+//                        modifier = Modifier
+//                            .fillMaxSize()
+//                            .shadow(2.dp, cornerShape)
+//                            .border(
+//                                1.dp, Color.Cyan.copy(alpha = 0.4f).compositeOver(Color.White),
+//                                cornerShape
+//                            )
+//                            .align(Alignment.Center),
+//                        rendererState = uiRenderer,
+//                        blurMask = Brush.radialGradient(
+//                            colors = listOf(
+//                                Color.White.copy(alpha = 0.0f),
+//                                Color.White.copy(alpha = 0.5f),
+////                                Color.White.copy(alpha = 0.9f),
+////                                Color.White.copy(alpha = 1.0f),
+//                                Color.White.copy(alpha = 1.0f),
+//                            ),
+//                        ),
+//                        clipShape = cornerShape
+//                    )
                     AnimatedVisibility(
                         modifier = Modifier
                             .matchParentSize(),
@@ -302,7 +334,7 @@ class MainActivity : ComponentActivity() {
     private fun BlurryBottomNavBar(
         uiRenderer: UiLayerRenderer,
         onShowSettings: () -> Unit
-    ) {
+    ) = Box(Modifier.height(86.dp)) {
 
         BackdropBlur(
             modifier = Modifier
@@ -360,7 +392,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     private fun BlurryTopAppBar(uiRenderer: UiLayerRenderer) {
         BackdropBlur(
-            modifier = Modifier.height(320.dp),
+            modifier = Modifier.height(120.dp),
             rendererState = uiRenderer,
             style = Style.default.copy(passes = 3, noiseAlpha = 0.1f),
 //            blurMask = Brush.verticalGradient(
@@ -414,7 +446,7 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    internal fun ComponentActivity.launchIdlenessTracking() {
+    private fun ComponentActivity.launchIdlenessTracking() {
         val contentView: View = findViewById(android.R.id.content)
         val callback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {

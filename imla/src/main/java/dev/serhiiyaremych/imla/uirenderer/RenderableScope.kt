@@ -13,7 +13,7 @@ import dev.serhiiyaremych.imla.renderer.Bind
 import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
-import dev.serhiiyaremych.imla.renderer.ShaderProgram
+import dev.serhiiyaremych.imla.renderer.shader.ShaderProgram
 import dev.serhiiyaremych.imla.renderer.camera.OrthographicCamera
 import dev.serhiiyaremych.imla.renderer.camera.OrthographicCameraController
 

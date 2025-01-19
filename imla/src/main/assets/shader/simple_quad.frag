@@ -13,6 +13,6 @@ out vec4 color;
 void main()
 {
     vec4 baseColor = texture(u_Texture, texCoord);
-    baseColor.a = alpha;
+    baseColor.a *= alpha;
     color = baseColor;
 }
