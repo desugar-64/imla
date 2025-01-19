@@ -38,7 +38,9 @@ import dev.serhiiyaremych.imla.BuildConfig
 import dev.serhiiyaremych.imla.ext.logw
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -55,6 +57,7 @@ internal class UiRendererObserver(
 
     override fun onRemembered() {
         // no-op
+        logw("UiLayerRenderer", "UiLayerRenderer $uiLayerRenderer has been instantiated")
     }
 }
 
@@ -82,10 +85,14 @@ public class UiLayerRenderer(
     downSampleFactor: Int,
     assetManager: AssetManager
 ) : Density by density {
+    // Consider moving to RendererContext class
+    private val shaderLibrary: ShaderLibrary = ShaderLibrary(assetManager)
     private val renderer2D: Renderer2D = Renderer2D()
+    private val shaderBinder = ShaderBinder()
     private val simpleRenderer: SimpleRenderer = SimpleRenderer()
     private val simpleQuadRenderer: SimpleQuadRenderer =
-        SimpleQuadRenderer(assetManager, simpleRenderer)
+        SimpleQuadRenderer(shaderLibrary, simpleRenderer, shaderBinder)
+    //
     private val glRenderer: GLRenderer = GLRenderer().apply {
         start("GLUiLayerRenderer")
     }
@@ -93,7 +100,8 @@ public class UiLayerRenderer(
     private val mainThreadHandler = Handler(Looper.getMainLooper())
 
     internal val renderableLayer: RenderableRootLayer = RenderableRootLayer(
-        assetManager = assetManager,
+        shaderLibrary = shaderLibrary,
+        shaderBinder = shaderBinder,
         layerDownsampleFactor = downSampleFactor,
         density = density,
         graphicsLayer = graphicsLayer,
@@ -107,8 +115,14 @@ public class UiLayerRenderer(
         }
     )
 
-    private val renderingPipeline: RenderingPipeline =
-        RenderingPipeline(renderableLayer, assetManager, simpleQuadRenderer, renderer2D, this)
+    private val renderingPipeline: RenderingPipeline = RenderingPipeline(
+        rootLayer = renderableLayer,
+        simpleRenderer = simpleQuadRenderer,
+        shaderLibrary = shaderLibrary,
+        shaderBinder = shaderBinder,
+        renderer2D = renderer2D,
+        density = this
+    )
 
     private val semaphore: java.util.concurrent.Semaphore = java.util.concurrent.Semaphore(1)
 

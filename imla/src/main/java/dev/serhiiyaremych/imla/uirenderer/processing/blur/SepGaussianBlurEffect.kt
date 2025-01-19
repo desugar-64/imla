@@ -18,20 +18,21 @@ import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
-import dev.serhiiyaremych.imla.uirenderer.RenderableScope
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
 // GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
 internal class SepGaussianBlurEffect(
     assetManager: AssetManager,
+    shaderBinder: ShaderBinder,
     private val simpleRenderer: SimpleQuadRenderer
 ) {
     private val blurShaderProgram: SimpleBlurShaderProgram =
-        SimpleBlurShaderProgram(assetManager)
+        SimpleBlurShaderProgram(assetManager, shaderBinder)
 
     private var extraHPassFramebuffer: Framebuffer by Delegates.notNull()
     private var extraVPassFramebuffer: Framebuffer by Delegates.notNull()

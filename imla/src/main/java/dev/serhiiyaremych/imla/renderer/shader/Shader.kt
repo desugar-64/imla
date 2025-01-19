@@ -5,7 +5,7 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.renderer
+package dev.serhiiyaremych.imla.renderer.shader
 
 import android.content.res.AssetManager
 import dev.romainguy.kotlin.math.Float2
@@ -19,7 +19,9 @@ import java.io.InputStream
 
 internal interface Shader {
     val name: String
+    @Deprecated("")
     fun bind()
+    fun bind(shaderBinder: ShaderBinder)
     fun unbind()
 
     fun bindUniformBlock(blockName: String, bindingPoint: Int)
@@ -75,35 +77,4 @@ internal interface Shader {
             )
         }
     }
-}
-
-internal class ShaderLibrary {
-    private val shaders: MutableMap<String, Shader> = mutableMapOf()
-
-    fun load(assetManager: AssetManager, vertexAsset: String, fragmentAsset: String): Shader {
-        val shader = Shader.create(assetManager, vertexAsset, fragmentAsset)
-        add(shader, shader.name)
-        return shader
-    }
-
-    fun add(shader: Shader, name: String = "") {
-        val shaderName = name.takeIf { it.isNotEmpty() } ?: shader.name
-        require(shaders[shaderName] == null) { "Shader $shaderName already exists!" }
-        shaders[shaderName] = shader
-    }
-
-    operator fun get(name: String): Shader {
-        return requireNotNull(shaders[name]) { "Shader $name not found!" }
-    }
-
-    fun destroyAll() {
-        shaders.forEach { (_, shader) ->
-            shader.destroy()
-        }
-        shaders.clear()
-    }
-}
-
-internal class ShaderBindingManager {
-    
 }

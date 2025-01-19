@@ -16,10 +16,10 @@ import dev.romainguy.kotlin.math.Float4
 import dev.romainguy.kotlin.math.Mat3
 import dev.romainguy.kotlin.math.Mat4
 import dev.serhiiyaremych.imla.ext.checkGlError
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.stats.ShaderStats
 import org.intellij.lang.annotations.Language
-import java.util.Arrays
 
 internal class OpenGLShader(
     name: String,
@@ -44,11 +44,16 @@ internal class OpenGLShader(
         ShaderStats.shaderInstances++
     }
 
+    @Deprecated("")
     override fun bind() {
         trace(traceName) {
             checkGlError(GLES30.glUseProgram(rendererId))
         }
         ShaderStats.shaderBinds++
+    }
+
+    override fun bind(shaderBinder: ShaderBinder) {
+        shaderBinder.bind(this)
     }
 
     override fun unbind() = trace(traceName) {
@@ -59,7 +64,7 @@ internal class OpenGLShader(
         floatArrayValueCache.clear()
     }
 
-    override fun bindUniformBlock(blockName: String, bindingPoint: Int) =
+    override fun bindUniformBlock(blockName: String, bindingPoint: Int) {
         trace("bindUniformBlock") {
             val blockIndex =
                 locationMap.getOrPut(blockName) {
@@ -68,10 +73,10 @@ internal class OpenGLShader(
                         blockName
                     ).also { checkGlError() }
                 }
-            checkGlError(GLES30.glUniformBlockBinding(rendererId, blockIndex, bindingPoint)).also {
-                ShaderStats.shaderBindUniformBlock++
-            }
+            checkGlError(GLES30.glUniformBlockBinding(rendererId, blockIndex, bindingPoint))
         }
+        ShaderStats.shaderBindUniformBlock++
+    }
 
     override fun setInt(name: String, value: Int) = trace("setInt") {
         uploadUniformInt(name, value)

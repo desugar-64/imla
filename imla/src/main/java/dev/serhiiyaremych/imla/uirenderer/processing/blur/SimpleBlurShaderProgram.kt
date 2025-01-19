@@ -13,18 +13,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import dev.romainguy.kotlin.math.Float2
 import dev.romainguy.kotlin.math.Float4
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import kotlin.properties.Delegates
 
-internal class SimpleBlurShaderProgram(assetManager: AssetManager) {
+internal class SimpleBlurShaderProgram(assetManager: AssetManager, private val shaderBinder: ShaderBinder) {
 
     val shader: Shader = Shader.create(
         assetManager = assetManager,
         vertexAsset = "shader/simple_quad.vert",
         fragmentAsset = "shader/simple_blur.frag",
     ).apply {
-        bind()
+        bind(shaderBinder)
         setInt("u_Texture", 0)
         bindUniformBlock(
             SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
@@ -34,14 +35,14 @@ internal class SimpleBlurShaderProgram(assetManager: AssetManager) {
 
     private var direction: Float2 by Delegates.observable(zeroDir) { _, old, new ->
         if (old != new && new != zeroDir) {
-            shader.bind()
+            shader.bind(shaderBinder)
             shader.setFloat2("u_BlurDirection", new)
         }
     }
 
     private var blurRadiusPx: Float by Delegates.observable(0f) { _, old, new ->
         if (old != new && new > 0) {
-            shader.bind()
+            shader.bind(shaderBinder)
             val clampedRadius = new.coerceIn(1f, 72f)
             shader.setFloat("u_BlurSigma", clampedRadius)
         }
@@ -49,14 +50,14 @@ internal class SimpleBlurShaderProgram(assetManager: AssetManager) {
 
     private var blurTintColor: Color by Delegates.observable(Color.Unspecified) { _, old, new ->
         if (old != new && new != Color.Unspecified) {
-            shader.bind()
+            shader.bind(shaderBinder)
             shader.setFloat4("u_BlurTint", Float4(new.red, new.green, new.blue, new.alpha))
         }
     }
 
     private var blurTexSize: IntSize by Delegates.observable(IntSize.Zero) { _, old, new ->
         if (old != new && new != IntSize.Zero) {
-            shader.bind()
+            shader.bind(shaderBinder)
             shader.setFloat2("u_TexelSize", Float2(new.width.toFloat(), new.height.toFloat()))
         }
     }

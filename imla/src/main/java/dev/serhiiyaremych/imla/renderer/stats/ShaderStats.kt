@@ -30,7 +30,6 @@ internal object ShaderStats {
 
     fun reset() {
         shaderBinds = 0
-        shaderBindUniformBlock = 0
         shaderUploads = 0
     }
 }

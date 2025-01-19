@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-package dev.serhiiyaremych.imla.renderer
+package dev.serhiiyaremych.imla.renderer.shader
 
+import dev.serhiiyaremych.imla.renderer.BufferLayout
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
 
 internal interface ShaderProgram {

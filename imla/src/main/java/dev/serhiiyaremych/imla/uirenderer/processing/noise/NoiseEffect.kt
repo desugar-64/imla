@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.noise
 
-import android.content.res.AssetManager
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
 import dev.serhiiyaremych.imla.renderer.Bind
@@ -13,22 +12,25 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
 
 internal class NoiseEffect(
-    assetManager: AssetManager,
+    shaderLibrary: ShaderLibrary,
+    shaderBinder: ShaderBinder,
     private val simpleQuadRenderer: SimpleQuadRenderer
 ) {
 
-    private val shader: Shader = Shader.create(
-        assetManager = assetManager,
-        vertexAsset = "shader/simple_quad.vert",
-        fragmentAsset = "shader/noise.frag",
+    private val shader: Shader = shaderLibrary.loadShaderFromFile(
+        vertFileName = "simple_quad",
+        fragFileName = "noise",
     ).apply {
+        bind(shaderBinder)
         bindUniformBlock(
             SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
             SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT

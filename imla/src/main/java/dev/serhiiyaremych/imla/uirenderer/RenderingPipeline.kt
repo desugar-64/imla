@@ -7,7 +7,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer
 
-import android.content.res.AssetManager
 import android.view.View
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.Density
@@ -17,6 +16,8 @@ import androidx.graphics.opengl.GLRenderer
 import androidx.tracing.Trace
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.renderer.stats.ShaderStats
 import dev.serhiiyaremych.imla.uirenderer.processing.EffectCoordinator
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
@@ -24,15 +25,21 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal class RenderingPipeline(
     rootLayer: RenderableRootLayer,
-    private val assetManager: AssetManager,
     private val simpleRenderer: SimpleQuadRenderer,
+    private val shaderLibrary: ShaderLibrary,
+    private val shaderBinder: ShaderBinder,
     private val renderer2D: Renderer2D,
     private val density: Density
 ) {
     private val masks: MutableMap<String, MaskTextureRenderer> = ConcurrentHashMap()
     private val renderObjects: MutableMap<String, RenderObject> = ConcurrentHashMap()
-    private val effectCoordinator =
-        EffectCoordinator(density, rootLayer, simpleRenderer, assetManager)
+    private val effectCoordinator = EffectCoordinator(
+        density = density,
+        rootLayer = rootLayer,
+        simpleQuadRenderer = simpleRenderer,
+        shaderLibrary = shaderLibrary,
+        shaderBinder = shaderBinder
+    )
 
     fun getRenderObject(id: String?): RenderObject? {
         return id?.let { renderObjects[it] }
@@ -48,8 +55,9 @@ internal class RenderingPipeline(
             val maskRenderer = masks.getOrPut(renderObject.id) {
                 MaskTextureRenderer(
                     density = density,
-                    assetManager = assetManager,
                     renderer2D = renderer2D,
+                    shaderLibrary = shaderLibrary,
+                    shaderBinder = shaderBinder,
                     simpleQuadRenderer = simpleRenderer,
                     onRenderComplete = { tex ->
                         renderObject.mask = tex

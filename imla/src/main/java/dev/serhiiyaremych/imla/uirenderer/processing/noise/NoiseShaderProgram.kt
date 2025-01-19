@@ -7,8 +7,8 @@ package dev.serhiiyaremych.imla.uirenderer.processing.noise
 
 import android.content.res.AssetManager
 import dev.serhiiyaremych.imla.renderer.BufferLayout
-import dev.serhiiyaremych.imla.renderer.Shader
-import dev.serhiiyaremych.imla.renderer.ShaderProgram
+import dev.serhiiyaremych.imla.renderer.shader.Shader
+import dev.serhiiyaremych.imla.renderer.shader.ShaderProgram
 import dev.serhiiyaremych.imla.renderer.objects.defaultQuadBufferLayout
 import dev.serhiiyaremych.imla.renderer.objects.defaultQuadVertexMapper
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex

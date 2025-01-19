@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.preprocess
 
-import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
@@ -18,19 +17,21 @@ import dev.serhiiyaremych.imla.renderer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
 import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.renderer.util.SizeUtil
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
-import dev.serhiiyaremych.imla.uirenderer.processing.blur.BlurContext
 import kotlin.properties.Delegates
 
 internal class PreProcessFilter(
-    assetManager: AssetManager,
-    private val simpleQuadRenderer: SimpleQuadRenderer
+    shaderLibrary: ShaderLibrary,
+    private val simpleQuadRenderer: SimpleQuadRenderer,
+    private val shaderBinder: ShaderBinder
 ) {
 
-    private val preProcessShader = Shader.create(
+    private val preProcessShader = shaderLibrary.loadShader(
+        name = "preProcess",
         fragmentSrc = """
             #version 300 es
             precision mediump float;
@@ -160,9 +161,8 @@ internal class PreProcessFilter(
                   color = baseColor;
             }
         """.trimIndent(),
-        assetManager = assetManager
     ).apply {
-        bind()
+        bind(shaderBinder)
         setInt("u_Texture", 0)
         bindUniformBlock(
             SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
@@ -197,7 +197,7 @@ internal class PreProcessFilter(
         trace("aaDownsampling") {
             target.bind(Bind.DRAW)
             RenderCommand.clear()
-            preProcessShader.bind()
+            preProcessShader.bind(shaderBinder)
             preProcessShader.setFloat2(
                 name = "u_TexelSize",
                 value = Float2(x = 1.0f / targetSize.width, y = 1.0f / targetSize.height)

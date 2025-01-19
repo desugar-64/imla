@@ -5,34 +5,34 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing
 
-import android.content.res.AssetManager
 import androidx.compose.ui.geometry.Offset
 import androidx.tracing.trace
-import dev.serhiiyaremych.imla.renderer.Shader
+import dev.serhiiyaremych.imla.renderer.shader.Shader
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.renderer.VertexBuffer
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.renderer.toFloatBuffer
 import java.nio.FloatBuffer
 
 internal class SimpleQuadRenderer(
-    assetManager: AssetManager,
-    val renderer: SimpleRenderer
+    shaderLibrary: ShaderLibrary,
+    val renderer: SimpleRenderer,
+    val shaderBinder: ShaderBinder
 ) {
     private var vbo: VertexBuffer? = null
     private val simpleQuadShader by lazy(LazyThreadSafetyMode.NONE) {
-        Shader.create(
-            assetManager = assetManager,
-            vertexAsset = "shader/simple_quad.vert",
-            fragmentAsset = "shader/simple_quad.frag"
-        ).apply {
-            bindUniformBlock(
-                SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
-                SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
-            )
-        }
+        shaderLibrary
+            .loadShaderFromFile(vertFileName = "simple_quad", fragFileName = "simple_quad")
+            .apply {
+                bindUniformBlock(
+                    SimpleRenderer.TEXTURE_DATA_UBO_BLOCK,
+                    SimpleRenderer.TEXTURE_DATA_UBO_BINDING_POINT
+                )
+            }
     }
     private val simpleDataCache: FloatBuffer by lazy(LazyThreadSafetyMode.NONE) {
         FloatArray(renderer.data.textureDataUBO.elements).toFloatBuffer()
@@ -46,7 +46,7 @@ internal class SimpleQuadRenderer(
         trace("SimpleQuadRenderer#draw") {
             renderer.data.vao.bind()
             vbo?.bind()
-            shader.bind()
+            shader.bind(shaderBinder)
             if (texture != null) {
                 texture.bind()
                 uploadTextureDataIfNeed(alpha, texture.flipTexture, getTextureCoordinates(texture))
@@ -63,7 +63,7 @@ internal class SimpleQuadRenderer(
         trace("SimpleQuadRenderer#draw") {
             renderer.data.vao.bind()
             vbo?.bind()
-            shader.bind()
+            shader.bind(shaderBinder)
             if (texture != null) {
                 texture.bind()
                 uploadTextureDataIfNeed(

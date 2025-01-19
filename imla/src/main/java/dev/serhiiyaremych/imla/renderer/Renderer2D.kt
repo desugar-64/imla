@@ -20,10 +20,12 @@ import dev.romainguy.kotlin.math.rotation
 import dev.romainguy.kotlin.math.scale
 import dev.romainguy.kotlin.math.translation
 import dev.romainguy.kotlin.math.transpose
-import dev.serhiiyaremych.imla.ext.checkGlError
 import dev.serhiiyaremych.imla.renderer.camera.OrthographicCamera
 import dev.serhiiyaremych.imla.renderer.objects.QuadShaderProgram
 import dev.serhiiyaremych.imla.renderer.primitive.QuadVertex
+import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
+import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
+import dev.serhiiyaremych.imla.renderer.shader.ShaderProgram
 
 internal const val MAX_QUADS = 50
 internal const val MAX_VERTICES = MAX_QUADS * 4
@@ -37,7 +39,7 @@ internal class Renderer2D {
 
     private var isDrawingScene: Boolean = false
 
-    fun init(assetManager: AssetManager) {
+    fun init(shaderLibrary: ShaderLibrary, shaderBinder: ShaderBinder) {
         val quadIndices = IntArray(MAX_INDICES)
         var offset = 0
         for (i in quadIndices.indices step 6) {
@@ -53,10 +55,10 @@ internal class Renderer2D {
         }
         val quadVertexArray: VertexArray = VertexArray.create()
         val defaultQuadShaderProgram = QuadShaderProgram(
-            shader = Shader.create(
-                assetManager = assetManager,
-                vertexAsset = "shader/default_quad.vert",
-                fragmentAsset = "shader/default_quad.frag"
+            shaderBinder,
+            shader = shaderLibrary.loadShaderFromFile(
+                vertFileName = "default_quad",
+                fragFileName = "default_quad"
             )
         )
         val quadVertexBuffer: VertexBuffer =
@@ -66,10 +68,10 @@ internal class Renderer2D {
         quadVertexArray.addVertexBuffer(quadVertexBuffer)
         quadVertexArray.indexBuffer = IndexBuffer.create(quadIndices)
         val externalQuadShaderProgram = QuadShaderProgram(
-            shader = Shader.create(
-                assetManager = assetManager,
-                vertexAsset = "shader/default_quad.vert",
-                fragmentAsset = "shader/external_quad.frag"
+            shaderBinder,
+            shader = shaderLibrary.loadShaderFromFile(
+                vertFileName = "default_quad",
+                fragFileName = "external_quad"
             )
         )
         val quadIndexCount = 0
@@ -107,11 +109,12 @@ internal class Renderer2D {
             quadVertexBufferStatic = null,
             textureSlotIndex = textureSlotIndex,
             defaultQuadVertexPositions = defaultQuadVertexPositions,
-            stats = stats
+            stats = stats,
+            shaderBinder = shaderBinder
         )
 
         whiteTexture.setData(intArrayOf(Color.White.toArgb()).toIntBuffer())
-        externalQuadShaderProgram.shader.bind()
+        externalQuadShaderProgram.shader.bind(shaderBinder)
 
         textureSlots.fill(null)
         textureSlots[WHITE_TEXTURE_SLOT_INDEX] = whiteTexture
@@ -143,13 +146,13 @@ internal class Renderer2D {
             val mat4 = data.cameraData.viewProjection
 
             trace("viewProjection") {
-                data.defaultQuadShaderProgram.shader.bind()
+                data.defaultQuadShaderProgram.shader.bind(data.shaderBinder)
                 data.defaultQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
-                data.externalQuadShaderProgram.shader.bind()
+                data.externalQuadShaderProgram.shader.bind(data.shaderBinder)
                 data.externalQuadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
-                data.quadShaderProgram.shader.bind()
+                data.quadShaderProgram.shader.bind(data.shaderBinder)
                 data.quadShaderProgram.shader.setMat4("u_ViewProjection", mat4)
 
             }
@@ -179,14 +182,14 @@ internal class Renderer2D {
                     data.quadShaderProgram != data.externalQuadShaderProgram
             when {
                 isCustomShader -> {
-                    data.quadShaderProgram.shader.bind()
+                    data.quadShaderProgram.shader.bind(data.shaderBinder)
                 }
 
                 else -> {
                     if (data.quadVertexBufferBase.any { it.isExternalTexture > 0f }) {
-                        data.externalQuadShaderProgram.shader.bind()
+                        data.externalQuadShaderProgram.shader.bind(data.shaderBinder)
                     } else {
-                        data.defaultQuadShaderProgram.shader.bind()
+                        data.defaultQuadShaderProgram.shader.bind(data.shaderBinder)
                     }
                 }
             }
@@ -208,7 +211,7 @@ internal class Renderer2D {
             )
             data.quadVertexArray.addVertexBuffer(data.quadVertexBufferStatic!!)
             data.setStaticQuadData = true
-            data.quadShaderProgram.shader.bind()
+            data.quadShaderProgram.shader.bind(data.shaderBinder)
             data.quadShaderProgram.shader.setFloat("staticRenderer", 1.0f)
         }
         flush()
@@ -417,6 +420,7 @@ internal data class Renderer2DData(
     var textureSlotIndex: Int = 1, // 0 = white texture slot
     val defaultQuadVertexPositions: Array<Float4> = Array(4) { Float4(0.0f) },
     val stats: RenderStatistics = RenderStatistics(),
+    val shaderBinder: ShaderBinder,
 ) {
 }
 
