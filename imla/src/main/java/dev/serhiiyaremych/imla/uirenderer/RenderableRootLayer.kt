@@ -21,12 +21,12 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.shader.Shader
@@ -55,7 +55,6 @@ internal class RenderableRootLayer(
     val isReady: Boolean
         get() = sizeInt == IntSize.Zero
 
-    private lateinit var renderableScope: RenderableScope
     private val drawingScope: CanvasDrawScope = CanvasDrawScope()
     private lateinit var layerExternalTexture: SurfaceTexture
     private lateinit var layerSurface: Surface
@@ -73,8 +72,6 @@ internal class RenderableRootLayer(
         require(!isDestroyed) { "Can't re-init destroyed layer" }
         if (!isReady) {
             trace("RenderableRootLayer#initialize") {
-                renderableScope =
-                    RenderableScope(scale = scale, originalSizeInt = sizeInt, renderer = renderer2D)
                 val specification = FramebufferSpecification(
                     size = sizeInt,
                     attachmentsSpec = FramebufferAttachmentSpecification(

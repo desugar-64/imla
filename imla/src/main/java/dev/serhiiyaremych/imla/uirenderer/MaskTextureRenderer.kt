@@ -20,14 +20,13 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.util.trace
 import androidx.graphics.opengl.GLRenderer
 import dev.serhiiyaremych.imla.ext.isGLThread
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
-import dev.serhiiyaremych.imla.renderer.Renderer2D
 import dev.serhiiyaremych.imla.renderer.shader.Shader
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
 import dev.serhiiyaremych.imla.renderer.Texture
@@ -42,7 +41,6 @@ internal class MaskTextureRenderer(
     density: Density,
     private val shaderLibrary: ShaderLibrary,
     private val shaderBinder: ShaderBinder,
-    private val renderer2D: Renderer2D,
     private val simpleQuadRenderer: SimpleQuadRenderer,
     private val onRenderComplete: (Texture2D) -> Unit
 ) : Density by density {

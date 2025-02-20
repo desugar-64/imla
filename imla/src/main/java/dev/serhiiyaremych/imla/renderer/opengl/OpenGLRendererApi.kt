@@ -10,7 +10,7 @@ import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.ext.checkGlError
-import dev.serhiiyaremych.imla.renderer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
 import dev.serhiiyaremych.imla.renderer.RendererApi
 import dev.serhiiyaremych.imla.renderer.VertexArray
 import dev.serhiiyaremych.imla.renderer.opengl.buffer.toGlTarget

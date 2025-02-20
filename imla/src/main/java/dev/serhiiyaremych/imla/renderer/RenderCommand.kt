@@ -8,6 +8,7 @@
 package dev.serhiiyaremych.imla.renderer
 
 import androidx.compose.ui.graphics.Color
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
 import dev.serhiiyaremych.imla.renderer.opengl.OpenGLRendererAPI
 
 internal object RenderCommand {

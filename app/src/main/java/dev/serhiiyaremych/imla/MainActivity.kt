@@ -132,14 +132,20 @@ class MainActivity : ComponentActivity() {
                     val showBottomSheet = remember { mutableStateOf(false) }
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Layer 0 above full height content
-                        BlurryTopAppBar(uiRenderer)
+//                        BlurryTopAppBar(uiRenderer)
 //                         Layer 1 full height content
                         Spacer(Modifier.weight(1f))
 //                        BackdropBlur(Modifier.requiredSize(120.dp), uiRenderer)
                         Spacer(Modifier.weight(1f))
-                        BlurryBottomNavBar(uiRenderer) {
-                            showBottomSheet.value = true
+                        Row {
+                            BackdropBlur(Modifier.size(120.dp), uiRenderer)
+                            BackdropBlur(Modifier.size(120.dp), uiRenderer)
+                            BackdropBlur(Modifier.size(120.dp), uiRenderer)
                         }
+                        Spacer(Modifier.weight(1f))
+//                        BlurryBottomNavBar(uiRenderer) {
+//                            showBottomSheet.value = true
+//                        }
                     }
                     val cornerShape = RoundedCornerShape(12.dp)
 //                    BackdropBlur(

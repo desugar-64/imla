@@ -16,6 +16,7 @@ import androidx.graphics.opengl.GLRenderer
 import androidx.tracing.Trace
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.Renderer2D
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferPool
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.renderer.stats.ShaderStats
@@ -31,10 +32,12 @@ internal class RenderingPipeline(
     private val renderer2D: Renderer2D,
     private val density: Density
 ) {
+    private val framebufferPool: FramebufferPool = FramebufferPool()
     private val masks: MutableMap<String, MaskTextureRenderer> = ConcurrentHashMap()
     private val renderObjects: MutableMap<String, RenderObject> = ConcurrentHashMap()
     private val effectCoordinator = EffectCoordinator(
         density = density,
+        framebufferPool = framebufferPool,
         rootLayer = rootLayer,
         simpleQuadRenderer = simpleRenderer,
         shaderLibrary = shaderLibrary,
@@ -55,7 +58,6 @@ internal class RenderingPipeline(
             val maskRenderer = masks.getOrPut(renderObject.id) {
                 MaskTextureRenderer(
                     density = density,
-                    renderer2D = renderer2D,
                     shaderLibrary = shaderLibrary,
                     shaderBinder = shaderBinder,
                     simpleQuadRenderer = simpleRenderer,
@@ -70,8 +72,8 @@ internal class RenderingPipeline(
                     glRenderer = glRenderer,
                     brush = mask,
                     size = IntSize(
-                        width = renderObject.renderableScope.size.x.toInt(),
-                        height = renderObject.renderableScope.size.y.toInt()
+                        width = renderObject.area.size.width.toInt(),
+                        height = renderObject.area.size.height.toInt()
                     )
                 )
             } else {
@@ -85,6 +87,8 @@ internal class RenderingPipeline(
     private val renderCallback = fun(renderObject: RenderObject) {
         trace("RenderingPipeline#applyAllEffects") {
             effectCoordinator.applyEffects(renderObject)
+            framebufferPool.resetPool()
+            framebufferPool.eraseAll()
         }
     }
 

@@ -10,9 +10,10 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
 import dev.serhiiyaremych.imla.renderer.RenderCommand
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferPool
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.RenderObject
@@ -25,6 +26,7 @@ import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.PreProcessFilter
 
 internal class EffectCoordinator(
     density: Density,
+    private val framebufferPool: FramebufferPool,
     private val rootLayer: RenderableRootLayer,
     private val simpleQuadRenderer: SimpleQuadRenderer,
     private val shaderLibrary: ShaderLibrary,
@@ -35,16 +37,16 @@ internal class EffectCoordinator(
 
     private fun createEffects(): EffectsHolder {
         return EffectsHolder(
-            preProcess = PreProcessFilter(shaderLibrary, simpleQuadRenderer, shaderBinder),
+            preProcess = PreProcessFilter(shaderLibrary, framebufferPool, simpleQuadRenderer, shaderBinder),
 //            blurEffect = BlurEffect(assetManager, simpleQuadRenderer).apply { setup(effectSize) },
-            blurEffect = DualBlurEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
-            noiseEffect = NoiseEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
-            maskEffect = MaskEffect(shaderLibrary, shaderBinder, simpleQuadRenderer),
+            blurEffect = DualBlurEffect(framebufferPool, shaderLibrary, shaderBinder, simpleQuadRenderer),
+            noiseEffect = NoiseEffect(shaderLibrary, shaderBinder, framebufferPool, simpleQuadRenderer),
+            maskEffect = MaskEffect(shaderLibrary, framebufferPool, shaderBinder, simpleQuadRenderer),
             blendEffect = PostBlendEffect(simpleQuadRenderer)
         )
     }
 
-    fun applyEffects(renderObject: RenderObject) = with(renderObject.renderableScope) {
+    fun applyEffects(renderObject: RenderObject) = with(Unit) {
 
         val effects = effectCache.getOrPut(renderObject.id) {
             createEffects()
