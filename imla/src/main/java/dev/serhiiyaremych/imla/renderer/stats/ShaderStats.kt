@@ -10,6 +10,7 @@ import android.util.Log
 internal object ShaderStats {
     private const val TAG = "ShaderStats"
 
+    var fboInstances: Int = 0
     var shaderInstances: Int = 0
     var shaderBinds: Int = 0
     var shaderBindUniformBlock: Int = 0
@@ -19,6 +20,7 @@ internal object ShaderStats {
         Log.d(TAG, "--------ShaderStats--------")
         Log.d(
             TAG, """
+            fboInstances           = $fboInstances
             shaderInstances        = $shaderInstances
             shaderBinds            = $shaderBinds
             shaderUploads          = $shaderUploads

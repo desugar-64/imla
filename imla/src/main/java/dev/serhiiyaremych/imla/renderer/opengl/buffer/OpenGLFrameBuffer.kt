@@ -21,6 +21,7 @@ import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.renderer.opengl.toGlTextureTarget
+import dev.serhiiyaremych.imla.renderer.stats.ShaderStats
 import dev.serhiiyaremych.imla.renderer.toIntBuffer
 
 internal class OpenGLFramebuffer(
@@ -48,6 +49,7 @@ internal class OpenGLFramebuffer(
     private val sampledHeight get() = specification.size.height / specification.downSampleFactor
 
     init {
+        ShaderStats.fboInstances++
         invalidate()
     }
 
