@@ -9,20 +9,22 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.MAX_TEXTURE_SLOTS
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferPool
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 
 internal class MaskEffect(
     shaderLibrary: ShaderLibrary,
+    private val framebufferPool: FramebufferPool,
     private val shaderBinder: ShaderBinder,
     private val simpleQuadRenderer: SimpleQuadRenderer
 ) {
@@ -30,7 +32,9 @@ internal class MaskEffect(
     private val shaderProgram = MaskShaderProgram(shaderLibrary, shaderBinder)
 
     private lateinit var cropBackgroundFramebuffer: Framebuffer
+    private lateinit var cropBackgroundFramebufferSpec: FramebufferSpecification
     private lateinit var finalMaskFrameBuffer: Framebuffer
+    private lateinit var finalMaskFrameBufferSpec: FramebufferSpecification
     private var isInitialized: Boolean = false
 
     private var maskTexture: Texture? = null
@@ -47,16 +51,17 @@ internal class MaskEffect(
         if (shouldResize(size)) {
             if (isInitialized) {
                 finalMaskFrameBuffer.destroy()
+                cropBackgroundFramebuffer.destroy()
             }
 
-            val spec = FramebufferSpecification(
+            finalMaskFrameBufferSpec = FramebufferSpecification(
                 size = size,
                 attachmentsSpec = FramebufferAttachmentSpecification()
             )
-            finalMaskFrameBuffer = Framebuffer.create(spec)
+//            finalMaskFrameBuffer = Framebuffer.create(spec)
             isInitialized = true
 
-            cropBackgroundFramebuffer = Framebuffer.create(spec)
+//            cropBackgroundFramebuffer = Framebuffer.create(spec)
 
             val samplers = IntArray(MAX_TEXTURE_SLOTS) { index -> index }
             shaderProgram.shader.bind(shaderBinder)
@@ -77,6 +82,9 @@ internal class MaskEffect(
                 requireNotNull(mask)
                 setup(IntSize(mask.width, mask.height))
                 trace("cutBackgroundRegion") {
+                    cropBackgroundFramebuffer = framebufferPool.acquire(cropBackgroundFramebufferSpec)
+                    finalMaskFrameBuffer = framebufferPool.acquire(finalMaskFrameBufferSpec)
+
                     backgroundFramebuffer.bind(Bind.READ)
                     cropBackgroundFramebuffer.bind(Bind.DRAW)
                     RenderCommand.clear()

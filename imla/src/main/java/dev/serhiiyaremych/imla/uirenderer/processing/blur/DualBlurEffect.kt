@@ -7,7 +7,6 @@
 
 package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
-import android.content.res.AssetManager
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
 import androidx.compose.ui.geometry.Offset
@@ -15,17 +14,18 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.trace
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SubTexture2D
 import dev.serhiiyaremych.imla.renderer.Texture
 import dev.serhiiyaremych.imla.renderer.Texture2D
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferPool
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
 import kotlin.properties.Delegates
@@ -34,14 +34,18 @@ import kotlin.properties.Delegates
 // GM Shaders: Blur Philosophy, https://mini.gmshaders.com/p/blur-philosophy
 // Bandwidth-efficient graphics, https://community.arm.com/cfs-file/__key/communityserver-blogs-components-weblogfiles/00-00-00-20-66/siggraph2015_2D00_mmg_2D00_marius_2D00_notes.pdf
 internal class DualBlurEffect(
+    private val framebufferPool: FramebufferPool,
     private val shaderLibrary: ShaderLibrary,
     private val shaderBinder: ShaderBinder,
     private val simpleRenderer: SimpleQuadRenderer
 ) {
     private var resultFramebuffer: Framebuffer by Delegates.notNull()
+    private var resultFboSpec: FramebufferSpecification by Delegates.notNull()
     private var blurContext: BlurContext by Delegates.notNull()
 
     private var isInitialized: Boolean = false
+
+    private var reusableFboList: MutableList<Framebuffer> = ArrayList()
 
     internal val outputFramebuffer: Framebuffer
         get() = resultFramebuffer
@@ -70,11 +74,19 @@ internal class DualBlurEffect(
     ): Texture2D = trace("DualKawaseBlurEffect") {
         trace("BlurEffect#applyEffect") {
             setup(inputFbo.specification.size / inputFbo.specification.downSampleFactor)
+            resultFramebuffer = framebufferPool.acquire(resultFboSpec)
             val enabled = offset > 0.0 && passes > 0
 
-            // TODO: provide as configuration
+            if (passes != reusableFboList.size) {
+                reusableFboList = ArrayList(passes)
+            }
+
+            for (idx in blurContext.layerSpecs.indices) {
+                reusableFboList.add(framebufferPool.acquire(blurContext.layerSpecs[idx]))
+            }
+
             var readFBO: Framebuffer = inputFbo
-            var drawFBO = if (enabled) blurContext.framebuffers[0] else resultFramebuffer
+            var drawFBO = if (enabled) reusableFboList[0] else resultFramebuffer
 
             trace("blitFirstFBO") {
                 readFBO.bind(Bind.READ, false)
@@ -104,8 +116,8 @@ internal class DualBlurEffect(
             // Downsample
             trace("downsample") {
                 for (i in 0 until passes) {
-                    readFBO = blurContext.framebuffers[i]
-                    drawFBO = blurContext.framebuffers[i + 1]
+                    readFBO = reusableFboList[i]
+                    drawFBO = reusableFboList[i + 1]
                     val drawSize = drawFBO.specification.size
                     val texelX = (1f / drawSize.width) * offset
                     val texelY = (1f / drawSize.height) * offset
@@ -130,8 +142,8 @@ internal class DualBlurEffect(
                     // Upsampling uses buffers in the reverse direction
                     val readIndex = passes - i
                     val drawIndex = passes - i - 1
-                    readFBO = blurContext.framebuffers[readIndex]
-                    drawFBO = blurContext.framebuffers[drawIndex]
+                    readFBO = reusableFboList[readIndex]
+                    drawFBO = reusableFboList[drawIndex]
                     drawFBO.bind(Bind.DRAW)
                     RenderCommand.clear()
 
@@ -200,22 +212,21 @@ internal class DualBlurEffect(
     private fun init(size: IntSize) = trace("BlurEffect#init") {
         if (isInitialized) {
             blurContext.shaderProgram.destroy()
-            blurContext.framebuffers.forEach { it.destroy() }
+//            blurContext.framebuffers.forEach { it.destroy() }
         }
-        val spec = FramebufferSpecification(
+        resultFboSpec = FramebufferSpecification(
             size = size,
             attachmentsSpec = FramebufferAttachmentSpecification(
                 attachments = listOf(FramebufferTextureSpecification(format = FramebufferTextureFormat.RGBA8))
             )
         )
         blurContext = BlurContext.create(shaderLibrary, shaderBinder, size)
-        resultFramebuffer = Framebuffer.create(spec)
     }
 
     fun dispose() {
         if (isInitialized) {
             blurContext.shaderProgram.destroy()
-            blurContext.framebuffers.forEach { it.destroy() }
+//            blurContext.framebuffers.forEach { it.destroy() }
             resultFramebuffer.destroy()
             isInitialized = false
         }

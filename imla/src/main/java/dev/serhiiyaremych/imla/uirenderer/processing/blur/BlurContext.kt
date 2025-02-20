@@ -6,16 +6,15 @@
 package dev.serhiiyaremych.imla.uirenderer.processing.blur
 
 import androidx.compose.ui.unit.IntSize
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.uirenderer.processing.preprocess.times
 
 internal data class BlurContext(
-    val framebuffers: List<Framebuffer>,
+    val layerSpecs: List<FramebufferSpecification>,
     val shaderProgram: DualBlurFilterShaderProgram
 ) {
     companion object {
@@ -32,49 +31,27 @@ internal data class BlurContext(
                 attachmentsSpec = FramebufferAttachmentSpecification.singleColor(format = FramebufferTextureFormat.RGB10_A2)
             )
 
-            var baseLayerSize = textureSize * PASS_SCALE
-            fun resizeToDivisibleByFour() {
-                baseLayerSize = IntSize(
-                    width = if (baseLayerSize.width % 4 == 0) baseLayerSize.width else baseLayerSize.width + (4 - (baseLayerSize.width % 4)),
-                    height = if (baseLayerSize.height % 4 == 0) baseLayerSize.height else baseLayerSize.height + (4 - (baseLayerSize.height % 4)),
-                )
-            }
+            var baseLayerSize = (textureSize * PASS_SCALE).roundToMultipleOfFour()
 
-            resizeToDivisibleByFour()
             val fbos = buildList {
                 for (i in 0..MAX_PASSES) {
-                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize)))
-//                    add(Framebuffer.create(fboSpec.copy(size = baseLayerSize shr i)))
-                    baseLayerSize *= PASS_SCALE
-                    resizeToDivisibleByFour()
+                    add(fboSpec.copy(size = baseLayerSize))
+                    baseLayerSize = (baseLayerSize * PASS_SCALE).roundToMultipleOfFour()
                 }
             }
 
             return BlurContext(
-                framebuffers = fbos,
+                layerSpecs = fbos,
                 shaderProgram = DualBlurFilterShaderProgram(shaderLibrary, shaderBinder)
             )
         }
     }
 }
 
+private fun roundUpToMultipleOfFour(value: Int): Int = (value + 3) / 4 * 4
 
-/**
- * Performs a bitwise right shift operation on both the width and height of an IntSize.
- * This is equivalent to dividing both dimensions by 2^i.
- *
- * @param i The number of positions to shift right. Must be non-negative.
- * @return A new IntSize with both width and height shifted right by i positions.
- *
- * Example:
- *   val originalSize = IntSize(1024, 768)
- *   val halfSize = originalSize shr 1  // Results in IntSize(512, 384)
- *   val quarterSize = originalSize shr 2  // Results in IntSize(256, 192)
- *
- */
-private infix fun IntSize.shr(i: Int): IntSize {
-    return IntSize(
-        width = width shr i,
-        height = height shr i
+private fun IntSize.roundToMultipleOfFour(): IntSize =
+    IntSize(
+        width = roundUpToMultipleOfFour(this.width),
+        height = roundUpToMultipleOfFour(this.height)
     )
-}

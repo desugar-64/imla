@@ -12,27 +12,22 @@ import androidx.compose.ui.unit.toIntSize
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
 import dev.romainguy.kotlin.math.Float2
-import dev.serhiiyaremych.imla.renderer.Bind
-import dev.serhiiyaremych.imla.renderer.Framebuffer
-import dev.serhiiyaremych.imla.renderer.FramebufferAttachmentSpecification
-import dev.serhiiyaremych.imla.renderer.FramebufferSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
+import dev.serhiiyaremych.imla.renderer.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferAttachmentSpecification
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferSpecification
 import dev.serhiiyaremych.imla.renderer.RenderCommand
 import dev.serhiiyaremych.imla.renderer.shader.ShaderBinder
 import dev.serhiiyaremych.imla.renderer.SimpleRenderer
+import dev.serhiiyaremych.imla.renderer.framebuffer.FramebufferPool
 import dev.serhiiyaremych.imla.renderer.shader.ShaderLibrary
 import dev.serhiiyaremych.imla.renderer.util.SizeUtil
 import dev.serhiiyaremych.imla.uirenderer.processing.SimpleQuadRenderer
+import org.intellij.lang.annotations.Language
 import kotlin.properties.Delegates
 
-internal class PreProcessFilter(
-    shaderLibrary: ShaderLibrary,
-    private val simpleQuadRenderer: SimpleQuadRenderer,
-    private val shaderBinder: ShaderBinder
-) {
-
-    private val preProcessShader = shaderLibrary.loadShader(
-        name = "preProcess",
-        fragmentSrc = """
+@Language("GLSL")
+private const val preProcessFragmentSource = """
             #version 300 es
             precision mediump float;
             uniform sampler2D u_Texture;
@@ -160,7 +155,18 @@ internal class PreProcessFilter(
                   baseColor /= totalWeight;
                   color = baseColor;
             }
-        """.trimIndent(),
+        """
+
+internal class PreProcessFilter(
+    shaderLibrary: ShaderLibrary,
+    private val framebufferPool: FramebufferPool,
+    private val simpleQuadRenderer: SimpleQuadRenderer,
+    private val shaderBinder: ShaderBinder
+) {
+
+    private val preProcessShader = shaderLibrary.loadShader(
+        name = "preProcess",
+        fragmentSrc = preProcessFragmentSource.trimIndent(),
     ).apply {
         bind(shaderBinder)
         setInt("u_Texture", 0)
@@ -170,9 +176,8 @@ internal class PreProcessFilter(
         )
     }
 
-    private var cut: Framebuffer by Delegates.notNull()
-
-    private var target: Framebuffer by Delegates.notNull()
+    private var cutFboSpec: FramebufferSpecification by Delegates.notNull()
+    private var targetFboSpec: FramebufferSpecification by Delegates.notNull()
 
     private var isInitialized: Boolean = false
 
@@ -187,8 +192,11 @@ internal class PreProcessFilter(
     private var extendedContentBounds: Rect = Rect.Zero
 
     fun preProcess(rootFbo: Framebuffer, area: Rect): Framebuffer = trace("preProcess") {
-
         init(rootFbo, area)
+
+        val target = framebufferPool.acquire(targetFboSpec)
+        val cut = framebufferPool.acquire(cutFboSpec)
+
         cutArea(rootFbo, cut)
 
         val targetSize = target.specification.size / target.specification.downSampleFactor
@@ -278,19 +286,19 @@ internal class PreProcessFilter(
                 size = extendedSize,
                 attachmentsSpec = FramebufferAttachmentSpecification.singleColor(flip = true)
             )
-            cut = Framebuffer.create(
-                spec.copy(
-                    attachmentsSpec = FramebufferAttachmentSpecification.singleColor(
-                        mipmapFiltering = true,
-                        flip = true
-                    )
+            cutFboSpec = spec.copy(
+                attachmentsSpec = FramebufferAttachmentSpecification.singleColor(
+                    mipmapFiltering = true,
+                    flip = true
                 )
             )
+            // Framebuffer.create(cutSpec)
             val potUpSize = SizeUtil.closestPOTUp(extendedSize)
             // render target if half size of pot input texture
-            target = Framebuffer.create(spec.copy(size = potUpSize * 0.5f))
+            targetFboSpec = spec.copy(size = potUpSize * 0.5f)
+            //Framebuffer.create(spec.copy(size = potUpSize * 0.5f))
 
-            val targetSize = target.specification.size
+            val targetSize = targetFboSpec.size
             val fitScale = calculateFitScale(
                 inner = extendedContentBounds.size.toIntSize(),
                 outer = targetSize

@@ -8,6 +8,7 @@
 package dev.serhiiyaremych.imla.renderer
 
 import androidx.compose.ui.graphics.Color
+import dev.serhiiyaremych.imla.renderer.framebuffer.Bind
 
 internal interface RendererApi {
     val colorBufferBit: Int

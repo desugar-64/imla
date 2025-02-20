@@ -5,9 +5,10 @@
 
 @file:Suppress("unused")
 
-package dev.serhiiyaremych.imla.renderer
+package dev.serhiiyaremych.imla.renderer.framebuffer
 
 import androidx.compose.ui.unit.IntSize
+import dev.serhiiyaremych.imla.renderer.Texture2D
 import dev.serhiiyaremych.imla.renderer.opengl.buffer.OpenGLFramebuffer
 
 internal enum class Bind {

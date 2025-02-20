@@ -25,7 +25,6 @@ import kotlin.properties.Delegates
 internal class RenderObject internal constructor(
     internal val id: String,
     internal var area: Rect,
-    internal val renderableScope: RenderableScope,
 ) {
     private var renderCallback: ((RenderObject) -> Unit)? = null
 
@@ -123,11 +122,6 @@ internal class RenderObject internal constructor(
             val renderObject = RenderObject(
                 id = id,
                 area = rect,
-                renderableScope = RenderableScope(
-                    scale = renderableLayer.scale,
-                    originalSizeInt = rect.size.toIntSize(),
-                    renderer = renderableLayer.renderer2D
-                ),
             ).apply {
                 renderTarget = glRenderer.attach(
                     surface = surface,
