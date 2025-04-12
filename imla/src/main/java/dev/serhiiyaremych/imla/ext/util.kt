@@ -1,6 +1,8 @@
 /*
- * Copyright 2024, Serhii Yaremych
- * SPDX-License-Identifier: MIT
+ *
+ *  * Copyright 2025, Serhii Yaremych
+ *  * SPDX-License-Identifier: MIT
+ *
  */
 
 package dev.serhiiyaremych.imla.ext
@@ -18,6 +20,9 @@ internal fun logw(tag: String, message: String) {
 
 internal fun logd(tag: String, message: String) {
     if (BuildConfig.DEBUG) Log.d(tag, message)
+}
+internal fun loge(tag: String, message: String) {
+    if (BuildConfig.DEBUG) Log.e(tag, message)
 }
 
 internal fun isGLThread(): Boolean {
@@ -43,4 +48,16 @@ internal fun checkGlError(action: Unit = Unit) {
 
 internal fun throwError(errorCode: Int) {
     error(errorCode)
+}
+
+internal inline fun <A, B> ifNotNull(a: A?, b: B?, block: (A, B) -> Unit) {
+    if (a != null && b != null) {
+        block(a, b)
+    }
+}
+
+internal inline fun <A, B, C> ifNotNull(a: A?, b: B?, c: C?, block: (A, B, C) -> Unit) {
+    if (a != null && b != null && c != null) {
+        block(a, b, c)
+    }
 }
