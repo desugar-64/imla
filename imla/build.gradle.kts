@@ -1,6 +1,8 @@
 /*
- * Copyright 2024, Serhii Yaremych
- * SPDX-License-Identifier: MIT
+ *
+ *  * Copyright 2025, Serhii Yaremych
+ *  * SPDX-License-Identifier: MIT
+ *
  */
 
 plugins {
@@ -46,6 +48,7 @@ android {
         jvmTarget = "17"
     }
     buildFeatures {
+        renderScript = true
         compose = true
         shaders = true
 
