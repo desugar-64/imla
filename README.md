@@ -48,37 +48,6 @@ backdrop — rendered on a calibration grid so the effect is easy to read.
   </tr>
 </table>
 
-## Demo
-
-<table>
-    <thead>
-        <tr>
-            <th colspan=2><b>Pixel 6</b></th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td><img width="300" alt="Gradient blur demo" src="demo/gradient_blur.webp"></td>
-            <td><img width="300" alt="Blur demo" src="demo/p6_blur_demo.webp"></td>
-        </tr>
-        <tr>
-            <td><img width="300" alt="Neat blur algorithm bug" src="demo/blur_bug.webp"></td>
-            <td><img width="300" alt="Noise blend demo" src="demo/p6_noise_blend_demo.webp"></td>
-        </tr>
-        <tr>
-            <td><img width="300" alt="Mosaic blur demo" src="demo/mosaic_blur.webp"></td>
-            <td><img width="300" alt="Gamma corrected blur" src="demo/gamma_corrected_blur.webp"></td>
-        </tr>
-    </tbody>
-</table>
-
-
-| **Nexus 5**                                                                                                                                      |
-|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| <img width="600" alt="Live blur demo" src="demo/nexus_5_demo.webp">                                                                               |
-| <img width="600" alt="Blur gamma correction side-by-side" src="https://github.com/user-attachments/assets/85ad6c09-de0d-4bbd-89f5-a11a6aa8ac98"> |
-| <img width="600" alt="Mosaic blur" src="https://github.com/user-attachments/assets/71d81431-a2cf-4aca-bb0d-d469ced53cee">                        |
-
 ## Usage
 
 Wrap a screen — or any region — in `ImlaHost`, then declare blur regions with the
