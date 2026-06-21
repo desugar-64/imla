@@ -52,29 +52,107 @@ with the potential to evolve into a full-fledged library in the future.
 | <img width="600" alt="Blur gamma correction side-by-side" src="https://github.com/user-attachments/assets/85ad6c09-de0d-4bbd-89f5-a11a6aa8ac98"> |
 | <img width="600" alt="Mosaic blur" src="https://github.com/user-attachments/assets/71d81431-a2cf-4aca-bb0d-d469ced53cee">                        |
 
-## Current Renderer Work
+## Usage
 
-The active renderer work is a scratch prototype under the `scene2` package. It
-is intentionally smaller than the removed Renderer 2 audit/design stack.
+Wrap a screen — or any region — in `ImlaHost`, then declare blur regions with the
+`effectGroup` / `effectLayer` modifiers. No renderer or OpenGL objects are passed
+to children; they register through the host.
 
-Current prototype flow:
+```kotlin
+ImlaHost {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .effectGroup() // the backdrop that effect layers sample from
+    ) {
+        FeedContent()
 
-1. `Modifier.sceneSource()` records Compose root content into a `GraphicsLayer`.
-2. On pre-draw, the source layer is synchronously captured on the main thread
-   into a `HardwareBuffer`.
-3. `SceneRenderer` submits an immutable render snapshot through a latest-only
-   vsync scheduler.
-4. `SceneGlOwner` imports the buffer on the GL thread and presents it to the
-   host surface.
-5. `Modifier.sceneSlot { ... }` registers prototype child slots through a
-   scene registry. Slot content can be captured, imported, transformed, and
-   drawn as a GL texture.
-6. Scene2 backdrop slots now run through prepare, separable blur, composite,
-   stencil clip, tint, material noise, progressive mask, and accumulated-scene
-   sampling paths.
+        TopBar(
+            modifier = Modifier.effectLayer {
+                backdropBlur(radius = 12.dp)
+                tint(Color.White.copy(alpha = 0.1f))
+                noise(alpha = 0.15f)
+                clip(RoundedCornerShape(16.dp))
+            }
+        )
+    }
+}
+```
+
+Public API: `ImlaHost`, `Modifier.effectGroup()`, `Modifier.effectLayer { ... }`,
+`EffectLayerScope`, and `EffectLayerBoundsProvider`.
+
+## Architecture
+
+`ImlaHost` wraps everything inside it into a **single** GPU-backed surface and
+renders all content and effects through it. Children never touch the renderer —
+they register through the host's `SceneRegistry`.
+
+```mermaid
+flowchart TB
+    Host["ImlaHost { }"]
+    Content["content() — your screen UI"]
+    Group["Modifier.effectGroup()<br/>backdrop the layers sample"]
+    Layer["Modifier.effectLayer { }<br/>blur · tint · noise · clip"]
+    Registry[("SceneRegistry")]
+    Renderer["SceneRenderer"]
+    Surface["single output Surface<br/>SurfaceView · API 29+<br/>AndroidExternalSurface · API 23–28"]
+
+    Host --> Content
+    Host --> Surface
+    Content --> Group
+    Content --> Layer
+    Group -. registers .-> Registry
+    Layer -. registers .-> Registry
+    Registry --> Renderer
+    Renderer -- presents --> Surface
+```
+
+Output surface:
+
+- **API 29+** — a `SurfaceView` presented via `SurfaceControl`; the renderer hands
+  `HardwareBuffer`s straight to SurfaceFlinger (zero-copy).
+- **API 23–28** — a Compose `AndroidExternalSurface` the renderer blits into.
+
+This replaces the earlier **surface-per-slot** design: the root content is now
+captured **once per frame** and shared by every effect layer, instead of one
+surface and one capture per blurred region.
+
+```mermaid
+flowchart LR
+    subgraph legacy["Legacy: surface-per-slot"]
+        direction TB
+        LS1["slot → own Surface + capture"]
+        LS2["slot → own Surface + capture"]
+        LS3["slot → own Surface + capture"]
+    end
+    subgraph now["Now: single host surface"]
+        direction TB
+        Root["root captured once / frame"]
+        Root --> N1["layer samples backdrop"]
+        Root --> N2["layer samples backdrop"]
+        Root --> N3["layer samples backdrop"]
+    end
+```
+
+### Per-frame flow
+
+```mermaid
+sequenceDiagram
+    participant UI as Compose main thread
+    participant VS as Vsync scheduler
+    participant GL as GL thread
+    participant SF as Host surface
+    UI->>UI: capture root content into HardwareBuffer
+    UI->>VS: submit immutable snapshot
+    VS->>GL: deliver latest-only snapshot
+    GL->>GL: import buffer, run effect passes
+    Note over GL: prepare → separable blur → composite →<br/>stencil clip → tint → noise → progressive mask
+    GL->>SF: present composited scene
+```
 
 See [doc/scene2-scratch-renderer-status.md](doc/scene2-scratch-renderer-status.md)
-for the current status, implemented pieces, non-goals, and next step.
+for current status, implemented pieces, non-goals, and next steps.
 
 ## Rendering Abstraction
 
@@ -89,10 +167,12 @@ optimize this aspect of the rendering pipeline.
 
 ## Performance
 
-Current performance metrics for the blur effect on a Pixel 6 device:
+Notes on the blur effect on a Pixel 6 device:
 
-- `BlurEffect#applyEffect`: ~1.19ms
-- Scene composite/render pass timing varies by demo scene.
+- The separable Gaussian blur pass is the dominant GPU cost; it scales with the
+  blur radius and the on-screen area being blurred.
+- Per-frame cost is driven mostly by render-pass / FBO switches rather than the
+  blur math itself, so timing varies by demo scene.
 
 | Trace                                                                                                  |
 |--------------------------------------------------------------------------------------------------------|
@@ -103,15 +183,14 @@ Current performance metrics for the blur effect on a Pixel 6 device:
 These timings indicate that the blur effect and rendering process are relatively fast, but there's
 still room for optimization.
 
-## Future Plans
+## Roadmap
 
-- [x] Render root Compose content through OpenGL in the scratch scene path;
-- [x] Capture and draw prototype child slot content as a GL texture;
+- [x] Render the Compose root through OpenGL behind a single host surface;
+- [x] Capture and draw child content as GL textures;
 - [x] Validate rotated slot geometry and root-space backdrop sampling;
-- [x] Replace the backdrop debug pass with real scene2 blur passes;
-- [x] Add progressive masks, stencil clips, tint, noise, and cumulative backdrop
-  sampling to the scratch scene path;
-- [ ] Add automatic cumulative dependency optimization and metrics.
+- [x] Real separable Gaussian blur passes;
+- [x] Progressive masks, stencil clips, tint, noise, and cumulative backdrop sampling;
+- [ ] Automatic cumulative dependency optimization and metrics.
 
 ## Contributing
 
