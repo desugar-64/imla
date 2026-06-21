@@ -117,48 +117,31 @@ the renderer presents into it:
 - **API 23–28** — there is no `SurfaceControl`, so the renderer blits into the
   `SurfaceView`'s `Surface` (obtained through `AndroidExternalSurface`).
 
-This replaces the earlier **surface-per-slot** design: the root content is now
-captured **once per frame** and shared by every effect layer, instead of one
-surface and one capture per blurred region.
-
-```mermaid
-flowchart LR
-    subgraph legacy["Legacy: surface-per-slot"]
-        direction TB
-        LS1["slot → own Surface + capture"]
-        LS2["slot → own Surface + capture"]
-        LS3["slot → own Surface + capture"]
-    end
-    subgraph now["Now: single host surface"]
-        direction TB
-        Root["root captured once / frame"]
-        Root --> N1["layer samples backdrop"]
-        Root --> N2["layer samples backdrop"]
-        Root --> N3["layer samples backdrop"]
-    end
-```
+The root content is captured **once per frame** and shared by every effect
+layer that samples it.
 
 ### Per-frame flow
 
 ```mermaid
 sequenceDiagram
     participant UI as Compose main thread
-    participant VS as Vsync scheduler
+    participant CAP as Capture thread
     participant GL as GL thread
-    participant SF as Host surface
-    UI->>UI: capture root content into HardwareBuffer
-    UI->>VS: submit immutable snapshot
-    VS->>GL: deliver latest-only snapshot
-    GL->>GL: import buffer, run effect passes
-    Note over GL: prepare → separable blur → composite →<br/>stencil clip → tint → noise → progressive mask
-    GL->>SF: present composited scene
+    participant OUT as Output (SurfaceControl / EGL)
+    UI->>UI: record content into a GraphicsLayer (draw pass)
+    UI->>UI: vsync-align capture (postOnAnimation)
+    UI->>CAP: HardwareRenderer.syncAndDraw → HardwareBuffer
+    CAP-->>UI: HardwareBuffer ready (async)
+    UI->>GL: hand off latest-only snapshot, requestRender
+    GL->>GL: import HardwareBuffer zero-copy (EGLImage)
+    Note over GL: noise (once) → root draw →<br/>per slot: [stencil clip] prepare → separable blur →<br/>composite (tint · noise · mask fused) → content
+    GL->>OUT: present — API 29+ SurfaceControl (zero-copy) · else blit + swap
 ```
 
 ### HardwareBuffers end-to-end
 
-The Compose root is drawn into a `HardwareBuffer` (a `RenderNode` rendered single-buffered off
-the main thread) rather than giving every blurred region its own `Surface`; the effect layers then
-all sample that one shared backdrop. Capture lives in
+The Compose root is drawn into a single shared `HardwareBuffer` (a `RenderNode` rendered
+single-buffered off the main thread); every effect layer samples that one backdrop. Capture lives in
 [`SingleBufferRenderer`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/SingleBufferRenderer.kt),
 and the captured buffer is leased to the GL thread through
 [`BufferLease`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/BufferLease.kt).
@@ -223,7 +206,6 @@ optimize this aspect of the rendering pipeline.
 - [x] Validate rotated slot geometry and root-space backdrop sampling;
 - [x] Real separable Gaussian blur passes;
 - [x] Progressive masks, stencil clips, tint, noise, and cumulative backdrop sampling;
-- [ ] Automatic cumulative dependency optimization and metrics.
 - [ ] Atlas grouping for effect layers (needs integration with the bucketed
   capture buffers).
 
