@@ -293,5 +293,5 @@ public object ShaderStats {
         }
     }
 
-    private const val TRACE_PREFIX = "ImlaScene2Resource"
+    private const val TRACE_PREFIX = "ImlaSceneResource"
 }

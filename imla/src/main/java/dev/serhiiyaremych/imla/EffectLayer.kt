@@ -27,7 +27,8 @@ public fun Modifier.effectGroup(): Modifier {
 }
 
 /**
- * Marks this composable as an Imla-managed foreground layer with rendering effects.
+ * Marks this composable as an Imla foreground effect layer. Effects are declared in [configure];
+ * the layer samples the backdrop of its enclosing [effectGroup].
  */
 public fun Modifier.effectLayer(
     configure: EffectLayerScope.() -> Unit
@@ -36,16 +37,24 @@ public fun Modifier.effectLayer(
     return effectLayerInternal(config)
 }
 
+/** DSL marker for the [EffectLayerScope] receiver. */
 @DslMarker
 public annotation class EffectLayerDsl
 
+/** Supplies the layer's visual bounds in place of its layout bounds. */
 public fun interface EffectLayerBoundsProvider {
+    /**
+     * @param coordinates layout coordinates of the effect layer.
+     * @param layoutSize measured size of the layer.
+     * @return visual bounds in the layer's local space, or `null` to use the layout bounds.
+     */
     public fun provideVisualBounds(
         coordinates: LayoutCoordinates,
         layoutSize: IntSize
     ): Rect?
 }
 
+/** Receiver scope of [effectLayer]; declares the effects applied to one layer. */
 @EffectLayerDsl
 public class EffectLayerScope internal constructor() {
     private var backdropBlurSigmaPx: Float? = null
@@ -58,6 +67,12 @@ public class EffectLayerScope internal constructor() {
     private var clipContent: Boolean = false
     private var visualBoundsProvider: EffectLayerBoundsProvider? = null
 
+    /**
+     * Blurs the sampled backdrop. May be called only once per layer.
+     *
+     * @param sigmaPx Gaussian blur sigma in pixels.
+     * @param progressiveMask optional alpha brush; its alpha scales blur strength per pixel.
+     */
     public fun backdropBlur(
         sigmaPx: Float,
         progressiveMask: Brush? = null
@@ -87,14 +102,26 @@ public class EffectLayerScope internal constructor() {
         }
     }
 
+    /** Composites [color] over the backdrop. Use a non-opaque alpha to tint rather than fill. */
     public fun tint(color: Color) {
         backdropTint = color
     }
 
+    /**
+     * Overlays procedural noise for a frosted-glass look.
+     *
+     * @param alpha noise opacity, coerced to `0f..1f`.
+     */
     public fun noise(alpha: Float) {
         noiseAlpha = alpha.coerceIn(0f, 1f)
     }
 
+    /**
+     * Clips the layer to [shape].
+     *
+     * @param inset shrinks the clip region inward.
+     * @param clipContent `true` also clips the layer's own content; `false` clips only the effect.
+     */
     public fun clip(
         shape: Shape,
         inset: PaddingValues = PaddingValues(0.dp),
@@ -105,6 +132,7 @@ public class EffectLayerScope internal constructor() {
         this.clipContent = clipContent
     }
 
+    /** Overrides the rect used as the layer's visual bounds. See [EffectLayerBoundsProvider]. */
     public fun visualBounds(provider: EffectLayerBoundsProvider) {
         visualBoundsProvider = provider
     }

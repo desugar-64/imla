@@ -7,12 +7,11 @@
 
 ## Description
 
-Imla (Ukrainian for "Haze", pronounced [ˈimlɑ] (eem-lah)) is an experimental project exploring
-GPU-accelerated view blurring on Android. It aims to implement efficient blurring effects using
-OpenGL, targeting devices from Android 6 (API 23) onwards.
-
-The project serves as a playground for experimenting with GPU rendering and post-processing effects,
-with the potential to evolve into a full-fledged library in the future.
+Imla (Ukrainian for "Haze", pronounced [ˈimlɑ] (eem-lah)) is an experimental
+GPU-accelerated backdrop blur for Jetpack Compose. It captures the Compose root
+into a `HardwareBuffer`, imports it zero-copy as an OpenGL ES texture, and runs
+blur, tint, noise, clip, and progressive-mask passes that sample that shared
+backdrop. Targets Android 6 (API 23) and up.
 
 ## Features
 
@@ -75,8 +74,12 @@ ImlaHost {
 }
 ```
 
-Public API: `ImlaHost`, `Modifier.effectGroup()`, `Modifier.effectLayer { ... }`,
-`EffectLayerScope`, and `EffectLayerBoundsProvider`.
+Public API:
+[`ImlaHost`](imla/src/main/java/dev/serhiiyaremych/imla/ImlaHost.kt#L58),
+[`Modifier.effectGroup()`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L25),
+[`Modifier.effectLayer { ... }`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L33),
+[`EffectLayerScope`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L59), and
+[`EffectLayerBoundsProvider`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L45).
 
 ## Architecture
 
@@ -151,14 +154,24 @@ sequenceDiagram
 
 The Compose root is drawn into a `HardwareBuffer` (a `RenderNode` rendered single-buffered off
 the main thread) rather than giving every blurred region its own `Surface`; the effect layers then
-all sample that one shared backdrop.
+all sample that one shared backdrop. Capture lives in
+[`SingleBufferRenderer`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/SingleBufferRenderer.kt),
+and the captured buffer is leased to the GL thread through
+[`BufferLease`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/BufferLease.kt).
 
 Each captured buffer is handed to the GL thread and imported **zero-copy** as a texture via
 `eglCreateImageFromHardwareBuffer` + `glEGLImageTargetTexture2DOES`, so the blur passes sample it
-directly with no `glReadPixels` round-trip back to the CPU.
+directly with no `glReadPixels` round-trip back to the CPU. The EGL import is in
+[`OpenGLHardwareBufferTexture2D`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/opengl/OpenGLHardwareBufferTexture2D.kt),
+driven on the GL thread by
+[`CapturedFrameImporter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/CapturedFrameImporter.kt).
 
 Combined with the API 29+ present path that hands finished `HardwareBuffer`s straight to
-SurfaceFlinger, pixels stay in GPU/shared memory across capture → effects → present. This whole
+SurfaceFlinger (see
+[`ScenePresenter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt)
+and the buffer ring in
+[`SceneHwBufferRing`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneHwBufferRing.kt)),
+pixels stay in GPU/shared memory across capture → effects → present. This whole
 HardwareBuffer path is the main thing being experimented with here, and is still being tuned.
 
 ## Rendering Abstraction
@@ -172,23 +185,32 @@ The current implementation uses a fully dynamic renderer, which pushes vertex da
 this approach offers flexibility, it introduces some performance overhead. Future iterations aim to
 optimize this aspect of the rendering pipeline.
 
-## Performance
-
-Notes on the blur effect on a Pixel 6 device:
+## Performance notes
 
 - The separable Gaussian blur pass is the dominant GPU cost; it scales with the
   blur radius and the on-screen area being blurred.
 - Per-frame cost is driven mostly by render-pass / FBO switches rather than the
-  blur math itself, so timing varies by demo scene.
+  blur math itself, so timing varies by scene.
 
-| Trace                                                                                                  |
-|--------------------------------------------------------------------------------------------------------|
-| ![trace_blur_effect](https://github.com/user-attachments/assets/add113c5-4ccf-4ff4-a8c1-37fa404e8048)  |
-| ![trace_total_pass00](https://github.com/user-attachments/assets/78e8a4c5-43ec-4fc6-b0eb-89c6a77a1042) |
-| ![trace_total_pass01](https://github.com/user-attachments/assets/d97a629d-b683-4868-9229-c09331954a5d) |
+## Known issues and limitations
 
-These timings indicate that the blur effect and rendering process are relatively fast, but there's
-still room for optimization.
+- **HardwareBuffer capture is not always the fastest path.** Across the 4 devices
+  I tested on, the hardware-rendering capture path (`RenderNode` →
+  `HardwareBuffer` → zero-copy GL import) is fast on 3. On the 4th, a low-end
+  budget Android 13 tablet, it runs slower than capturing the UI into an external
+  texture. The cause is not yet pinned down.
+- **No atlas grouping yet.** Effect layers are rendered with separate
+  draws/passes instead of being batched into a shared texture atlas. Atlas
+  grouping is the main remaining GL-side optimization, but it is not implemented
+  because of the complexity of integrating it with the bucketed capture buffers
+  used for resizable content.
+- **Dynamic per-frame vertex push.** The renderer uploads vertex data every
+  frame (see [Rendering Abstraction](#rendering-abstraction)). Flexible, but it
+  adds per-frame overhead that a static/instanced path would avoid.
+- **Convoluted internal architecture.** The code grew through iteration and is
+  more tangled than it needs to be: capture/import/present responsibilities are
+  spread across many small types, and some seams exist only for past experiments.
+  It works, but expect rough edges when reading or extending it.
 
 ## Roadmap
 

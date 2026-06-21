@@ -16,12 +16,12 @@
   `imla/src/main/java/dev/serhiiyaremych/imla/`. Start here for `ImlaHost`,
   `Modifier.effectGroup()`, `Modifier.effectLayer { ... }`,
   `EffectLayerScope`, and `EffectLayerBoundsProvider`.
-- Scratch renderer code starts in
+- Renderer code starts in
   `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
 - Effect group/layer modifiers live under
   `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/`. Capture
   helpers live under `internal/capture/`.
-- Scratch layer internals live under
+- Layer internals live under
   `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/`. Start here for
   immutable snapshots, registry, resources, and layer geometry.
 - GL owner, render target, pipeline, scheduler, renderer primitives, and shader
@@ -84,41 +84,32 @@
 - Use `tools/adb-timeout` for every ADB command in this repo. Example:
   `tools/adb-timeout --timeout 10 devices -l`.
 
-## Current Scratch Renderer Contract
+## Renderer Contract
 - Active branch line: `syaremych/imla-2.0`.
-- Current public API is page-local and modifier-first: `ImlaHost`,
-  `Modifier.effectGroup()`, and `Modifier.effectLayer { ... }`.
+- Public API is modifier-first: `ImlaHost`, `Modifier.effectGroup()`, and
+  `Modifier.effectLayer { ... }`.
 - Do not pass renderer or OpenGL objects into child slots. Slots register UI
   state through the internal layer registry exposed by the effect group and host
   scope.
-- The previous Renderer 2 audit/design stack was removed. Do not use deleted
-  `doc/renderer-2-*` files, `doc/scene-renderer-2-design.md`, or old
-  pre-Renderer-2 notes as architecture sources.
-- The deprecated public bridge remains removed. Do not restore
-  `rememberUiLayerRenderer`, `UiLayerRenderer`, `ImlaRenderPipeline`,
+- Do not reintroduce the removed renderer-bridge API: `rememberUiLayerRenderer`,
+  `UiLayerRenderer`, `ImlaRenderPipeline`, `CopyLessRenderingPipeline`,
   renderer-taking `blurSource` / `backdropBlur`, or renderer-taking host APIs.
-- `CopyLessRenderingPipeline` and the old render-object path are removed. Do not
-  use their behavior as the scratch renderer design source.
 - Keep main-thread Compose capture separate from GL-thread import/rendering.
   Compose modifiers own UI objects; the renderer owns OpenGL objects. Capture
   flows through the `CapturePipe` primitives (`SingleBufferRenderer`,
   `BufferLease`, `CapturedFrameImporter`); do not reintroduce lease-holding slot
   imports.
-- Scene2 backdrop pass outputs separate cross-pass sampling data from borrowed
-  GL storage ownership: `BackdropTexture` carries texture/rect sampling data,
-  while `BorrowedBackdropTexture` wraps that image plus the producing
-  framebuffer so the pass can release pooled storage independently of the
-  sampling handle.
-- Scene2 backdrop blur is active in the scratch path
-  (`SceneBackdropEffectPasses`, `SceneBackdropOperation.Blur`,
-  `GaussianBlurEffect`, `BackdropCompositeShaderEffect`), and `SceneRenderer`
-  already handles backdrop clip and progressive mask. Atlas routing and
-  production API polish are not yet ported to the scratch path; they remain
-  under `internal/legacy/`.
-- A large `internal/legacy/` package still coexists with the scratch path and is
-  still imported by production code (`BlurSurfaceHost`,
-  `ImlaSceneBlurSourceModifier`, `SceneBackdropBlurModifier`). The scratch
-  renderer is not the only live path yet; do not assume legacy is gone.
+- The backdrop pass separates cross-pass sampling data from borrowed GL storage
+  ownership: `BackdropTexture` carries texture/rect sampling data, while
+  `BorrowedBackdropTexture` wraps that image plus the producing framebuffer so
+  the pass can release pooled storage independently of the sampling handle. Both
+  live in `internal/render/gl/SceneBackdropEffectPasses.kt`.
+- Backdrop blur runs in the live path: the passes in
+  `SceneBackdropEffectPasses.kt`, `SceneBackdropOperation.Blur`,
+  `GaussianBlurEffect`, and `BackdropCompositeShaderEffect`; `SceneRenderer`
+  handles backdrop clip and progressive mask. Atlas grouping is not implemented
+  yet (it would need to integrate with the bucketed capture buffers used for
+  resizable content).
 
 ## Goal Protocol
 - Keep goals narrow and progressive. Include explicit non-goals, verification,
@@ -186,15 +177,14 @@
 - Prefer extracting a narrow production seam for the Android-dependent operation
   and inject a fake in JVM tests. Keep the real implementation in Android-facing
   code, and test policy/decision logic against the seam.
-- Do not fix scratch renderer JVM tests with Gradle-wide `isReturnDefaultValues`,
+- Do not fix renderer JVM tests with Gradle-wide `isReturnDefaultValues`,
   global `--add-opens`, reflection into Android/Compose internals, `Unsafe`, or
   source mutations that only make tests pass. Those hide framework crossings and
   make future renderer failures harder to diagnose.
 - Avoid constructing Compose or Android graphics objects in JVM tests when the
   test only needs repository, scheduler, pass-planning, or policy behavior. For
   slot capture tests, prefer faking access above `GraphicsLayer` instead of
-  constructing `BlurSlotContentRecord` or triggering `GraphicsLayer` class
-  initialization.
+  triggering `GraphicsLayer` class initialization.
 - Source-string guard tests are acceptable only as temporary boundary guards for
   deleted legacy APIs, internal diagnostic gates, or known migration hazards.
   Prefer behavior tests when behavior can be reached without Android framework
@@ -219,16 +209,16 @@
 - Effect FBO pixel space uses bottom-left OpenGL coordinates.
 - Texture and FBO origin must be expressed through `CoordinateOrigin` where the
   existing renderer primitives expose it.
-- For scene2 backdrop debug sampling, explicit root-space UVs are already in
+- For backdrop debug sampling, explicit root-space UVs are already in
   root texture screen convention. Do not apply the generic texture-origin flip a
   second time.
-- For rotated scene2 backdrop blur, start rotation-drift debugging at
+- For rotated backdrop blur, start rotation-drift debugging at
   `BackdropSampleRegion`: the prepared sample region must use a stable
   root-space diagonal envelope, centered on transformed slot coverage, then
   snap to the downsample grid. Tight projected axis-aligned bounds changed the
   prepared texture footprint during rotation and caused visible blur drift/band
   movement.
-- Scene2 backdrop blur is precision-sensitive on large/high-contrast areas.
+- Backdrop blur is precision-sensitive on large/high-contrast areas.
   `RGB10_A2` intermediate FBOs did not remove bending; shader precision did.
   Keep prepare and screen-space composite fragments at `highp`, and keep blur
   coordinate, weight, and color accumulation math explicitly `highp` before

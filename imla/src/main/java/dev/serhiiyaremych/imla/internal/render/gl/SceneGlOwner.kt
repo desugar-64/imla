@@ -83,7 +83,7 @@ internal class SceneGlOwner(
     private val hardwareBufferReleaseQueue = HardwareBufferReleaseQueue(threadGuard)
     private var capturedFrameImporter: CapturedFrameImporter? = null
     private val glStore = GlStore(threadGuard)
-    private val glRenderer = GLRenderer().apply { start("ImlaScene2GL") }
+    private val glRenderer = GLRenderer().apply { start("ImlaSceneGL") }
     private val closed = AtomicBoolean(false)
     private val pendingRequest = AtomicReference<SceneFrameRequest?>(null)
     private val presentScheduled = AtomicBoolean(false)

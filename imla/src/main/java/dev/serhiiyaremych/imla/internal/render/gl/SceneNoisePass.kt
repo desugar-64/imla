@@ -91,7 +91,7 @@ internal class SceneNoisePass(
         ) {
             submit(
                 RenderQuad(
-                    id = "scene2-noise",
+                    id = "scene-noise",
                     center = center,
                     size = size,
                     texture = null,

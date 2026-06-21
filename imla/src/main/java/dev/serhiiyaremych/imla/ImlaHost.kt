@@ -44,6 +44,16 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
+/**
+ * Root of an Imla effect scene. Wraps [content] in a single GPU-backed output surface and renders
+ * all effect groups and layers declared inside it. Children register through the host; no renderer
+ * or OpenGL objects are passed down.
+ *
+ * Output surface: a `SurfaceView` presented via `SurfaceControl` on API 29+, an
+ * `AndroidExternalSurface` the renderer blits into on API 23–28.
+ *
+ * @param showMetricsOverlay draws a debug metrics overlay over the scene. Disable for production UI.
+ */
 @Composable
 public fun ImlaHost(
     modifier: Modifier = Modifier,
@@ -126,7 +136,7 @@ private fun ExternalSurfaceOutput(renderer: SceneRenderer, modifier: Modifier = 
     }
 }
 
-@RequiresApi(29)
+@RequiresApi(Build.VERSION_CODES.Q)
 private class SceneSurfaceViewCallback(
     private val surfaceView: SurfaceView,
     private val renderer: SceneRenderer

@@ -9,10 +9,10 @@ import java.util.concurrent.Executors
 
 internal object SceneRenderMetricsLog {
     private const val TAG = "SceneRenderMetrics"
-    private const val FILE_NAME = "imla-scene2-render-metrics.csv"
+    private const val FILE_NAME = "imla-scene-render-metrics.csv"
 
     private val writer: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "ImlaScene2Metrics").apply {
+        Thread(runnable, "ImlaSceneMetrics").apply {
             isDaemon = true
         }
     }
@@ -25,7 +25,7 @@ internal object SceneRenderMetricsLog {
         metricsFile.parentFile?.mkdirs()
         metricsFile.writeText("elapsedRealtimeNanos,thread,phase,durationMs,details\n")
         file = metricsFile
-        Log.i(TAG, "Writing scene2 renderer metrics to ${metricsFile.absolutePath}")
+        Log.i(TAG, "Writing scene renderer metrics to ${metricsFile.absolutePath}")
     }
 
     inline fun <T> time(
@@ -60,7 +60,7 @@ internal object SceneRenderMetricsLog {
             runCatching {
                 metricsFile.appendText(line)
             }.onFailure { throwable ->
-                Log.w(TAG, "Failed to append scene2 renderer metric", throwable)
+                Log.w(TAG, "Failed to append scene renderer metric", throwable)
             }
         }
     }

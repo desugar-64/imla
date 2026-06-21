@@ -6,7 +6,7 @@ import dev.serhiiyaremych.imla.internal.render.stats.ShaderStatsSnapshot
 import dev.serhiiyaremych.imla.internal.render.scheduler.SceneFrameDropReason
 
 /**
- * Per-renderer metrics collector for the scene2 prototype.
+ * Per-renderer metrics collector for the scene renderer.
  *
  * Main-thread capture code and the GL thread both record phase boundaries here. Readers only get
  * immutable [SceneMetricsSnapshot] values, so Compose can poll the latest view without observing
