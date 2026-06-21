@@ -24,6 +24,17 @@ uniform vec2 u_NoiseTextureSize;
 uniform vec2 u_NoiseOffsetPx;
 uniform mat4 u_RootToLocal;
 
+// Progressive blur crisp end: blend the full-resolution backdrop back in where the
+// progressive mask is low, since the blurred texture is sourced from a downsampled
+// prepare pass and cannot recover sharp detail at mask 0.
+uniform float u_CrispEnabled;
+uniform int u_CrispTexIndex;
+uniform vec2 u_CrispInputSize;
+uniform float u_CrispFlipY;
+uniform float u_MaskEnabled;
+uniform int u_MaskTexIndex;
+uniform float u_MaskFlipY;
+
 in vec2 maskCoord;
 in vec2 texCoord;
 in VertexOutput data;
@@ -41,6 +52,24 @@ vec4 sampleNoiseAt(vec2 noiseUv)
     vec4 baseColor = vec4(0.5);
     switch (u_NoiseTexIndex) {
 ${NOISE_SWITCH_CASES}
+    }
+    return baseColor;
+}
+
+vec4 sampleCrispAt(vec2 uv)
+{
+    vec4 baseColor = vec4(1.0);
+    switch (u_CrispTexIndex) {
+${CRISP_SWITCH_CASES}
+    }
+    return baseColor;
+}
+
+vec4 sampleMaskAt(vec2 uv)
+{
+    vec4 baseColor = vec4(1.0);
+    switch (u_MaskTexIndex) {
+${MASK_SWITCH_CASES}
     }
     return baseColor;
 }
@@ -78,13 +107,34 @@ void main()
 ${TEXTURE_SWITCH_CASES}
     }
 
-    baseColor.rgb = applyTint(baseColor.rgb, data.tint);
+    // crispMix is the blurred-vs-crisp blend weight (1 = fully blurred). Tint and noise
+    // are frost effects, so they fade out toward the crisp end alongside the blur.
+    float crispMix = 1.0;
+    if (u_CrispEnabled > 0.5) {
+        vec2 crispUv = clamp(screenPos / max(u_CrispInputSize, vec2(1.0)), vec2(0.0), vec2(1.0));
+        if (u_CrispFlipY > 0.5) {
+            crispUv.y = 1.0 - crispUv.y;
+        }
+        vec3 crispRgb = sampleCrispAt(crispUv).rgb;
+        float maskValue = 1.0;
+        if (u_MaskEnabled > 0.5) {
+            vec2 maskUv = maskCoord;
+            if (u_MaskFlipY > 0.5) {
+                maskUv.y = 1.0 - maskUv.y;
+            }
+            maskValue = clamp(sampleMaskAt(maskUv).a, 0.0, 1.0);
+        }
+        baseColor.rgb = mix(crispRgb, baseColor.rgb, maskValue);
+        crispMix = maskValue;
+    }
+
+    baseColor.rgb = mix(baseColor.rgb, applyTint(baseColor.rgb, data.tint), crispMix);
 
     if (u_NoiseEnabled > 0.5) {
         vec2 localPx = rootToLocalPx(screenPos);
         vec2 noiseUv = fract((localPx + u_NoiseOffsetPx) / max(u_NoiseTextureSize, vec2(1.0)));
         float noiseValue = sampleNoiseAt(noiseUv).r;
-        baseColor.rgb = applyNoise(baseColor.rgb, noiseValue);
+        baseColor.rgb = mix(baseColor.rgb, applyNoise(baseColor.rgb, noiseValue), crispMix);
     }
 
     if (data.mask > 0.5) {

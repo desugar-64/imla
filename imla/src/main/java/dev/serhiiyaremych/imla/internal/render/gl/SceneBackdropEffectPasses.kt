@@ -723,6 +723,7 @@ internal class SceneBackdropCompositePass(
             frame = frame,
             slot = slot,
             input = processed.compositeInput,
+            crispSource = processed.source.input,
             sampleRootRect = processed.source.sampleRegion.sampleRootRect,
             target = target,
             noiseTexture = noiseTexture
@@ -733,12 +734,19 @@ internal class SceneBackdropCompositePass(
         frame: SceneGlRenderFrame,
         slot: SceneGlRenderSlot,
         input: BackdropCompositeInput,
+        crispSource: BackdropInput,
         sampleRootRect: Rect,
         target: SceneRenderBuffer,
         noiseTexture: Texture2D?
     ) = trace("SceneBackdropCompositePass#drawProcessed") {
         val composite = slot.backdrop?.composite
         val wantsNoise = noiseTexture != null && composite?.hasNoise == true
+        val blur = slot.backdrop?.operations
+            ?.firstNotNullOfOrNull { it as? SceneBackdropOperation.Blur }
+        val hasProgressiveMask =
+            blur?.hasProgressiveMask == true && slot.progressiveMaskTexture != null
+        val maskTexture = slot.progressiveMaskTexture.takeIf { hasProgressiveMask }
+        val crispTexture = crispSource.texture.takeIf { hasProgressiveMask }
         val bounds = slot.geometry.rootBounds
         val localSize = slot.geometry.localSize
         val size = Size(
@@ -751,9 +759,35 @@ internal class SceneBackdropCompositePass(
             debug = false,
             enableBlending = true,
             shaderProgram = shaderProgram,
-            reservedTextures = listOfNotNull(noiseTexture?.takeIf { wantsNoise }),
+            reservedTextures = listOfNotNull(
+                noiseTexture?.takeIf { wantsNoise },
+                crispTexture,
+                maskTexture
+            ),
             configureShader = { shader, reservedTextureSlots ->
                 val noiseSlot = reservedTextureSlots.slotFor(noiseTexture, wantsNoise)
+                shader.shader.setFloat("u_CrispEnabled", if (hasProgressiveMask) 1f else 0f)
+                shader.shader.setInt(
+                    "u_CrispTexIndex",
+                    reservedTextureSlots.slotFor(crispTexture, crispTexture != null)
+                )
+                shader.shader.setFloat2(
+                    "u_CrispInputSize",
+                    Float2(crispSource.size.width.toFloat(), crispSource.size.height.toFloat())
+                )
+                shader.shader.setFloat(
+                    "u_CrispFlipY",
+                    if (crispSource.coordinateOrigin == CoordinateOrigin.BOTTOM_LEFT) 1f else 0f
+                )
+                shader.shader.setFloat("u_MaskEnabled", if (maskTexture != null) 1f else 0f)
+                shader.shader.setInt(
+                    "u_MaskTexIndex",
+                    reservedTextureSlots.slotFor(maskTexture, maskTexture != null)
+                )
+                shader.shader.setFloat(
+                    "u_MaskFlipY",
+                    if (maskTexture?.coordinateOrigin == CoordinateOrigin.BOTTOM_LEFT) 1f else 0f
+                )
                 shader.shader.setFloat2(
                     "u_TargetSize",
                     Float2(frame.targetSize.width.toFloat(), frame.targetSize.height.toFloat())

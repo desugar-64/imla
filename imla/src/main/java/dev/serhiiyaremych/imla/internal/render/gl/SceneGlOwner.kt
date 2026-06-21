@@ -511,6 +511,14 @@ internal class SceneGlOwner(
                     "NOISE_SWITCH_CASES" to textureSwitchCases(
                         textureSlots = textureSlots,
                         coordinateVariable = "noiseUv"
+                    ),
+                    "CRISP_SWITCH_CASES" to textureSwitchCases(
+                        textureSlots = textureSlots,
+                        coordinateVariable = "uv"
+                    ),
+                    "MASK_SWITCH_CASES" to textureSwitchCases(
+                        textureSlots = textureSlots,
+                        coordinateVariable = "uv"
                     )
                 )
             ),
