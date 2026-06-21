@@ -86,7 +86,6 @@
 
 ## Current Scratch Renderer Contract
 - Active branch line: `syaremych/imla-2.0`.
-- Current scratch status doc: `doc/scene2-scratch-renderer-status.md`.
 - Current public API is page-local and modifier-first: `ImlaHost`,
   `Modifier.effectGroup()`, and `Modifier.effectLayer { ... }`.
 - Do not pass renderer or OpenGL objects into child slots. Slots register UI
@@ -178,10 +177,6 @@
 - Perfetto and scene counters are useful after visual correctness is established;
   they do not replace screenshot parity for output-affecting changes.
 - Diagnostics under `diagnostics/apa/` are intentionally ignored by git.
-
-## Scene Metrics Overlay Labels
-
-See `doc/metrics-overlay-labels.md` for the full label reference.
 
 ## JVM Test Boundaries
 - JVM tests must not require Android framework methods that local unit tests do

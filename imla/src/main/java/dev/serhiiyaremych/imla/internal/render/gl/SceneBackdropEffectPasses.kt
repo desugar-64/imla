@@ -355,7 +355,7 @@ internal class SceneBackdropPreparePass(
     // downsampling, not more taps; cost stays ~flat with sigma. Snapping to
     // half-octave steps (sqrt(2)) keeps the prepared texture size discrete (FBO
     // reuse) while halving the resolution jump at each tier flip, so animating
-    // sigma across a boundary pops less. See doc/scene2-blur-radius-scope.md.
+    // sigma across a boundary pops less.
     private fun downsampleScale(operation: SceneBackdropOperation.Blur): Float {
         val sigmaPx = operation.sigmaPx
         if (sigmaPx <= DOWNSAMPLE_TARGET_SIGMA_DS) return 1f

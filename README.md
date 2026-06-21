@@ -192,9 +192,6 @@ Combined with the API 29+ present path that hands finished `HardwareBuffer`s str
 SurfaceFlinger, pixels stay in GPU/shared memory across capture → effects → present. This whole
 HardwareBuffer path is the main thing being experimented with here, and is still being tuned.
 
-See [doc/scene2-scratch-renderer-status.md](doc/scene2-scratch-renderer-status.md)
-for current status, implemented pieces, non-goals, and next steps.
-
 ## Rendering Abstraction
 
 The project reuses the OpenGL abstractions from another experimental
