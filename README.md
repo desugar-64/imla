@@ -39,7 +39,10 @@ backdrop — rendered on a calibration grid so the effect is easy to read.
   <tr>
     <td align="center"><img src="demo/feature_progressive.webp" width="230"><br/><b>Progressive blur</b><br/>crisp top → blurred bottom<br/><code>backdropBlur(radius, progressiveMask)</code></td>
     <td align="center"><img src="demo/feature_mask.webp" width="230"><br/><b>Shape mask</b><br/>arbitrary clip outline<br/><code>clip(shape)</code></td>
-    <td align="center"><img src="demo/feature_rotation.webp" width="230"><br/><b>Rotation</b><br/>geometry stays aligned<br/><code>graphicsLayer { rotationZ }</code></td>
+    <td align="center"><img src="demo/feature_rotation.webp" width="230"><br/><b>Rotation</b><br/>3-axis tilt stays aligned<br/><code>graphicsLayer { rotationX/Y/Z }</code></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="3"><img src="demo/feature_composite.webp" width="560"><br/><b>Composite</b><br/>stack independent blur layers — each effect samples the shared backdrop and composites by z-order</td>
   </tr>
 </table>
 
