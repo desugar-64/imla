@@ -220,6 +220,18 @@ optimize this aspect of the rendering pipeline.
 - [x] Real separable Gaussian blur passes;
 - [x] Progressive masks, stencil clips, tint, noise, and cumulative backdrop sampling;
 - [ ] Automatic cumulative dependency optimization and metrics.
+- [ ] Atlas grouping for effect layers (needs integration with the bucketed
+  capture buffers).
+
+### To explore
+
+- **Present directly into the Compose layout, no SurfaceView.** Instead of the
+  dedicated `SurfaceView`/`SurfaceControl` present path, wrap the composited
+  effect result `HardwareBuffer` as a hardware `Bitmap` (`Bitmap.wrapHardwareBuffer`,
+  API 29+) and draw it straight in the Compose layout. This keeps the whole
+  pipeline on-GPU (no `glReadPixels` round-trip) and could also drop the separate
+  capture/present surface. Open question: how fast this path actually is versus
+  the current SurfaceView present, especially on lower-end devices.
 
 ## Contributing
 
