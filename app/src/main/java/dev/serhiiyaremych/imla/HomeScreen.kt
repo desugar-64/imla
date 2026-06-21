@@ -24,11 +24,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-enum class DemoScene { SOCIAL_FEED, PAGER, CUBE, ROTATING_CARDS, HAZE_CARDS, RESIZE_CARD }
+enum class DemoScene { SHOWCASE, SOCIAL_FEED, PAGER, CUBE, ROTATING_CARDS, HAZE_CARDS, RESIZE_CARD }
 
 private data class DemoEntry(val scene: DemoScene, val title: String, val description: String)
 
 private val DEMO_ENTRIES = listOf(
+    DemoEntry(DemoScene.SHOWCASE, "Showcase", "All effects on a calibration grid"),
     DemoEntry(DemoScene.SOCIAL_FEED, "Social Feed", "Scrolling feed with frosted glass UI"),
     DemoEntry(DemoScene.PAGER, "Pager", "Multi-page glass cards"),
     DemoEntry(DemoScene.CUBE, "Cube", "Interactive 3D rotating cube"),

@@ -185,6 +185,9 @@ class MainActivity : ComponentActivity() {
                                 onSceneSelected = { selectedSceneIdx.intValue = it.ordinal },
                                 modifier = Modifier.fillMaxSize()
                             )
+                            DemoScene.SHOWCASE -> ShowcaseScene(
+                                modifier = Modifier.fillMaxSize()
+                            )
                             DemoScene.SOCIAL_FEED -> SocialFeedDemoScene(
                                 modifier = Modifier.fillMaxSize()
                             )
