@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Imla Renderer — Decomposition Scene</title>
+<style>
+  :root { --bg:#2b2d31; --panel:#232427; --ink:#e9eaed; --muted:#9aa0a6; --accent:#4cc2ff; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif; }
+  header { padding:22px 30px 2px; position:relative; }
+  .logos { position:absolute; top:18px; right:34px; display:flex; align-items:center; gap:34px; }
+  .logos img { height:104px; width:auto; display:block; opacity:.92; }
+  .logos img.compose { height:120px; }
+  .logos .div { width:1px; height:80px; background:#43464c; }
+  h1 { font-size:36px; margin:0 0 9px; font-weight:650; letter-spacing:.2px; }
+  header p { margin:0; color:var(--muted); font-size:22px; max-width:1680px; line-height:1.55; }
+  code { background:#15161a; padding:1px 6px; border-radius:4px; font-size:19px; color:#cfe7ff; }
+
+  .scene { display:flex; align-items:stretch; gap:30px; padding:64px 30px 50px; flex-wrap:wrap; }
+  .userBox, .stackBox, .historyBox { display:flex; flex-direction:column; }
+  /* title pinned at the top of the column, content vertically centered below it */
+  .content { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+  .col-title { font-size:20px; text-transform:uppercase; letter-spacing:.9px; color:var(--muted);
+    margin:0 0 64px; font-weight:700; text-align:center; }
+
+  /* what the user sees */
+  .userBox { flex:0 0 auto; }
+  .phone { position:relative; width:284px; padding:12px; background:#111317; border-radius:34px;
+    border:1px solid #3a3c42; box-shadow:0 18px 40px rgba(0,0,0,.45); }
+  .phone::before { content:""; position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:72px; height:6px; border-radius:4px; background:#2a2d33; }
+  .phone canvas { width:100%; display:block; border-radius:20px; background:#15161a; }
+  .caption { font-size:18px; color:var(--muted); text-align:center; margin-top:12px; line-height:1.4; }
+
+  /* reusable separator: fixed-width box, geometric arrow centered exactly */
+  x-sep { flex:0 0 60px; align-self:stretch; display:flex; align-items:center; justify-content:center; }
+  x-sep .tri { width:0; height:0; border-top:14px solid transparent; border-bottom:14px solid transparent;
+    border-left:22px solid #6b6f76; }
+
+  .stackBox { flex:0 0 auto; }
+  .stackBox canvas { width:720px; max-width:72vw; height:auto; display:block; }
+
+  /* render history — 2x2 grid of input->output pairs, each with multi-line text */
+  .historyBox { flex:1 1 720px; min-width:660px; }
+  .history { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 36px; }
+  .hpair { display:flex; align-items:flex-start; gap:12px; }
+  .tcard { flex:0 0 auto; width:132px; }
+  .tcard canvas { width:132px; display:block; border-radius:12px; background:#15161a;
+    border:2.5px solid #555; box-shadow:0 8px 18px rgba(0,0,0,.42); }
+  .tcard .lbl { display:flex; align-items:center; gap:7px; margin-top:9px; }
+  .tcard .num { width:21px; height:21px; border-radius:50%; flex:0 0 auto; display:grid;
+    place-items:center; font-size:12px; font-weight:700; color:#15161a; }
+  .tcard .lbl b { font-size:14px; }
+  .hpair .arrow { flex:0 0 auto; font-size:39px; color:#6b6f76; align-self:flex-start; margin-top:115px; }
+  .hpair .ptext { flex:1 1 150px; min-width:140px; font-size:20px; color:var(--muted);
+    line-height:1.3; align-self:flex-start; padding-left:4px; }
+  .hpair .ptext code { font-size:17px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logos">
+    <img src="explainer-assets/jetpack-compose.png" alt="Jetpack Compose" class="compose" />
+    <span class="div"></span>
+    <img src="explainer-assets/opengl-es.svg" alt="OpenGL ES" />
+  </div>
+  <h1>Imla: one frame, decomposed</h1>
+  <p>On the left is the frame as the user sees it. It pulls apart into an exploded stack of GPU passes,
+  logged step-by-step in the render history. <code>ImlaHost</code> draws the whole UI once per frame into a
+  <code>HardwareBuffer</code> and samples it directly as one shared GPU texture, with no copy back to the CPU.
+  Every <code>Modifier.effectLayer&nbsp;{…}</code> then samples its footprint from that backdrop, blurs and
+  masks it to shape, draws its own content on top, and the renderer composites the layers in z-order. Where the
+  platform allows (API&nbsp;29+), the finished frame is presented over a direct <code>SurfaceControl</code> path,
+  handing <code>HardwareBuffer</code>s straight to the compositor so pixels stay on the GPU end to end. On older
+  devices it instead renders with OpenGL into an external texture and copies that to the screen.</p>
+</header>
+
+<section class="scene">
+  <div class="userBox">
+    <p class="col-title">What the user sees</p>
+    <div class="content">
+      <div class="phone"><canvas id="userCanvas"></canvas></div>
+      <p class="caption">Final on-screen frame</p>
+    </div>
+  </div>
+
+  <x-sep></x-sep>
+
+  <div class="stackBox">
+    <p class="col-title">Exploded stack</p>
+    <div class="content"><canvas id="stack"></canvas></div>
+  </div>
+
+  <x-sep></x-sep>
+
+  <div class="historyBox">
+    <p class="col-title">Render history</p>
+    <div class="content"><div class="history" id="history"></div></div>
+  </div>
+</section>
+
+<script>
+// reusable separator component — one source of truth for the ▸ between sections
+customElements.define('x-sep', class extends HTMLElement {
+  connectedCallback(){ this.innerHTML = '<span class="tri"></span>'; }
+});
+
+// ----------------------------------------------------------------------------
+// The render stages of one Imla frame, bottom -> top.
+// ----------------------------------------------------------------------------
+const LAYERS = [
+  { key:'root',    color:'#7ec8e3', title:'App content (root)',
+    proc:'<code>ImlaHost</code> wraps the live Compose UI, the real feed the user scrolls.' },
+  { key:'capture', color:'#9d8cff', title:'Root capture',
+    proc:'<code>CapturePipe</code> / <code>SingleBufferRenderer</code> copies the root frame into a GL texture on the GL thread.' },
+  { key:'cutout',  color:'#4cc2ff', title:'Backdrop cut-out',
+    proc:'The slot footprint is sampled out of the root texture → <code>BackdropTexture</code>.' },
+  { key:'blur',    color:'#ff7a59', title:'Rasterize patch',
+    proc:'The cut piece is lifted off the root, downsampled and blurred (<code>GaussianBlurEffect</code> → composite).' },
+  { key:'clip',    color:'#7ee0a6', title:'Clip &amp; mask',
+    proc:'The blurred patch is clipped to the slot shape and faded by the progressive mask.' },
+  { key:'slot',    color:'#ffd166', title:'Slot content',
+    proc:'What you draw inside <code>effectLayer { … }</code>, on top of its own blurred backdrop.' },
+  { key:'final',   color:'#e9eaed', title:'Final composite',
+    proc:'<code>SceneRenderer</code> presents the whole stack to the screen as one frame.' },
+];
+
+// ----------------------------------------------------------------------------
+// Abstract UI textures (tweet-feed skeleton) — drawn once, reused everywhere.
+// ----------------------------------------------------------------------------
+const UW = 360, UH = 720;
+const SLOT = { x:26, y:344, w:UW-52, h:300, r:26 };   // the effect slot footprint
+
+function makeCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function slotPath(ctx){ roundRect(ctx,SLOT.x,SLOT.y,SLOT.w,SLOT.h,SLOT.r); }
+function bar(ctx,x,y,w,h,c){ ctx.fillStyle=c; roundRect(ctx,x,y,w,h,h/2); ctx.fill(); }
+
+function tweetRow(ctx,y,accent){
+  const x=22, w=UW-44, h=120;
+  ctx.fillStyle='#ffffff'; roundRect(ctx,x,y,w,h,16); ctx.fill();
+  ctx.strokeStyle='#e6e9ef'; ctx.lineWidth=1; ctx.stroke();
+  ctx.fillStyle=accent; ctx.beginPath(); ctx.arc(x+32,y+32,19,0,7); ctx.fill();   // plain circle avatar
+  bar(ctx,x+62,y+22,104,11,'#c6ccd6'); bar(ctx,x+62,y+41,60,9,'#dde1e8');         // name / handle
+  bar(ctx,x+18,y+74,w-40,10,'#d9dde4'); bar(ctx,x+18,y+93,w-86,10,'#dde1e8');     // body lines
+  ctx.fillStyle='#d4d9e1';
+  for(let k=0;k<3;k++){ ctx.beginPath(); ctx.arc(x+38+k*((w-76)/2),y+112,4,0,7); ctx.fill(); }
+}
+
+function drawRootUI(ctx){
+  ctx.fillStyle='#eef1f5'; ctx.fillRect(0,0,UW,UH);
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,UW,72);                              // app bar
+  ctx.fillStyle='#c6ccd6'; ctx.beginPath(); ctx.arc(32,40,15,0,7); ctx.fill();
+  bar(ctx,60,34,118,12,'#cfd5df');
+  const accents=['#7ec8e3','#9d8cff','#ffb454','#7ee0a6','#f59ec0'];
+  for(let i=0;i<5;i++) tweetRow(ctx, 86+i*128, accents[i]);
+}
+
+function drawSlotUI(ctx){
+  ctx.clearRect(0,0,UW,UH);
+  ctx.fillStyle='rgba(255,255,255,.16)'; slotPath(ctx); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.6)'; roundRect(ctx,UW/2-26,SLOT.y+16,52,6,3); ctx.fill();  // grabber
+  bar(ctx,SLOT.x+24,SLOT.y+52,150,14,'rgba(255,255,255,.92)');
+  bar(ctx,SLOT.x+24,SLOT.y+80,196,10,'rgba(255,255,255,.55)');
+  bar(ctx,SLOT.x+24,SLOT.y+102,160,10,'rgba(255,255,255,.4)');
+  ctx.strokeStyle='rgba(255,255,255,.9)'; ctx.lineWidth=3;                        // play control
+  ctx.beginPath(); ctx.arc(SLOT.x+SLOT.w-44,SLOT.y+72,21,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.95)';
+  ctx.beginPath(); ctx.moveTo(SLOT.x+SLOT.w-50,SLOT.y+62); ctx.lineTo(SLOT.x+SLOT.w-50,SLOT.y+82);
+  ctx.lineTo(SLOT.x+SLOT.w-34,SLOT.y+72); ctx.closePath(); ctx.fill();
+}
+
+function hatch(ctx){
+  ctx.save(); slotPath(ctx); ctx.clip();
+  ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.lineWidth=2;
+  for(let i=-SLOT.h;i<SLOT.w;i+=14){
+    ctx.beginPath(); ctx.moveTo(SLOT.x+i,SLOT.y); ctx.lineTo(SLOT.x+i+SLOT.h,SLOT.y+SLOT.h); ctx.stroke(); }
+  ctx.restore();
+}
+
+const tex = {};
+(function buildTextures(){
+  const root = makeCanvas(UW,UH); drawRootUI(root.getContext('2d')); tex.root = root;
+
+  // capture: root + faint texel grid (now a GL texture)
+  const cap = makeCanvas(UW,UH); const cc=cap.getContext('2d'); cc.drawImage(root,0,0);
+  cc.strokeStyle='rgba(157,140,255,.5)'; cc.lineWidth=1;
+  for(let x=0;x<UW;x+=24){ cc.beginPath(); cc.moveTo(x,0); cc.lineTo(x,UH); cc.stroke(); }
+  for(let y=0;y<UH;y+=24){ cc.beginPath(); cc.moveTo(0,y); cc.lineTo(UW,y); cc.stroke(); }
+  tex.capture = cap;
+
+  // cut-out: identify + sample the slot footprint (rest dimmed, bright sampling outline)
+  const cut = makeCanvas(UW,UH); const xc=cut.getContext('2d'); xc.drawImage(root,0,0);
+  xc.fillStyle='rgba(16,18,26,.5)'; xc.fillRect(0,0,UW,UH);
+  xc.save(); slotPath(xc); xc.clip(); xc.drawImage(root,0,0); xc.restore();
+  xc.save(); slotPath(xc); xc.setLineDash([10,7]); xc.strokeStyle='#4cc2ff'; xc.lineWidth=4; xc.stroke(); xc.restore();
+  tex.cutout = cut;
+
+  // rasterize patch: the piece is visibly CUT OFF the root and lifted (hole + shadow + blur + marquee)
+  const blur = makeCanvas(UW,UH); const bc=blur.getContext('2d');
+  bc.drawImage(root,0,0);
+  bc.fillStyle='rgba(16,18,26,.5)'; bc.fillRect(0,0,UW,UH);
+  bc.save(); slotPath(bc); bc.clip(); bc.fillStyle='#0e1016'; bc.fillRect(SLOT.x,SLOT.y,SLOT.w,SLOT.h); bc.restore();
+  hatch(bc);                                                                     // empty hole left behind
+  const ox=-20, oy=-20, apron=18;
+  const apronPath=(c)=>roundRect(c, SLOT.x-apron, SLOT.y-apron, SLOT.w+apron*2, SLOT.h+apron*2, SLOT.r+apron);
+  bc.save(); bc.translate(ox,oy);
+  bc.shadowColor='rgba(0,0,0,.5)'; bc.shadowBlur=26; bc.shadowOffsetX=12; bc.shadowOffsetY=16;
+  bc.fillStyle='#1b1d24'; apronPath(bc); bc.fill();                              // shadow caster (expanded crop)
+  bc.shadowColor='transparent'; apronPath(bc); bc.clip();                        // sampled beyond the slot bounds
+  bc.filter='blur(11px)'; bc.drawImage(root,-12,-12,UW+24,UH+24); bc.filter='none';
+  bc.restore();
+  bc.save(); bc.translate(ox,oy); apronPath(bc);                                 // padded sample crop (apron)
+  bc.setLineDash([7,6]); bc.strokeStyle='rgba(255,170,130,.95)'; bc.lineWidth=2.4; bc.stroke();
+  bc.setLineDash([]); bc.restore();
+  bc.save(); bc.translate(ox,oy); slotPath(bc);                                  // visible slot footprint
+  bc.setLineDash([13,8]); bc.strokeStyle='#ff7a59'; bc.lineWidth=3.5; bc.stroke();
+  bc.setLineDash([]); bc.restore();
+  // little "scissor" arrow from hole to lifted piece
+  bc.strokeStyle='#ff7a59'; bc.lineWidth=2; bc.beginPath();
+  bc.moveTo(SLOT.x+SLOT.w/2, SLOT.y+SLOT.h/2); bc.lineTo(SLOT.x+SLOT.w/2+ox, SLOT.y+SLOT.h/2+oy); bc.stroke();
+  tex.blur = blur;
+
+  // clip & mask: blurred patch clipped to slot shape + progressive fade
+  const clip = makeCanvas(UW,UH); const cl=clip.getContext('2d');
+  cl.save(); slotPath(cl); cl.clip();
+  cl.filter='blur(11px)'; cl.drawImage(root,-12,-12,UW+24,UH+24); cl.filter='none';
+  cl.globalCompositeOperation='destination-out';                                // progressive mask
+  const mg=cl.createLinearGradient(0,SLOT.y,0,SLOT.y+SLOT.h);
+  mg.addColorStop(0,'rgba(0,0,0,0)'); mg.addColorStop(.65,'rgba(0,0,0,0)'); mg.addColorStop(1,'rgba(0,0,0,1)');
+  cl.fillStyle=mg; cl.fillRect(SLOT.x,SLOT.y,SLOT.w,SLOT.h);
+  cl.globalCompositeOperation='source-over'; cl.restore();
+  cl.save(); slotPath(cl); cl.setLineDash([6,5]); cl.strokeStyle='#7ee0a6'; cl.lineWidth=3; cl.stroke(); cl.restore();
+  tex.clip = clip;
+
+  const slot = makeCanvas(UW,UH); drawSlotUI(slot.getContext('2d')); tex.slot = slot;
+
+  // final composite
+  const fin = makeCanvas(UW,UH); const fc=fin.getContext('2d'); fc.drawImage(root,0,0);
+  fc.save(); slotPath(fc); fc.clip();
+  fc.filter='blur(11px)'; fc.drawImage(root,-12,-12,UW+24,UH+24); fc.filter='none';
+  fc.fillStyle='rgba(18,20,28,.28)'; fc.fillRect(SLOT.x,SLOT.y,SLOT.w,SLOT.h); fc.restore();
+  fc.drawImage(slot,0,0);
+  tex.final = fin;
+})();
+const texFor = k => tex[k];
+
+// ----------------------------------------------------------------------------
+// Isometric drawing core
+// ----------------------------------------------------------------------------
+let DPR = 1;
+function setupCanvas(canvas, w, h){
+  const dpr = Math.min(window.devicePixelRatio||1, 2); DPR = dpr;
+  canvas.width = w*dpr; canvas.height = h*dpr; canvas.style.aspectRatio = w+'/'+h;
+  const ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return ctx;
+}
+function iso(p, cfg){
+  const ix=(p.x-p.y)*cfg.cosA, iy=(p.x+p.y)*cfg.sinA - p.z;
+  return { x: cfg.ox + ix*cfg.scale, y: cfg.oy + iy*cfg.scale };
+}
+const WX=300, WY=600;
+const layerCorners = z => [ {x:0,y:0,z},{x:WX,y:0,z},{x:WX,y:WY,z},{x:0,y:WY,z} ];
+
+function mapTextureToQuad(ctx, image, P){
+  const a=(P[1].x-P[0].x)/UW, b=(P[1].y-P[0].y)/UW;
+  const c=(P[3].x-P[0].x)/UH, d=(P[3].y-P[0].y)/UH;
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(P[0].x,P[0].y); ctx.lineTo(P[1].x,P[1].y);
+  ctx.lineTo(P[2].x,P[2].y); ctx.lineTo(P[3].x,P[3].y); ctx.closePath(); ctx.clip();
+  ctx.setTransform(DPR*a, DPR*b, DPR*c, DPR*d, DPR*P[0].x, DPR*P[0].y);
+  ctx.drawImage(image,0,0);
+  ctx.restore();
+}
+function strokeQuad(ctx,P,color,w){
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(P[0].x,P[0].y); for(let i=1;i<4;i++) ctx.lineTo(P[i].x,P[i].y);
+  ctx.closePath(); ctx.stroke();
+}
+function discTag(ctx,anchor,n,color){
+  const tx=anchor.x-28, ty=anchor.y;
+  ctx.strokeStyle='rgba(255,255,255,.28)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(anchor.x,anchor.y); ctx.lineTo(tx+10,ty); ctx.stroke();
+  ctx.fillStyle=color; ctx.beginPath(); ctx.arc(tx,ty,12,0,7); ctx.fill();
+  ctx.fillStyle='#15161a'; ctx.font='700 13px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(n,tx,ty+.5); ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+}
+
+// ----------------------------------------------------------------------------
+// Renderers
+// ----------------------------------------------------------------------------
+function renderStack(canvas){
+  const gap=104, N=LAYERS.length, zOf=i=>i*gap;
+  const topZ=zOf(N-1)+24, botZ=-24;
+  const box=[{x:-24,y:-24},{x:WX+24,y:-24},{x:WX+24,y:WY+24},{x:-24,y:WY+24}];
+
+  // auto-fit: project everything with a zero origin, measure bounds, size the canvas
+  // tightly so there are no empty side bands (keeps the ▸ separators evenly spaced).
+  const base={ cosA:Math.cos(0.49), sinA:Math.sin(0.49), scale:.62, ox:0, oy:0 };
+  const pts=[];
+  for(let i=0;i<N;i++) layerCorners(zOf(i)).forEach(p=>pts.push(iso(p,base)));
+  [botZ-6,botZ,topZ].forEach(z=>box.forEach(p=>pts.push(iso({...p,z},base))));
+  for(let i=0;i<N;i++){ const d=iso({x:0,y:WY,z:zOf(i)},base); pts.push({x:d.x-46,y:d.y}); } // disc tags
+  let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+  pts.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); });
+  const pad=14;
+  const W=Math.ceil(maxX-minX+pad*2), H=Math.ceil(maxY-minY+pad*2);
+  const cfg={ ...base, ox:pad-minX, oy:pad-minY };
+  const ctx=setupCanvas(canvas,W,H); ctx.clearRect(0,0,W,H);
+
+  // glass bounding box
+  ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=1.1;
+  box.forEach(p=>{ const a=iso({...p,z:botZ},cfg), b=iso({...p,z:topZ},cfg);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); });
+  [botZ,topZ].forEach(z=>{ const P=box.map(p=>iso({...p,z},cfg));
+    ctx.beginPath(); ctx.moveTo(P[0].x,P[0].y); P.slice(1).forEach(q=>ctx.lineTo(q.x,q.y)); ctx.closePath(); ctx.stroke(); });
+  const sh=box.map(p=>iso({...p,z:botZ-6},cfg)); ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.beginPath(); ctx.moveTo(sh[0].x,sh[0].y); sh.slice(1).forEach(q=>ctx.lineTo(q.x,q.y)); ctx.closePath(); ctx.fill();
+
+  // slot footprint shaft (the clipped region) traced through every layer
+  const sx0=SLOT.x/UW*WX, sx1=(SLOT.x+SLOT.w)/UW*WX, sy0=SLOT.y/UH*WY, sy1=(SLOT.y+SLOT.h)/UH*WY;
+  const shaft=[{x:sx0,y:sy0},{x:sx1,y:sy0},{x:sx1,y:sy1},{x:sx0,y:sy1}];
+  ctx.strokeStyle='rgba(255,122,89,.3)'; ctx.lineWidth=1;
+  shaft.forEach(p=>{ const a=iso({...p,z:zOf(0)},cfg), b=iso({...p,z:zOf(N-1)},cfg);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); });
+
+  LAYERS.forEach((L,i)=>{
+    const P=layerCorners(zOf(i)).map(p=>iso(p,cfg));
+    const S=layerCorners(zOf(i)-8).map(p=>iso({x:p.x+8,y:p.y+8,z:p.z},cfg));
+    ctx.fillStyle='rgba(0,0,0,.16)'; ctx.beginPath(); ctx.moveTo(S[0].x,S[0].y);
+    S.slice(1).forEach(q=>ctx.lineTo(q.x,q.y)); ctx.closePath(); ctx.fill();
+    mapTextureToQuad(ctx, texFor(L.key), P);
+    const border = L.key==='final' ? '#9aa3b2' : L.color;        // sharp schematic edge per layer
+    strokeQuad(ctx,P, border, 2.4);
+    const sp=shaft.map(p=>iso({...p,z:zOf(i)},cfg));
+    strokeQuad(ctx,sp, L.key==='blur'?'#ff7a59':'rgba(255,122,89,.3)', L.key==='blur'?2.6:1);
+    discTag(ctx,P[3],i+1,L.color);
+  });
+}
+
+function renderUserPhone(canvas){
+  const w=260, h=520; const ctx=setupCanvas(canvas,w,h); ctx.drawImage(tex.final,0,0,w,h);
+}
+
+// render history grouped as input -> output pairs, each thumbnail half the phone size
+const PAIRS = [
+  { a:'root', b:'capture',
+    text:'Once per frame the whole UI inside the host is captured into one shared GPU texture. The heavy draw runs off the main thread, with no extra surface per effect.' },
+  { a:'cutout', b:'blur',
+    text:'Each effect samples that shared backdrop, padded a little past its footprint so the blur kernel has real pixels at the edges. It then downscales through a low-pass filter to suppress sampling jitter, and runs a separable Gaussian blur into a soft copy.' },
+  { a:'clip', b:'slot',
+    text:'First the blur is shaped: clipped to the effect’s outline, then tinted, noise-blended and progressively faded. Separately, the layer’s own content is captured and composited over that backdrop.' },
+  { a:'final', b:null,
+    text:'All layers are composited in z-order and the finished frame is handed straight to the display surface.' },
+];
+
+function thumbCard(L,i){
+  const card=document.createElement('div'); card.className='tcard';
+  const w=132, h=Math.round(w*UH/UW);
+  const cv=document.createElement('canvas');
+  const dpr=Math.min(window.devicePixelRatio||1,2); cv.width=w*dpr; cv.height=h*dpr; cv.style.aspectRatio=w+'/'+h;
+  cv.style.borderColor = L.key==='blur' ? '#ff7a59' : L.color;   // rounded border follows the radius
+  const cx=cv.getContext('2d'); cx.setTransform(dpr,0,0,dpr,0,0); cx.drawImage(texFor(L.key),0,0,w,h);
+  card.appendChild(cv);
+  const lbl=document.createElement('div'); lbl.className='lbl';
+  lbl.innerHTML=`<span class="num" style="background:${L.color}">${i+1}</span><b>${L.title}</b>`;
+  card.appendChild(lbl); return card;
+}
+
+function renderHistory(el){
+  el.innerHTML='';
+  PAIRS.forEach(pr=>{
+    const row=document.createElement('div'); row.className='hpair';
+    const ai=LAYERS.findIndex(l=>l.key===pr.a);
+    row.appendChild(thumbCard(LAYERS[ai],ai));
+    if(pr.b){
+      const ar=document.createElement('div'); ar.className='arrow'; ar.textContent='→'; row.appendChild(ar);
+      const bi=LAYERS.findIndex(l=>l.key===pr.b); row.appendChild(thumbCard(LAYERS[bi],bi));
+    }
+    const t=document.createElement('div'); t.className='ptext'; t.innerHTML=pr.text; row.appendChild(t);
+    el.appendChild(row);
+  });
+}
+
+renderUserPhone(document.getElementById('userCanvas'));
+renderStack(document.getElementById('stack'));
+renderHistory(document.getElementById('history'));
+</script>
+</body>
+</html>
