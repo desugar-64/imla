@@ -21,6 +21,28 @@ with the potential to evolve into a full-fledged library in the future.
 - Setting blurring masks for gradient blur effects;
 - Supports Android 6 (API 23) onwards.
 
+## Showcase
+
+Each tile below is a single `Modifier.effectLayer { … }` sampling one shared
+backdrop — rendered on a calibration grid so the effect is easy to read.
+
+<p align="center">
+  <img src="demo/showcase.webp" width="860" alt="Imla effects showcase on a calibration grid">
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="demo/feature_blur.webp" width="230"><br/><b>Blur</b><br/><code>backdropBlur(radius)</code></td>
+    <td align="center" width="33%"><img src="demo/feature_tint.webp" width="230"><br/><b>Tint</b><br/><code>tint(color)</code></td>
+    <td align="center" width="33%"><img src="demo/feature_noise.webp" width="230"><br/><b>Frosted noise</b><br/><code>noise(alpha)</code></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="demo/feature_progressive.webp" width="230"><br/><b>Progressive blur</b><br/>crisp top → blurred bottom<br/><code>backdropBlur(radius, progressiveMask)</code></td>
+    <td align="center"><img src="demo/feature_mask.webp" width="230"><br/><b>Shape mask</b><br/>arbitrary clip outline<br/><code>clip(shape)</code></td>
+    <td align="center"><img src="demo/feature_rotation.webp" width="230"><br/><b>Rotation</b><br/>geometry stays aligned<br/><code>graphicsLayer { rotationZ }</code></td>
+  </tr>
+</table>
+
 ## Demo
 
 <table>
