@@ -20,15 +20,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import dev.serhiiyaremych.imla.EffectLayerBoundsProvider
-import dev.serhiiyaremych.imla.effectLayer
 
 @Composable
 fun FauxCube(
@@ -144,7 +139,6 @@ private fun CubeFace(
                 localRotY = localRotY,
                 translationZ = translationZ
             )
-            .effectLayer()
     ) {
         Box(
             modifier = Modifier
