@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright 2024, Serhii Yaremych
+  ~ SPDX-License-Identifier: MIT
+  -->
+
+<resources>
+
+    <style name="Theme.Imla" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ADB timeout wrapper for Imla verification.
+#
+# Runs an adb command with an explicit timeout so device hangs fail fast during
+# renderer diagnostics.
+#
+# Expected arguments:
+#   tools/adb-timeout [--timeout seconds] [--device adb-serial] -- <adb-args...>
+#   tools/adb-timeout [--timeout seconds] [--device adb-serial] <adb-args...>
+#
+# Examples:
+#   tools/adb-timeout --timeout 10 devices -l
+#   tools/adb-timeout --device emulator-5554 --timeout 20 shell wm size
+#   tools/adb-timeout --device T81164GB23417442888 --timeout 60 install -r app.apk
+#
+# Returns:
+#   adb exit code when adb exits before the timeout.
+#   124 when the command times out.
+#
+# Outputs:
+#   Forwards adb stdout/stderr unchanged. On timeout, writes a short diagnostic
+#   to stderr.
+
+usage() {
+  sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "$#" -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ROOT/tools/adb-timeout.py" "$@"

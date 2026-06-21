@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imla Perfetto feedback wrapper.
+#
+# Captures and analyzes Android renderer smoke traces with the repo-local Perfetto
+# config, SQL queries, screenshot capture, and optional Android Performance
+# Analyzer opening.
+#
+# Expected arguments:
+#   tools/imla-perfetto-feedback analyze <trace>
+#   tools/imla-perfetto-feedback open <trace>
+#   tools/imla-perfetto-feedback capture --device <adb-serial> [--exercise|--no-exercise] [--open-apa]
+#   tools/imla-perfetto-feedback smoke --device <adb-serial> [--open-apa]
+#
+# Returns:
+#   0 when capture/open/analyze succeeds.
+#   Non-zero when adb, perfetto, trace_processor, SQL analysis, or APA launch fails.
+#
+# Outputs:
+#   Capture writes trace and screenshot artifacts under diagnostics/apa/.
+#   Analyze writes SQL output files and README.md next to the trace.
+
+usage() {
+  sed -n '3,23p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "$#" -eq 0 ]]; then
+  usage
+  exit 0
+fi
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 "$ROOT/tools/imla-perfetto-feedback.py" "$@"

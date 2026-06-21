@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Capture an Android screenshot through tools/adb-timeout and resize it to half dimensions.
+#
+# Usage:
+#   tools/adb-screenshot-half [--device SERIAL] [--timeout SECONDS] [--out PATH]
+#
+# Defaults:
+#   --timeout 20
+#   --out diagnostics/apa/screenshots/screenshot-half-<timestamp>.png
+#
+# The wrapper creates .codex/adb-screenshot-venv and installs Pillow when needed.
+
+usage() {
+  sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV="$ROOT/.codex/adb-screenshot-venv"
+PYTHON="$VENV/bin/python"
+
+if [[ ! -x "$PYTHON" ]]; then
+  python3 -m venv "$VENV"
+fi
+
+if ! "$PYTHON" - <<'PY' >/dev/null 2>&1
+from PIL import Image
+PY
+then
+  "$PYTHON" -m pip install --upgrade pip Pillow
+fi
+
+exec "$PYTHON" "$ROOT/tools/adb-screenshot-half.py" "$@"

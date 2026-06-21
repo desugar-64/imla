@@ -1,0 +1,9 @@
+traces/
+screenshots/
+screenshot-diff/
+*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+
+# Loose capture artifacts dumped at the apa/ root
+*.png
+*.mp4
+*.ppm

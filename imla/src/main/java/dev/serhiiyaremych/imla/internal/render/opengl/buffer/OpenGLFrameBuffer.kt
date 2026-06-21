@@ -1,0 +1,405 @@
+/*
+ * Copyright 2024, Serhii Yaremych
+ * SPDX-License-Identifier: MIT
+ */
+
+package dev.serhiiyaremych.imla.internal.render.opengl.buffer
+
+import android.opengl.GLES30
+import android.util.Log
+import androidx.compose.ui.unit.IntSize
+import androidx.tracing.trace
+import dev.serhiiyaremych.imla.internal.ext.checkGlError
+import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind
+import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind.BOTH
+import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind.DRAW
+import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind.READ
+import dev.serhiiyaremych.imla.internal.render.framebuffer.Framebuffer
+import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferSpecification
+import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferTextureFormat
+import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferTextureSpecification
+import dev.serhiiyaremych.imla.internal.render.Texture
+import dev.serhiiyaremych.imla.internal.render.Texture2D
+import dev.serhiiyaremych.imla.internal.render.opengl.toGlTextureTarget
+import dev.serhiiyaremych.imla.internal.render.RenderCommands
+import dev.serhiiyaremych.imla.internal.render.stats.ShaderStats
+import dev.serhiiyaremych.imla.internal.render.toIntBuffer
+
+internal class OpenGLFramebuffer(
+    spec: FramebufferSpecification,
+    private val commands: RenderCommands
+) : Framebuffer {
+    override var specification: FramebufferSpecification = spec
+        private set
+    override val colorAttachmentTexture: Texture2D
+        get() = _colorAttachmentTexture!!
+
+    override var rendererId: Int = 0
+        private set
+    private var depthAttachment: Int = 0
+    private var stencilRenderbuffer: Int = 0
+    private var activeColorAttachmentLevel: Int = 0
+
+    private val colorAttachmentSpecifications: MutableList<FramebufferTextureSpecification> =
+        mutableListOf()
+
+    private var _colorAttachmentTexture: Texture2D? = null
+
+    private var drawAttachments: IntArray = IntArray(0)
+    private val colorAttachments: MutableList<Texture2D> = mutableListOf()
+    private var depthAttachmentSpecification: FramebufferTextureSpecification? = null
+
+    private val sampledWidth get() = specification.size.width / specification.downSampleFactor
+    private val sampledHeight get() = specification.size.height / specification.downSampleFactor
+
+    init {
+        invalidate()
+    }
+
+    override fun invalidate() {
+        if (rendererId != 0) {
+            destroy()
+        }
+
+        val id = IntArray(1)
+        GLES30.glGenFramebuffers(1, id, 0)
+        rendererId = id[0]
+        ShaderStats.recordFboCreated()
+
+        commands.bindFramebuffer(BOTH, rendererId, force = true)
+        val attachments = specification.attachmentsSpec.attachments
+
+        val colorAttachmentSpecs =
+            attachments.filter { it.format != FramebufferTextureFormat.DEPTH24STENCIL8 }
+        depthAttachmentSpecification =
+            attachments.find { it.format == FramebufferTextureFormat.DEPTH24STENCIL8 }
+
+        colorAttachmentSpecs.forEachIndexed { index, attachment ->
+            createAttachment(
+                width = sampledWidth,
+                height = sampledHeight,
+                format = attachment.format,
+                coordinateOrigin = attachment.coordinateOrigin,
+                mipmapFiltering = attachment.mipmapFiltering
+            ).apply {
+                colorAttachments.add(this)
+                GLES30.glFramebufferTexture2D(
+                    /* target = */ GLES30.GL_FRAMEBUFFER,
+                    /* attachment = */ GLES30.GL_COLOR_ATTACHMENT0 + index,
+                    /* textarget = */ this.target.toGlTextureTarget(),
+                    /* texture = */ this.id,
+                    /* level = */ 0
+                )
+            }
+        }
+        activeColorAttachmentLevel = 0
+
+        if (_colorAttachmentTexture?.id != colorAttachments.first().id) {
+            _colorAttachmentTexture?.destroy()
+            _colorAttachmentTexture = colorAttachments.first()
+        }
+
+        // Handle stencil renderbuffer (preferred for TBDR mobile GPUs)
+        if (specification.attachmentsSpec.useStencilRenderbuffer) {
+            val rbo = IntArray(1)
+            GLES30.glGenRenderbuffers(1, rbo, 0)
+            stencilRenderbuffer = rbo[0]
+
+            GLES30.glBindRenderbuffer(GLES30.GL_RENDERBUFFER, stencilRenderbuffer)
+            GLES30.glRenderbufferStorage(
+                GLES30.GL_RENDERBUFFER,
+                GLES30.GL_DEPTH24_STENCIL8,
+                sampledWidth,
+                sampledHeight
+            )
+
+            // Attach BOTH depth and stencil from the same renderbuffer
+            // Critical: use GL_DEPTH_STENCIL_ATTACHMENT (not separate attachments)
+            GLES30.glFramebufferRenderbuffer(
+                GLES30.GL_FRAMEBUFFER,
+                GLES30.GL_DEPTH_STENCIL_ATTACHMENT,
+                GLES30.GL_RENDERBUFFER,
+                stencilRenderbuffer
+            )
+            GLES30.glBindRenderbuffer(GLES30.GL_RENDERBUFFER, 0)
+        } else {
+            // Fallback to texture-based depth attachment (existing behavior)
+            depthAttachmentSpecification?.let {
+                createAttachment(
+                    width = sampledWidth,
+                    height = sampledHeight,
+                    format = FramebufferTextureFormat.DEPTH24STENCIL8,
+                    coordinateOrigin = it.coordinateOrigin,
+                    mipmapFiltering = false
+                ).apply {
+                    depthAttachment = this.id
+                    GLES30.glFramebufferTexture2D(
+                        /* target = */ GLES30.GL_FRAMEBUFFER,
+                        /* attachment = */ GLES30.GL_DEPTH_ATTACHMENT,
+                        /* textarget = */ GLES30.GL_TEXTURE_2D,
+                        /* texture = */ depthAttachment,
+                        /* level = */ 0
+                    )
+                }
+            }
+        }
+
+        if (colorAttachmentSpecs.isNotEmpty()) {
+            val buffers: IntArray = IntArray(colorAttachmentSpecs.size) {
+                GLES30.GL_COLOR_ATTACHMENT0 + it
+            }
+            GLES30.glDrawBuffers(colorAttachmentSpecs.size, buffers, 0)
+            drawAttachments = buffers
+        } else {
+            // Only depth-pass
+            GLES30.glDrawBuffers(0, intArrayOf(), 0)
+        }
+
+        require(GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER) == GLES30.GL_FRAMEBUFFER_COMPLETE) {
+            "OpenGL20Framebuffer is incomplete!"
+        }
+
+        // switchback to default framebuffer
+        commands.bindDefaultFramebuffer(force = true)
+    }
+
+    private fun readBuffer() {
+        GLES30.glReadBuffer(GLES30.GL_COLOR_ATTACHMENT0)
+    }
+
+    override fun bind(bind: Bind, updateViewport: Boolean) {
+        bind(commands, bind, updateViewport)
+    }
+
+    override fun bind(commands: RenderCommands, bind: Bind, updateViewport: Boolean) = trace("glBindFramebuffer[$bind]") {
+        commands.bindFramebuffer(bind, rendererId)
+        if (updateViewport) {
+            commands.setViewPort(width = sampledWidth, height = sampledHeight)
+        }
+
+        if (bind == READ) {
+            readBuffer()
+        }
+    }
+
+    override fun bindForOverwrite(bind: Bind) {
+        bindForOverwrite(commands, bind)
+    }
+
+    override fun bindForOverwrite(commands: RenderCommands, bind: Bind) = trace("glBindFramebuffer[$bind]+invalidate") {
+        bind(commands, bind, updateViewport = true)
+        if (bind == DRAW || bind == BOTH) {
+            val target = bind.toGlTarget()
+            val status = GLES30.glCheckFramebufferStatus(target)
+            if (status != GLES30.GL_FRAMEBUFFER_COMPLETE) {
+                return@trace
+            }
+            val preError = GLES30.glGetError()
+            if (preError != GLES30.GL_NO_ERROR) {
+                Log.w(TAG, "bindForOverwrite: skip invalidate due to pre-existing GL error=$preError id=$rendererId")
+                return@trace
+            }
+            if (drawAttachments.isNotEmpty()) {
+                invalidateAttachments(target)
+            }
+        }
+    }
+
+    override fun bindForMipLevel(level: Int, size: IntSize, bind: Bind) {
+        bindForMipLevel(commands, level, size, bind)
+    }
+
+    override fun bindForMipLevel(
+        commands: RenderCommands,
+        level: Int,
+        size: IntSize,
+        bind: Bind
+    ) = trace("glBindFramebuffer[$bind]-mip") {
+        commands.bindFramebuffer(bind, rendererId)
+        if (activeColorAttachmentLevel != level) {
+            val texture = colorAttachments.firstOrNull() ?: return@trace
+            GLES30.glFramebufferTexture2D(
+                /* target = */ bind.toGlTarget(),
+                /* attachment = */ GLES30.GL_COLOR_ATTACHMENT0,
+                /* textarget = */ texture.target.toGlTextureTarget(),
+                /* texture = */ texture.id,
+                /* level = */ level
+            )
+            activeColorAttachmentLevel = level
+        }
+
+        commands.setViewPort(width = size.width, height = size.height)
+
+        if (bind == READ) {
+            readBuffer()
+        }
+    }
+
+    override fun unbind() {
+        unbind(commands)
+    }
+
+    override fun unbind(commands: RenderCommands) = trace("glUnBindFramebuffer") {
+        commands.bindDefaultFramebuffer()
+    }
+
+    override fun resize(width: Int, height: Int) {
+        if (width == 0 || height == 0 || width > MAX_FRAMEBUFFER_SIZE || height > MAX_FRAMEBUFFER_SIZE) {
+            Log.w(TAG, "Attempt to resize framebuffer to $width, $height failed")
+            return
+        }
+        if (specification.size.width != width || specification.size.height != height) {
+            specification = specification.copy(
+                size = IntSize(width, height)
+            )
+            invalidate()
+        }
+    }
+
+    override fun invalidateAttachments() = invalidateAttachments(GLES30.GL_FRAMEBUFFER)
+
+    private fun invalidateAttachments(target: Int) = trace("invalidateAttachments") {
+        GLES30.glInvalidateFramebuffer(target, drawAttachments.size, drawAttachments, 0)
+        val error = GLES30.glGetError()
+        if (error != GLES30.GL_NO_ERROR) {
+            Log.w(TAG, "glInvalidateFramebuffer error=$error target=$target id=$rendererId")
+        }
+        if (error != GLES30.GL_NO_ERROR && target != GLES30.GL_FRAMEBUFFER) {
+            // Retry once with GL_FRAMEBUFFER for drivers that dislike READ/DRAW targets
+            GLES30.glInvalidateFramebuffer(GLES30.GL_FRAMEBUFFER, drawAttachments.size, drawAttachments, 0)
+            val retryError = GLES30.glGetError()
+            if (retryError != GLES30.GL_NO_ERROR) {
+                Log.w(TAG, "glInvalidateFramebuffer retry error=$retryError id=$rendererId")
+            }
+        }
+    }
+
+    override fun getColorAttachmentRendererID(index: Int): Int {
+        require(index <= colorAttachments.lastIndex)
+        return colorAttachments[index].id
+    }
+
+    override fun clearAttachment(attachmentIndex: Int, value: Int) {
+        val attachmentHandle = getColorAttachmentRendererID(attachmentIndex)
+        val spec = colorAttachmentSpecifications[attachmentIndex]
+        val textureFormat = spec.format
+        val type = when (textureFormat) {
+            FramebufferTextureFormat.RGBA8,
+            FramebufferTextureFormat.SRGB8_ALPHA8,
+            FramebufferTextureFormat.R8 -> GLES30.GL_UNSIGNED_BYTE
+            FramebufferTextureFormat.RGB10_A2 -> GLES30.GL_UNSIGNED_INT_2_10_10_10_REV
+            FramebufferTextureFormat.DEPTH24STENCIL8 -> GLES30.GL_UNSIGNED_INT_24_8
+        }
+        val components = when (textureFormat) {
+            FramebufferTextureFormat.R8 -> 1
+            FramebufferTextureFormat.RGBA8,
+            FramebufferTextureFormat.SRGB8_ALPHA8 -> 4
+            FramebufferTextureFormat.RGB10_A2 -> 4
+            FramebufferTextureFormat.DEPTH24STENCIL8 -> 1
+        }
+        val emptyPixels = IntArray(
+            size = sampledWidth * sampledHeight * components,
+            init = { value }
+        ).toIntBuffer()
+
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, attachmentHandle)
+
+        GLES30.glTexSubImage2D(
+            /* target = */ GLES30.GL_TEXTURE_2D,
+            /* level = */ 0,
+            /* xoffset = */ 0,
+            /* yoffset = */ 0,
+            /* width = */ sampledWidth,
+            /* height = */ sampledHeight,
+            /* format = */ fbTextureFormatToGL(textureFormat),
+            /* type = */ type,
+            /* pixels = */ emptyPixels
+        )
+    }
+
+    override fun setColorAttachmentAt(attachmentIndex: Int) {
+        require(attachmentIndex <= colorAttachments.lastIndex)
+        _colorAttachmentTexture = colorAttachments[attachmentIndex]
+    }
+
+    override fun destroy() {
+        unbind()
+        if (rendererId != 0) {
+            GLES30.glDeleteFramebuffers(1, intArrayOf(rendererId), 0)
+            ShaderStats.recordFboDestroyed()
+            rendererId = 0
+        }
+        if (stencilRenderbuffer != 0) {
+            GLES30.glDeleteRenderbuffers(1, intArrayOf(stencilRenderbuffer), 0)
+            stencilRenderbuffer = 0
+        }
+        if (depthAttachment != 0) {
+            GLES30.glDeleteTextures(1, intArrayOf(depthAttachment), 0)
+            ShaderStats.recordTextureDestroyed()
+            depthAttachment = 0
+        }
+        GLES30.glDeleteTextures(
+            colorAttachments.size,
+            colorAttachments.map { it.id }.toIntArray(),
+            0
+        )
+        ShaderStats.recordTextureDestroyed(colorAttachments.size)
+        colorAttachments.clear()
+        _colorAttachmentTexture = null
+    }
+
+    override fun toString(): String {
+        return "OpenGLFramebuffer(rendererId=$rendererId, specification=$specification, drawAttachments=${drawAttachments.contentToString()}, sampledWidth=$sampledWidth, sampledHeight=$sampledHeight)"
+    }
+
+
+    private companion object {
+        private const val TAG = "OpenGLFramebuffer"
+        const val MAX_FRAMEBUFFER_SIZE = 8192
+
+        fun fbTextureFormatToGL(format: FramebufferTextureFormat): Int {
+            return when (format) {
+                FramebufferTextureFormat.R8 -> GLES30.GL_R8
+                FramebufferTextureFormat.RGBA8 -> GLES30.GL_RGBA8
+                FramebufferTextureFormat.SRGB8_ALPHA8 -> GLES30.GL_SRGB8_ALPHA8
+                FramebufferTextureFormat.RGB10_A2 -> GLES30.GL_RGB10_A2
+                FramebufferTextureFormat.DEPTH24STENCIL8 -> GLES30.GL_DEPTH24_STENCIL8
+            }
+        }
+
+        fun createAttachment(
+            width: Int,
+            height: Int,
+            format: FramebufferTextureFormat,
+            coordinateOrigin: dev.serhiiyaremych.imla.internal.render.CoordinateOrigin,
+            mipmapFiltering: Boolean
+        ): Texture2D = Texture2D.create(
+            target = Texture.Target.TEXTURE_2D,
+            specification = Texture.Specification(
+                size = IntSize(width = width, height = height),
+                format = format.toTextureFormat(),
+                coordinateOrigin = coordinateOrigin,
+                generateMips = mipmapFiltering,
+                mipmapFiltering = mipmapFiltering
+            )
+        )
+    }
+}
+
+internal fun Bind.toGlTarget(): Int {
+    return when (this) {
+        READ -> GLES30.GL_READ_FRAMEBUFFER
+        DRAW -> GLES30.GL_DRAW_FRAMEBUFFER
+        BOTH -> GLES30.GL_FRAMEBUFFER
+    }
+}
+
+private fun FramebufferTextureFormat.toTextureFormat(): Texture.ImageFormat {
+    return when (this) {
+        FramebufferTextureFormat.R8 -> Texture.ImageFormat.R8
+        FramebufferTextureFormat.RGBA8 -> Texture.ImageFormat.RGBA8
+        FramebufferTextureFormat.SRGB8_ALPHA8 -> Texture.ImageFormat.SRGB8_ALPHA8
+        FramebufferTextureFormat.RGB10_A2 -> Texture.ImageFormat.RGB10_A2
+        FramebufferTextureFormat.DEPTH24STENCIL8 -> Texture.ImageFormat.DEPTH24STENCIL8
+    }
+}

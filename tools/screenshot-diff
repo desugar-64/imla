@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Imla screenshot diff wrapper.
+#
+# Compares two screenshots and writes numeric metrics plus visual diff artifacts.
+# Expected arguments:
+#   tools/screenshot-diff <reference.png> <candidate.png> [options]
+#
+# Important options forwarded to screenshot-diff.py:
+#   --out <dir>                 Output directory for report and images.
+#   --pixel-threshold <0..255>  Ignore per-pixel max-channel deltas up to this value.
+#   --smooth-radius <float>     Blur both inputs before metrics to reduce noise sensitivity.
+#   --crop left,top,right,bottom
+#   --fail-changed-ratio <n>    Exit non-zero when changed-pixel ratio exceeds n.
+#   --fail-mae <n>
+#   --fail-rmse <n>
+#   --fail-max-delta <n>
+#   --fail-ssim-below <n>
+#
+# Returns:
+#   0 when comparison succeeds and all gates pass.
+#   1 when a configured gate fails.
+#   Other non-zero exits indicate bad arguments, missing inputs, or dependency failure.
+#
+# Outputs:
+#   report.md, report.json, diff.png, diff-amplified.png, threshold-mask.png,
+#   and contact-sheet.png in --out, or diagnostics/screenshot-diff/<generated-name>.
+
+usage() {
+  sed -n '3,29p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV="$ROOT/.codex/screenshot-diff-venv"
+PYTHON="$VENV/bin/python"
+
+if [[ ! -x "$PYTHON" ]]; then
+  python3 -m venv "$VENV"
+fi
+
+if ! "$PYTHON" - <<'PY' >/dev/null 2>&1
+from PIL import Image
+PY
+then
+  "$PYTHON" -m pip install --upgrade pip Pillow
+fi
+
+exec "$PYTHON" "$ROOT/tools/screenshot-diff.py" "$@"
