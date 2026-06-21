@@ -15,11 +15,20 @@ backdrop. Targets Android 6 (API 23) and up.
 
 ## Features
 
-- Gamma corrected blurring;
-- Adjustable blur radius;
-- Color tinting of blurred areas;
-- Blending with a noise mask for a frosted glass effect;
-- Setting blurring masks for gradient blur effects;
+- **Backdrop blur** — separable Gaussian, adjustable radius, gamma-correct
+  (blurred in linear light to avoid dark seams).
+- **Progressive blur** — a brush mask drives blur strength per pixel (crisp →
+  blurred gradients).
+- **Shape masking** — clip a layer to any `Shape` outline.
+- **Tinting** — color composited over the blurred backdrop.
+- **Noise blend** — frosted-glass grain, lightness-driven (strongest in
+  mid-tones, eased off in shadows and highlights).
+- **Composite rendering** — stack independent effect layers; each samples the
+  shared backdrop and composites by z-order.
+- **Rotation-correct** — 3-axis `graphicsLayer` rotation stays aligned with the
+  sampled backdrop.
+- **Hardware-accelerated** — HardwareBuffer capture and zero-copy GL import,
+  on-GPU end-to-end.
 - Supports Android 6 (API 23) onwards.
 
 ## Showcase
@@ -181,6 +190,11 @@ optimize this aspect of the rendering pipeline.
 
 ## Known issues and limitations
 
+- **Expect bugs and untested edge cases.** This is a for-fun experiment, not a
+  hardened library — it has rough edges and unhandled cases. In particular, it
+  has not been tested hosting content that itself contains other `SurfaceView`s
+  (video players, maps, camera previews, nested Imla hosts); surface-compositing
+  scenarios like these may misbehave.
 - **HardwareBuffer capture is not always the fastest path.** Across the 4 devices
   I tested on, the hardware-rendering capture path (`RenderNode` →
   `HardwareBuffer` → zero-copy GL import) is fast on 3. On the 4th, a low-end
@@ -218,6 +232,12 @@ optimize this aspect of the rendering pipeline.
   pipeline on-GPU (no `glReadPixels` round-trip) and could also drop the separate
   capture/present surface. Open question: how fast this path actually is versus
   the current SurfaceView present, especially on lower-end devices.
+- **Compute-shader effect path instead of rasterization.** The blur and composite
+  passes currently run as fragment shaders drawing full-screen quads into FBOs.
+  A GLES 3.1 compute-shader path could run the separable blur over an image
+  directly, skipping the rasterization pipeline and some FBO ping-pong. Open
+  questions: whether it is actually faster than the fragment path on mobile GPUs,
+  and the compute-support / min-API floor across target devices.
 
 ## Contributing
 
