@@ -23,6 +23,11 @@ in VertexOutput data;
 
 out vec4 color;
 
+// Blur must average in linear light; sRGB-space averaging darkens transitions
+// between saturated colours (blue<->green/red collapses toward black).
+highp vec3 srgbToLinear(highp vec3 c) { return pow(max(c, vec3(0.0)), vec3(2.2)); }
+highp vec3 linearToSrgb(highp vec3 c) { return pow(max(c, vec3(0.0)), vec3(1.0 / 2.2)); }
+
 const vec2 PREFILTER_OFFSETS[8] = vec2[8](
     vec2(-0.75777, -0.75777),
     vec2(0.75777, -0.75777),
@@ -55,6 +60,7 @@ vec4 sampleInput(vec2 inputPoint) {
     switch (int(data.texIndex)) {
 ${TEXTURE_SWITCH_CASES}
     }
+    baseColor.rgb = srgbToLinear(baseColor.rgb);
     return baseColor;
 }
 
@@ -68,5 +74,5 @@ void main()
         sum += sampleInput(samplePoint) * PREFILTER_WEIGHTS[i];
     }
 
-    color = sum;
+    color = vec4(linearToSrgb(sum.rgb), sum.a);
 }

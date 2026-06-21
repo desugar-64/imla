@@ -32,6 +32,11 @@ out highp vec4 color;
 
 const int MAX_BLUR_RADIUS_PX = ${MAX_BLUR_RADIUS_PX};
 
+// Average in linear light, then re-encode; sRGB-space averaging darkens
+// transitions between saturated colours (blue<->green/red toward black).
+highp vec3 srgbToLinear(highp vec3 c) { return pow(max(c, vec3(0.0)), vec3(2.2)); }
+highp vec3 linearToSrgb(highp vec3 c) { return pow(max(c, vec3(0.0)), vec3(1.0 / 2.2)); }
+
 highp float gaussianWeight(highp float offsetPx, highp float sigmaPx) {
     sigmaPx = max(sigmaPx, 1e-6);
     highp float normalized = offsetPx / sigmaPx;
@@ -78,13 +83,14 @@ void main()
             highp vec2 sampleUv = sourceUv + u_BlurDirection * u_SourceTexelStep * offsetPx;
             highp float valid = isInsideBounds(sampleUv, sourceUvMin, sourceUvMax);
             highp vec2 safeUv = clamp(sampleUv, sourceUvMin, sourceUvMax);
-            sum += texture(u_SourceTexture, safeUv) * weight * valid;
+            highp vec4 src = texture(u_SourceTexture, safeUv);
+            sum += vec4(srgbToLinear(src.rgb), src.a) * weight * valid;
             totalWeight += weight * valid;
         }
     }
 
     if (totalWeight > 1e-6) {
-        color = vec4((sum / totalWeight).rgb, 1.0);
+        color = vec4(linearToSrgb((sum / totalWeight).rgb), 1.0);
     } else {
         highp vec2 safeUv = clamp(sourceUv, sourceUvMin, sourceUvMax);
         color = vec4(texture(u_SourceTexture, safeUv).rgb, 1.0);
