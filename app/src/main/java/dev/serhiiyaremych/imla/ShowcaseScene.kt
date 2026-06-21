@@ -96,7 +96,7 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
                         caption = "Blur",
                         primary = ShowcaseColors.composeBlue,
                         secondary = ShowcaseColors.composeGreen,
-                        tileModifier = Modifier
+                        modifier = Modifier
                             .size(TILE_SIZE)
                             .effectLayer {
                                 backdropBlur(sigmaPx = 16f)
@@ -108,7 +108,7 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
                         caption = "Tint",
                         primary = ShowcaseColors.composeGreen,
                         secondary = ShowcaseColors.composeBlue,
-                        tileModifier = Modifier
+                        modifier = Modifier
                             .size(TILE_SIZE)
                             .effectLayer {
                                 backdropBlur(sigmaPx = 14f)
@@ -121,7 +121,7 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
                         caption = "Frosted noise",
                         primary = ShowcaseColors.composeBlue,
                         secondary = ShowcaseColors.composeForest,
-                        tileModifier = Modifier
+                        modifier = Modifier
                             .size(TILE_SIZE)
                             .effectLayer {
                                 backdropBlur(sigmaPx = 14f)
@@ -137,7 +137,7 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
                         caption = "Progressive",
                         primary = ShowcaseColors.composeBlue,
                         secondary = ShowcaseColors.composeGreen,
-                        tileModifier = Modifier
+                        modifier = Modifier
                             .size(TILE_SIZE)
                             .effectLayer {
                                 backdropBlur(sigmaPx = 40f, progressiveMask = progressiveMask)
@@ -149,7 +149,7 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
                         caption = "Shape mask",
                         primary = ShowcaseColors.composeGreen,
                         secondary = ShowcaseColors.composeBlue,
-                        tileModifier = Modifier
+                        modifier = Modifier
                             .size(TILE_SIZE)
                             .effectLayer {
                                 backdropBlur(sigmaPx = 16f)
@@ -175,7 +175,7 @@ private fun RotationTile(shape: Shape) {
         caption = "Rotation",
         primary = ShowcaseColors.composeGreen,
         secondary = ShowcaseColors.composeBlue,
-        tileModifier = Modifier
+        modifier = Modifier
             .size(TILE_SIZE)
             .graphicsLayer {
                 rotationX = 26f
@@ -254,7 +254,7 @@ private fun CompositeCard(offsetX: Dp, rotation: Float, tint: Color, z: Float, s
 private fun LabeledTile(
     caption: String,
     primary: Color,
-    tileModifier: Modifier,
+    modifier: Modifier,
     secondary: Color? = null,
     content: @Composable BoxScope.() -> Unit = {}
 ) {
@@ -262,7 +262,7 @@ private fun LabeledTile(
         Box(contentAlignment = Alignment.Center) {
             TileAccents(primary = primary, secondary = secondary)
             Box(
-                modifier = tileModifier,
+                modifier = modifier,
                 contentAlignment = Alignment.Center,
                 content = content
             )

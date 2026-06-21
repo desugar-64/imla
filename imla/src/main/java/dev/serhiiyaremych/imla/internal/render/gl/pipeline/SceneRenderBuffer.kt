@@ -63,7 +63,7 @@ internal class SceneRenderBuffer(
                 commands.setViewPort(width = size.width, height = size.height)
             }
 
-            is Backing.Hw -> {
+            is Backing.Hw -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 b.hwBuffer.bindForDraw()
                 commands.setViewPort(width = size.width, height = size.height)
             }
