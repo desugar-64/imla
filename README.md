@@ -1,7 +1,9 @@
 # Imla - (Experimental) GPU-Accelerated Blurring for Android Jetpack Compose UI
 
-> ⚠️ **Disclaimer**:
-> This project is experimental and not intended for use in production applications.
+> [!CAUTION]
+> **This is not a library, and it is not production-ready.** Imla is a for-fun
+> experiment exploring an alternative Jetpack Compose rendering approach — capturing
+> the Compose root and effect layers through OpenGL and HardwareBuffers. Don't ship it.
 
 ## Description
 
@@ -175,6 +177,20 @@ sequenceDiagram
     Note over GL: prepare → separable blur → composite →<br/>stencil clip → tint → noise → progressive mask
     GL->>SF: present composited scene
 ```
+
+### HardwareBuffers end-to-end
+
+The Compose root is drawn into a `HardwareBuffer` (a `RenderNode` rendered single-buffered off
+the main thread) rather than giving every blurred region its own `Surface`; the effect layers then
+all sample that one shared backdrop.
+
+Each captured buffer is handed to the GL thread and imported **zero-copy** as a texture via
+`eglCreateImageFromHardwareBuffer` + `glEGLImageTargetTexture2DOES`, so the blur passes sample it
+directly with no `glReadPixels` round-trip back to the CPU.
+
+Combined with the API 29+ present path that hands finished `HardwareBuffer`s straight to
+SurfaceFlinger, pixels stay in GPU/shared memory across capture → effects → present. This whole
+HardwareBuffer path is the main thing being experimented with here, and is still being tuned.
 
 See [doc/scene2-scratch-renderer-status.md](doc/scene2-scratch-renderer-status.md)
 for current status, implemented pieces, non-goals, and next steps.
