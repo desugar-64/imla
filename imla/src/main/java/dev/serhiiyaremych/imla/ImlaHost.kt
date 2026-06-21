@@ -49,8 +49,10 @@ import kotlinx.coroutines.isActive
  * all effect groups and layers declared inside it. Children register through the host; no renderer
  * or OpenGL objects are passed down.
  *
- * Output surface: a `SurfaceView` presented via `SurfaceControl` on API 29+, an
- * `AndroidExternalSurface` the renderer blits into on API 23–28.
+ * Output is a single `SurfaceView` on all APIs (`AndroidExternalSurface` is itself
+ * backed by one). On API 29+ it is driven via `SurfaceControl` and the renderer hands
+ * `HardwareBuffer`s straight to SurfaceFlinger (zero-copy); on API 23–28 the renderer
+ * blits into the `SurfaceView`'s `Surface` obtained through `AndroidExternalSurface`.
  *
  * @param showMetricsOverlay draws a debug metrics overlay over the scene. Disable for production UI.
  */

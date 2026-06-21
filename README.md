@@ -95,7 +95,7 @@ flowchart TB
     Layer["Modifier.effectLayer { }<br/>blur · tint · noise · clip"]
     Registry[("SceneRegistry")]
     Renderer["SceneRenderer"]
-    Surface["single output Surface<br/>SurfaceView · API 29+<br/>AndroidExternalSurface · API 23–28"]
+    Surface["single output SurfaceView<br/>API 29+ · SurfaceControl (zero-copy)<br/>API 23–28 · blit into Surface"]
 
     Host --> Content
     Host --> Surface
@@ -107,11 +107,15 @@ flowchart TB
     Renderer -- presents --> Surface
 ```
 
-Output surface:
+The output is a single `SurfaceView` on all supported APIs (Compose's
+`AndroidExternalSurface` is itself backed by a `SurfaceView`). What differs is how
+the renderer presents into it:
 
-- **API 29+** — a `SurfaceView` presented via `SurfaceControl`; the renderer hands
-  `HardwareBuffer`s straight to SurfaceFlinger (zero-copy).
-- **API 23–28** — a Compose `AndroidExternalSurface` the renderer blits into.
+- **API 29+** — the `SurfaceView` is driven via `SurfaceControl`; the renderer
+  hands `HardwareBuffer`s straight to SurfaceFlinger with no present pass or
+  `eglSwapBuffers` (zero-copy).
+- **API 23–28** — there is no `SurfaceControl`, so the renderer blits into the
+  `SurfaceView`'s `Surface` (obtained through `AndroidExternalSurface`).
 
 This replaces the earlier **surface-per-slot** design: the root content is now
 captured **once per frame** and shared by every effect layer, instead of one
