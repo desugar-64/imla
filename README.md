@@ -149,37 +149,35 @@ sequenceDiagram
 
 ### HardwareBuffers end-to-end
 
-The Compose root is drawn into a single shared `HardwareBuffer` (a `RenderNode` rendered
-single-buffered off the main thread); every effect layer samples that one backdrop. Capture lives in
-[`SingleBufferRenderer`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/SingleBufferRenderer.kt),
-and the captured buffer is leased to the GL thread through
+The Compose root is drawn into a single shared `HardwareBuffer` (a `RenderNode`
+rendered single-buffered off the main thread), and every effect layer samples that
+one backdrop. Capture lives in
+[`SingleBufferRenderer`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/SingleBufferRenderer.kt);
+the buffer is leased to the GL thread via
 [`BufferLease`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/BufferLease.kt).
 
-Each captured buffer is handed to the GL thread and imported **zero-copy** as a texture via
-`eglCreateImageFromHardwareBuffer` + `glEGLImageTargetTexture2DOES`, so the blur passes sample it
-directly with no `glReadPixels` round-trip back to the CPU. The EGL import is in
+The GL thread imports it **zero-copy** with `eglCreateImageFromHardwareBuffer` +
+`glEGLImageTargetTexture2DOES` — no `glReadPixels` round-trip — in
 [`OpenGLHardwareBufferTexture2D`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/opengl/OpenGLHardwareBufferTexture2D.kt),
-driven on the GL thread by
+driven by
 [`CapturedFrameImporter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/CapturedFrameImporter.kt).
 
-Combined with the API 29+ present path that hands finished `HardwareBuffer`s straight to
-SurfaceFlinger (see
+On API 29+ the finished `HardwareBuffer` goes straight to SurfaceFlinger (see
 [`ScenePresenter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt)
-and the buffer ring in
+and the buffer ring
 [`SceneHwBufferRing`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneHwBufferRing.kt)),
-pixels stay in GPU/shared memory across capture → effects → present. This whole
-HardwareBuffer path is the main thing being experimented with here, and is still being tuned.
+so pixels stay in GPU/shared memory across capture → effects → present. This path
+is the main thing being experimented with here, and is still being tuned.
 
 ## Rendering Abstraction
 
-The project reuses the OpenGL abstractions from another experimental
-project: [desugar-64/android-opengl-renderer](https://github.com/desugar-64/android-opengl-renderer).
-This repo is a playground to learn graphics and OpenGL, including some convenient abstractions
-for setting up OpenGL data structures and calling various OpenGL functions.
+The OpenGL abstractions are reused from a sister experiment,
+[desugar-64/android-opengl-renderer](https://github.com/desugar-64/android-opengl-renderer) —
+a playground for learning graphics and OpenGL, with helpers for setting up GL data
+and calls.
 
-The current implementation uses a fully dynamic renderer, which pushes vertex data each frame. While
-this approach offers flexibility, it introduces some performance overhead. Future iterations aim to
-optimize this aspect of the rendering pipeline.
+The renderer is fully dynamic: it pushes vertex data every frame. Flexible, but it
+adds overhead — a future optimization target.
 
 ## Performance notes
 
@@ -200,18 +198,17 @@ optimize this aspect of the rendering pipeline.
   `HardwareBuffer` → zero-copy GL import) is fast on 3. On the 4th, a low-end
   budget Android 13 tablet, it runs slower than capturing the UI into an external
   texture. The cause is not yet pinned down.
-- **No atlas grouping yet.** Effect layers are rendered with separate
-  draws/passes instead of being batched into a shared texture atlas. Atlas
-  grouping is the main remaining GL-side optimization, but it is not implemented
-  because of the complexity of integrating it with the bucketed capture buffers
-  used for resizable content.
-- **Dynamic per-frame vertex push.** The renderer uploads vertex data every
-  frame (see [Rendering Abstraction](#rendering-abstraction)). Flexible, but it
-  adds per-frame overhead that a static/instanced path would avoid.
+- **No atlas grouping yet.** Effect layers render as separate draws/passes rather
+  than batched into a shared atlas. It's the main remaining GL-side optimization,
+  deferred because it has to integrate with the bucketed capture buffers used for
+  resizable content.
+- **Dynamic per-frame vertex push.** The renderer uploads vertex data every frame
+  (see [Rendering Abstraction](#rendering-abstraction)) — flexible, but more
+  overhead than a static/instanced path.
 - **Convoluted internal architecture.** The code grew through iteration and is
-  more tangled than it needs to be: capture/import/present responsibilities are
-  spread across many small types, and some seams exist only for past experiments.
-  It works, but expect rough edges when reading or extending it.
+  more tangled than it needs to be — capture/import/present spread across many
+  small types, with seams left over from past experiments. It works, but expect
+  rough edges.
 
 ## Roadmap
 
@@ -225,19 +222,16 @@ optimize this aspect of the rendering pipeline.
 
 ### To explore
 
-- **Present directly into the Compose layout, no SurfaceView.** Instead of the
-  dedicated `SurfaceView`/`SurfaceControl` present path, wrap the composited
-  effect result `HardwareBuffer` as a hardware `Bitmap` (`Bitmap.wrapHardwareBuffer`,
-  API 29+) and draw it straight in the Compose layout. This keeps the whole
-  pipeline on-GPU (no `glReadPixels` round-trip) and could also drop the separate
-  capture/present surface. Open question: how fast this path actually is versus
-  the current SurfaceView present, especially on lower-end devices.
-- **Compute-shader effect path instead of rasterization.** The blur and composite
-  passes currently run as fragment shaders drawing full-screen quads into FBOs.
-  A GLES 3.1 compute-shader path could run the separable blur over an image
-  directly, skipping the rasterization pipeline and some FBO ping-pong. Open
-  questions: whether it is actually faster than the fragment path on mobile GPUs,
-  and the compute-support / min-API floor across target devices.
+- **Present via hardware `Bitmap`, no SurfaceView.** Wrap the result
+  `HardwareBuffer` as a hardware `Bitmap` (`Bitmap.wrapHardwareBuffer`, API 29+)
+  and draw it in the Compose layout. It then composites through the normal Android
+  (HWUI) path, so the host need not redirect the whole layout through our renderer.
+  Open question: is it faster than the SurfaceView present, especially on low-end
+  devices?
+- **Compute-shader effect path.** Run the separable blur as a GLES 3.1 compute
+  shader instead of fragment passes into FBOs, skipping rasterization and some FBO
+  ping-pong. Open questions: faster on mobile GPUs? compute-support / min-API
+  floor?
 
 ## Contributing
 
