@@ -96,7 +96,6 @@ import androidx.tracing.trace
 import dev.serhiiyaremych.imla.data.ApiClient
 import dev.serhiiyaremych.imla.ui.BlurBenchmarkParams
 import dev.serhiiyaremych.imla.ui.BlurBenchmarkScene
-import dev.serhiiyaremych.imla.ui.FauxCube
 import dev.serhiiyaremych.imla.ui.ResizeCardScene
 import dev.serhiiyaremych.imla.ui.components.BlurredBottomNav
 import dev.serhiiyaremych.imla.ui.components.BlurredFab
@@ -194,7 +193,6 @@ class MainActivity : ComponentActivity() {
                             DemoScene.PAGER -> MultiInstanceScenePagerDemo(
                                 modifier = Modifier.fillMaxSize()
                             )
-                            DemoScene.CUBE -> CubeDemoScene(modifier = Modifier.fillMaxSize())
                             DemoScene.ROTATING_CARDS -> RotatingCardsScene(
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -654,19 +652,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-            }
-        }
-    }
-
-    @Composable
-    private fun CubeDemoScene(modifier: Modifier = Modifier) {
-        ImlaHost(modifier = modifier) {
-            Surface(
-                Modifier
-                    .fillMaxSize()
-                    .effectGroup()
-            ) {
-                FauxCube(modifier = Modifier.fillMaxSize())
             }
         }
     }
