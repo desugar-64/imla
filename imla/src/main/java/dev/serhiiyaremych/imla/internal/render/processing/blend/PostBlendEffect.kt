@@ -12,8 +12,8 @@ import androidx.tracing.trace
 import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind
 import dev.serhiiyaremych.imla.internal.render.framebuffer.Framebuffer
 import dev.serhiiyaremych.imla.internal.render.RenderCommand
-import dev.serhiiyaremych.imla.internal.legacy.computeUvBoundsFlippedYFloat
-import dev.serhiiyaremych.imla.internal.legacy.computeUvBoundsNoFlipFloat
+import dev.serhiiyaremych.imla.internal.render.computeUvBoundsFlippedYFloat
+import dev.serhiiyaremych.imla.internal.render.computeUvBoundsNoFlipFloat
 import dev.serhiiyaremych.imla.internal.render.processing.SimpleQuadRenderer
 
 internal class PostBlendEffect(

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,7 +39,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import dev.serhiiyaremych.imla.BuildConfig
 import dev.serhiiyaremych.imla.DemoEffectStyle
 import dev.serhiiyaremych.imla.effectLayer
 
@@ -51,9 +49,7 @@ fun BlurredTopBar(
     modifier: Modifier = Modifier,
     avatarUrl: String = "file:///android_asset/avatars/1.jpg",
     title: String = "Home",
-    onSettingsClick: () -> Unit = {},
-    debugMenuOpen: Boolean = false,
-    onDebugMenuToggle: () -> Unit = {}
+    onSettingsClick: () -> Unit = {}
 ) {
     val density = LocalDensity.current
     val topBarHeightPx = with(density) { TopBarHeight.toPx() }
@@ -127,18 +123,6 @@ fun BlurredTopBar(
             )
 
             Spacer(modifier = Modifier.weight(1f))
-
-            if (BuildConfig.DEBUG) {
-                IconButton(
-                    onClick = onDebugMenuToggle
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = "Debug Stats",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
 
             IconButton(onClick = onSettingsClick) {
                 Icon(

@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.roundToIntRect
 import dev.romainguy.kotlin.math.Mat4
-import dev.serhiiyaremych.imla.internal.legacy.buildRenderTransform
+import dev.serhiiyaremych.imla.internal.render.buildRenderTransform
 import kotlin.math.abs
 import kotlin.math.roundToInt
 

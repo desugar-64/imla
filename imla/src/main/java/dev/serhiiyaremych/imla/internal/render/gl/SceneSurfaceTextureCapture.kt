@@ -15,7 +15,6 @@ import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferSpecificat
 import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferTextureFormat
 import dev.serhiiyaremych.imla.internal.render.shader.ShaderBinder
 import dev.serhiiyaremych.imla.internal.render.shader.ShaderLibrary
-import dev.serhiiyaremych.imla.internal.legacy.SurfaceTextureRenderer
 import dev.serhiiyaremych.imla.internal.render.processing.SimpleQuadRenderer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

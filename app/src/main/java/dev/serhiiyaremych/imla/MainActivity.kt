@@ -41,7 +41,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -102,7 +101,6 @@ import dev.serhiiyaremych.imla.ui.ResizeCardScene
 import dev.serhiiyaremych.imla.ui.components.BlurredBottomNav
 import dev.serhiiyaremych.imla.ui.components.BlurredFab
 import dev.serhiiyaremych.imla.ui.components.BlurredTopBar
-import dev.serhiiyaremych.imla.ui.components.DebugStatsDropdown
 import dev.serhiiyaremych.imla.ui.theme.ImlaTheme
 import dev.serhiiyaremych.imla.ui.userpost.SimpleImageViewer
 import dev.serhiiyaremych.imla.ui.userpost.UserPostView
@@ -138,19 +136,13 @@ class MainActivity : ComponentActivity() {
                 val selectedScene: DemoScene? = DemoScene.entries.getOrNull(selectedSceneIdx.intValue)
 
                 val atlasBenchmarkSceneEnabled = isAtlasBenchmarkSceneEnabled()
-                val clipAtlasDiagnosticSceneEnabled = isClipAtlasDiagnosticSceneEnabled()
-                val coverageMaskAtlasSceneEnabled = isCoverageMaskAtlasSceneEnabled()
                 val maskSemanticsSceneEnabled = isMaskSemanticsSceneEnabled()
                 val alphaCompositeSceneEnabled = isAlphaCompositeSceneEnabled()
-                val captureImportParitySceneEnabled = isCaptureImportParitySceneEnabled()
                 val blurBenchmarkParams = remember { BlurBenchmarkParams.fromIntent(intent) }
 
                 val anyDiagnosticSceneEnabled = atlasBenchmarkSceneEnabled
-                    || clipAtlasDiagnosticSceneEnabled
-                    || coverageMaskAtlasSceneEnabled
                     || maskSemanticsSceneEnabled
                     || alphaCompositeSceneEnabled
-                    || captureImportParitySceneEnabled
 
                 BackHandler(enabled = selectedScene != null) {
                     selectedSceneIdx.intValue = -1
@@ -176,13 +168,7 @@ class MainActivity : ComponentActivity() {
                                         .effectGroup(),
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize()) {
-                                        if (captureImportParitySceneEnabled) {
-                                            CaptureImportParityDiagnosticScene(modifier = Modifier.fillMaxSize())
-                                        } else if (clipAtlasDiagnosticSceneEnabled) {
-                                            ClipAtlasDiagnosticScene(modifier = Modifier.fillMaxSize())
-                                        } else if (coverageMaskAtlasSceneEnabled) {
-                                            CoverageMaskAtlasDiagnosticScene(modifier = Modifier.fillMaxSize())
-                                        } else if (alphaCompositeSceneEnabled) {
+                                        if (alphaCompositeSceneEnabled) {
                                             AlphaCompositeScene(modifier = Modifier.fillMaxSize())
                                         } else if (maskSemanticsSceneEnabled) {
                                             MaskSemanticsScene(modifier = Modifier.fillMaxSize())
@@ -240,41 +226,11 @@ class MainActivity : ComponentActivity() {
      * and keeps the default app path unchanged.
      */
     @Composable
-    private fun AtlasDiagnosticProofSlot(modifier: Modifier = Modifier) {
-        if (!isAtlasDiagnosticProofEnabled()) return
-
-        Box(
-            modifier = modifier
-                .size(96.dp)
-                .effectLayer(
-                    style = DemoEffectStyle.default.copy(
-                        noiseAlpha = 0f,
-                        blurOpacity = 0f,
-                        tint = Color.Transparent
-                    ),
-                    debugName = "atlas-proof",
-                    zIndex = -100f
-                )
-        )
-    }
-
-    private fun isAtlasDiagnosticProofEnabled(): Boolean {
-        return isAtlasDiagnosticBuild() && Log.isLoggable(ATLAS_DIAGNOSTIC_TAG, Log.DEBUG)
-    }
-
     private fun isAtlasBenchmarkSceneEnabled(): Boolean {
         return isAtlasBenchmarkSceneSwitchEnabled(
             diagnosticBuild = isAtlasDiagnosticBuild(),
             manualSwitchEnabled = { Log.isLoggable(ATLAS_BENCHMARK_SCENE_TAG, Log.DEBUG) }
         )
-    }
-
-    private fun isClipAtlasDiagnosticSceneEnabled(): Boolean {
-        return isAtlasDiagnosticBuild() && Log.isLoggable(CLIP_ATLAS_DIAGNOSTIC_SCENE_TAG, Log.DEBUG)
-    }
-
-    private fun isCoverageMaskAtlasSceneEnabled(): Boolean {
-        return isAtlasDiagnosticBuild() && Log.isLoggable(COVERAGE_MASK_ATLAS_DIAGNOSTIC_SCENE_TAG, Log.DEBUG)
     }
 
     private fun isMaskSemanticsSceneEnabled(): Boolean {
@@ -283,10 +239,6 @@ class MainActivity : ComponentActivity() {
 
     private fun isAlphaCompositeSceneEnabled(): Boolean {
         return isAtlasDiagnosticBuild() && Log.isLoggable(ALPHA_COMPOSITE_SCENE_TAG, Log.DEBUG)
-    }
-
-    private fun isCaptureImportParitySceneEnabled(): Boolean {
-        return isAtlasDiagnosticBuild() && Log.isLoggable(CAPTURE_IMPORT_PARITY_SCENE_TAG, Log.DEBUG)
     }
 
     private fun isAtlasDiagnosticBuild(): Boolean {
@@ -622,7 +574,6 @@ class MainActivity : ComponentActivity() {
     private fun SocialFeedDemoScene(modifier: Modifier = Modifier) {
         val viewingImage = remember { mutableStateOf("") }
         val showBottomSheet = remember { mutableStateOf(false) }
-        val debugMenuOpen = remember { mutableStateOf(false) }
         val blurAnimationValue = remember { Animatable(0f) }
         val tintAnimationValue = remember { Animatable(0f) }
 
@@ -684,9 +635,7 @@ class MainActivity : ComponentActivity() {
 
                         BlurredTopBar(
                             modifier = Modifier.align(Alignment.TopCenter),
-                            onSettingsClick = { showBottomSheet.value = true },
-                            debugMenuOpen = debugMenuOpen.value,
-                            onDebugMenuToggle = { debugMenuOpen.value = !debugMenuOpen.value }
+                            onSettingsClick = { showBottomSheet.value = true }
                         )
 
                         BlurSettingsBottomSheet(
@@ -700,19 +649,6 @@ class MainActivity : ComponentActivity() {
                             tintAlpha = tintAnimationValue.value,
                             onDismiss = { viewingImage.value = "" }
                         )
-
-                        AtlasDiagnosticProofSlot(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .offset(x = 24.dp, y = 144.dp)
-                        )
-
-                        if (BuildConfig.DEBUG && debugMenuOpen.value) {
-                            DebugStatsDropdown(
-                                isOpen = debugMenuOpen.value,
-                                onDismiss = { debugMenuOpen.value = false }
-                            )
-                        }
                     }
                 }
             }
@@ -1061,7 +997,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
-        private const val ATLAS_DIAGNOSTIC_TAG = "ImlaSceneAtlas"
         private const val ATLAS_DIAGNOSTIC_BUILD_TYPE = "benchmark"
         private const val BOTTOM_SHEET_TAG = "BottomSheetDebug"
         private const val PLAIN_ROOT_LIST_ITEM_COUNT = 2_000

@@ -25,7 +25,7 @@ import dev.serhiiyaremych.imla.internal.render.shader.ShaderProgram
 import dev.serhiiyaremych.imla.internal.render.processing.QuadBatchRenderer
 import dev.serhiiyaremych.imla.internal.render.processing.RenderQuad
 import dev.serhiiyaremych.imla.internal.render.processing.draw
-import dev.serhiiyaremych.imla.internal.legacy.composeMatrixToMat4
+import dev.serhiiyaremych.imla.internal.render.composeMatrixToMat4
 import dev.serhiiyaremych.imla.internal.layer.model.SceneBackdropOperation
 import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotGeometry
 import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
