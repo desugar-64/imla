@@ -202,6 +202,9 @@ class MainActivity : ComponentActivity() {
                             DemoScene.RESIZE_CARD -> ResizeCardScene(
                                 modifier = Modifier.fillMaxSize()
                             )
+                            DemoScene.CAPTURE_FIDELITY -> CaptureFidelityScene(
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
                 }

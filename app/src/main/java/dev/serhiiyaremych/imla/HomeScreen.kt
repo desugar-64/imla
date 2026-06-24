@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-enum class DemoScene { SHOWCASE, SOCIAL_FEED, PAGER, ROTATING_CARDS, HAZE_CARDS, RESIZE_CARD }
+enum class DemoScene { SHOWCASE, SOCIAL_FEED, PAGER, ROTATING_CARDS, HAZE_CARDS, RESIZE_CARD, CAPTURE_FIDELITY }
 
 private data class DemoEntry(val scene: DemoScene, val title: String, val description: String)
 
@@ -35,6 +35,7 @@ private val DEMO_ENTRIES = listOf(
     DemoEntry(DemoScene.ROTATING_CARDS, "Rotating Cards", "3D-tilt blur tiles"),
     DemoEntry(DemoScene.HAZE_CARDS, "Haze Cards (ref)", "Same tiles via Haze backdrop blur"),
     DemoEntry(DemoScene.RESIZE_CARD, "Resize Card", "Expand/collapse blur card bounds"),
+    DemoEntry(DemoScene.CAPTURE_FIDELITY, "Capture Fidelity", "RenderEffect & SurfaceView capture probe (#13)"),
 )
 
 @Composable
