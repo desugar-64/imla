@@ -292,15 +292,7 @@ internal class SingleBufferRenderer(
         try {
             releaseFence?.awaitForever()
         } finally {
-            try {
-                capturedImage.image.close()
-            } finally {
-                try {
-                    releaseFence?.close()
-                } finally {
-                    capturedImage.buffer.close()
-                }
-            }
+            closeAll(capturedImage.image, releaseFence, capturedImage.buffer)
         }
     }
 
@@ -478,6 +470,18 @@ internal class SingleBufferRenderer(
             return result == HardwareRenderer.SYNC_OK
         }
     }
+}
+
+private fun closeAll(vararg closeables: AutoCloseable?) {
+    var first: Throwable? = null
+    for (closeable in closeables) {
+        try {
+            closeable?.close()
+        } catch (thrown: Throwable) {
+            if (first == null) first = thrown else first.addSuppressed(thrown)
+        }
+    }
+    first?.let { throw it }
 }
 
 internal class CaptureThread(

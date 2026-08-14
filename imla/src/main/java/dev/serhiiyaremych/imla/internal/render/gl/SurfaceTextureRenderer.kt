@@ -155,28 +155,29 @@ internal class SurfaceTextureRenderer(
      */
     inline fun draw(crossinline block: (Canvas) -> Unit) {
         val s = surface ?: return
+        val canvas = s.lockHardwareCanvas() ?: return
+        try {
+            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+            block(canvas)
+        } finally {
+            unlockAndPost(s, canvas)
+        }
+    }
 
-        s.lockHardwareCanvas()?.let { canvas ->
-            try {
-                canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-                block(canvas)
-            } finally {
-                try {
-                    s.unlockCanvasAndPost(canvas)
-                } catch (e: IllegalArgumentException) {
-                    logw(TAG, "unlockCanvas failed: ${e.message}")
-                    recoverFromCanvasError(s)
-                }
-            }
+    private fun unlockAndPost(surface: Surface, canvas: Canvas) {
+        try {
+            surface.unlockCanvasAndPost(canvas)
+        } catch (e: IllegalArgumentException) {
+            logw(TAG, "unlockCanvas failed: ${e.message}")
+            recoverFromCanvasError(surface)
         }
     }
 
     private fun recoverFromCanvasError(surface: Surface) {
-        runCatching {
-            val fallback = surface.lockCanvas(null)
-            surface.unlockCanvasAndPost(fallback)
-        }.onFailure {
-            logw(TAG, "fallback unlock failed: ${it.message}")
+        try {
+            surface.unlockCanvasAndPost(surface.lockCanvas(null))
+        } catch (thrown: Throwable) {
+            logw(TAG, "fallback unlock failed: ${thrown.message}")
         }
     }
 
