@@ -140,14 +140,8 @@ private fun NavItem(
     Box(
         modifier = Modifier
             .size(48.dp)
-            .bottomNavBackdropBlur(
-                style = DemoEffectStyle.default.copy(
-                    sigma = if (isSelected) 10f else 0.5f,
-                    tint = if (isSelected) activeBackgroundColor else Color.Transparent
-                ),
-                clipShape = CircleShape,
-                zIndex = 100f
-            )
+            .clip(CircleShape)
+            .background(if (isSelected) activeBackgroundColor else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

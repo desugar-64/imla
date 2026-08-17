@@ -1,12 +1,6 @@
 package dev.serhiiyaremych.imla
 
-import android.os.Build
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.View
-import androidx.annotation.RequiresApi
-import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -25,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntSize
@@ -45,14 +38,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /**
- * Root of an Imla effect scene. Wraps [content] in a single GPU-backed output surface and renders
- * all effect groups and layers declared inside it. Children register through the host; no renderer
- * or OpenGL objects are passed down.
+ * Root of an Imla effect scene. Provides a renderer and layer registry to [content]. Children
+ * register through the host; no renderer or OpenGL objects are passed down.
  *
- * Output is a single `SurfaceView` on all APIs (`AndroidExternalSurface` is itself
- * backed by one). On API 29+ it is driven via `SurfaceControl` and the renderer hands
- * `HardwareBuffer`s straight to SurfaceFlinger (zero-copy); on API 23–28 the renderer
- * blits into the `SurfaceView`'s `Surface` obtained through `AndroidExternalSurface`.
+ * On API 29+ the enclosing [effectGroup][Modifier.effectGroup] presents the GL-composited scene
+ * as a hardware `Bitmap` in the Compose draw pass. On API 23–28 the group draws its recorded
+ * content with no effects (no output surface).
  *
  * @param showMetricsOverlay draws a debug metrics overlay over the scene. Disable for production UI.
  */
@@ -81,14 +72,6 @@ public fun ImlaHost(
         LocalSceneRegistry provides registry
     ) {
         Box(modifier = modifier) {
-            // API 29+ presents through a SurfaceView so the renderer can hand HardwareBuffers
-            // straight to SurfaceFlinger (zero-copy). Older APIs blit into an external surface.
-            if (Build.VERSION.SDK_INT >= 29) {
-                SurfaceViewOutput(renderer = renderer, modifier = Modifier.matchParentSize())
-            } else {
-                ExternalSurfaceOutput(renderer = renderer, modifier = Modifier.matchParentSize())
-            }
-
             Box(modifier = Modifier.matchParentSize()) {
                 content()
             }
@@ -103,56 +86,6 @@ public fun ImlaHost(
                 )
             }
         }
-    }
-}
-
-/** API 29+ zero-copy output: a SurfaceView the renderer presents into via SurfaceControl. */
-@RequiresApi(29)
-@Composable
-private fun SurfaceViewOutput(renderer: SceneRenderer, modifier: Modifier = Modifier) {
-    AndroidView(
-        factory = { ctx ->
-            SurfaceView(ctx).also { sv ->
-                sv.holder.addCallback(SceneSurfaceViewCallback(sv, renderer))
-            }
-        },
-        modifier = modifier
-    )
-}
-
-/** Pre-API-29 output: the renderer blits the scene into a Compose external surface. */
-@Composable
-private fun ExternalSurfaceOutput(renderer: SceneRenderer, modifier: Modifier = Modifier) {
-    AndroidExternalSurface(modifier = modifier) {
-        onSurface { surface, width, height ->
-            if (width > 0 && height > 0) {
-                renderer.setOutputSurface(surface, IntSize(width, height))
-            }
-            surface.onChanged { newWidth, newHeight ->
-                if (newWidth > 0 && newHeight > 0) {
-                    renderer.resizeOutputSurface(IntSize(newWidth, newHeight))
-                }
-            }
-            surface.onDestroyed { renderer.clearOutputSurface(surface) }
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.Q)
-private class SceneSurfaceViewCallback(
-    private val surfaceView: SurfaceView,
-    private val renderer: SceneRenderer
-) : SurfaceHolder.Callback {
-    override fun surfaceCreated(holder: SurfaceHolder) = Unit
-
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        if (width > 0 && height > 0) {
-            renderer.setOutputSurfaceView(surfaceView, IntSize(width, height))
-        }
-    }
-
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
-        renderer.clearOutputSurface()
     }
 }
 

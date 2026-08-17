@@ -34,8 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.serhiiyaremych.imla.EffectLayerScope
-import dev.serhiiyaremych.imla.effectGroup
 import dev.serhiiyaremych.imla.effectLayer
+import dev.serhiiyaremych.imla.effectSource
 
 /**
  * Parametrized blur-cost benchmark scene.
@@ -100,7 +100,7 @@ internal fun BlurBenchmarkScene(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .effectGroup()
+                .effectSource()
                 .background(Color(0xFF101010)),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {

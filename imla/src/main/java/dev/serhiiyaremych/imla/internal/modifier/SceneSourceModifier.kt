@@ -1,5 +1,6 @@
 package dev.serhiiyaremych.imla.internal.modifier
 
+import android.os.Build
 import android.view.Choreographer
 import android.view.View
 import android.view.ViewTreeObserver
@@ -9,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -32,13 +34,10 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 
 /**
- * Marks an effect group to be recorded into a [GraphicsLayer] and eventually captured into a
- * backdrop image for child effect layers.
+ * Records backdrop content into a [GraphicsLayer] and draws it through HWUI.
  *
- * The first [draw] records the content subtree into a [GraphicsLayer]; subsequent
- * content changes are reflected in the layer automatically. Capture is deferred to the view-tree
+ * Sibling [effectLayer]s crop-capture this layer. Capture is deferred to the view-tree
  * draw callback so the latest Compose draw has recorded the layer first.
- *
  * Falls back to normal content drawing on non-hardware-accelerated canvases.
  */
 internal fun Modifier.effectGroupInternal(): Modifier {
@@ -67,7 +66,9 @@ private class SceneSourceNode : Modifier.Node(),
     private var captureFlushView: View? = null
 
     private val onDrawListener = ViewTreeObserver.OnDrawListener {
-        if (sceneRenderer?.hasOutputSurface == true) {
+        val renderer = sceneRenderer ?: return@OnDrawListener
+        if (renderer.consumePresentingOutput()) return@OnDrawListener
+        if (renderer.hasPresentTarget) {
             scheduleCaptureFlush(kickSlotRenders = true)
         }
     }
@@ -87,9 +88,9 @@ private class SceneSourceNode : Modifier.Node(),
 
         val renderer = sceneRenderer ?: return@Runnable
         // Re-validate: this runs a message loop after it was posted, so attach
-        // state, the host view, and the output surface may all have changed
+        // state, the host view, and the present target may all have changed
         // since scheduleCaptureFlush() queued it.
-        if (isAttached && currentView === postedView && renderer.hasOutputSurface) {
+        if (isAttached && currentView === postedView && renderer.hasPresentTarget) {
             flushCapture(renderer, kickSlotRenders)
         }
     }
@@ -115,10 +116,25 @@ private class SceneSourceNode : Modifier.Node(),
     }
 
     override fun ContentDrawScope.draw() {
-        if (drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
-            recordContentLayer()
-        } else {
+        if (!drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
             drawContent()
+            return
+        }
+        val busyLayer = sceneRenderer?.rootCaptureLayer
+        val latest = layerRing.latestRecorded
+        val skipRecord = sceneRenderer?.presentingOutput == true &&
+            latest != null &&
+            latest !== busyLayer
+        if (!skipRecord) {
+            recordContentLayer()
+        }
+        layerRing.latestRecorded?.let { drawLayer(it) } ?: drawContent()
+        if (Build.VERSION.SDK_INT >= 29) {
+            sceneRenderer?.ensureGlTarget()
+            sceneRegistry?.setSource(
+                layer = layerRing.latestRecorded,
+                coordinates = rootCoordinates
+            )
         }
     }
 
@@ -141,10 +157,15 @@ private class SceneSourceNode : Modifier.Node(),
 
     override fun onPlaced(coordinates: LayoutCoordinates) {
         rootCoordinates = coordinates
+        sceneRegistry?.setSource(
+            layer = layerRing.latestRecorded,
+            coordinates = coordinates
+        )
     }
 
     override fun onDetach() {
         super.onDetach()
+        sceneRegistry?.setSource(layer = null, coordinates = null)
         sceneRenderer?.onRootDetached()
         updateSceneRenderer(null)
         removeViewTreeObservers()
@@ -208,6 +229,7 @@ private class SceneSourceNode : Modifier.Node(),
     }
 
     private fun subscribeViewTreeObservers() {
+        if (Build.VERSION.SDK_INT < 29) return
         currentView?.viewTreeObserver?.addOnDrawListener(onDrawListener)
     }
 
@@ -235,7 +257,7 @@ private data object SceneSourceElement : ModifierNodeElement<SceneSourceNode>() 
     }
 
     override fun InspectorInfo.inspectableProperties() {
-        name = "effectGroup"
+        name = "effectSource"
     }
 }
 

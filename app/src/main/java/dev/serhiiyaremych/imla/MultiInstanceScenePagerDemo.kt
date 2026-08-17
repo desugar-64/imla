@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import dev.serhiiyaremych.imla.effectLayer
-import dev.serhiiyaremych.imla.effectGroup
+import dev.serhiiyaremych.imla.effectSource
 import dev.serhiiyaremych.imla.ImlaHost
 import kotlin.math.PI
 import kotlin.math.absoluteValue
@@ -114,12 +114,14 @@ private fun SceneRendererPageHost(
     modifier: Modifier = Modifier
 ) {
     ImlaHost(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .effectGroup()
-        ) {
-            ScenePagerBackground(page = page, active = active)
+        Box(modifier = Modifier.fillMaxSize()) {
+            ScenePagerBackground(
+                page = page,
+                active = active,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .effectSource()
+            )
             ScenePagerGlassCards(page = page)
         }
     }
@@ -128,12 +130,12 @@ private fun SceneRendererPageHost(
 @Composable
 private fun ScenePagerBackground(
     page: ScenePagerPage,
-    active: Boolean
+    active: Boolean,
+    modifier: Modifier = Modifier
 ) {
     val progress = rememberActivePageProgress(active = active, durationMillis = page.durationMillis)
     Canvas(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
             .background(page.background)
     ) {
         page.draw(this, progress)

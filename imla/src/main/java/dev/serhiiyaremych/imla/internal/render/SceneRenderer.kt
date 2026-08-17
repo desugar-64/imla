@@ -1,21 +1,22 @@
 package dev.serhiiyaremych.imla.internal.render
 
 import android.content.res.AssetManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.view.Surface
-import android.view.SurfaceView
 import android.view.View
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.annotation.MainThread
@@ -53,7 +54,7 @@ import java.util.concurrent.ConcurrentHashMap
  * the GL thread, child slot registry, and KHR image import.
  *
  * Created by [dev.serhiiyaremych.imla.ImlaHost] and provided through [LocalSceneRenderer]. The
- * [effectGroup][dev.serhiiyaremych.imla.effectGroup] modifier reads it to signal when the root
+ * [effectGroup][dev.serhiiyaremych.imla.effectSource] modifier reads it to signal when the source
  * content is dirty and needs re-capture.
  */
 @Stable
@@ -73,17 +74,10 @@ internal class SceneRenderer internal constructor(
         afterRenderComplete = ::recordSceneRenderComplete,
         afterContentImport = ::recordGlResidentContent,
         afterProgressiveMaskImport = ::recordGlMaskKeys,
-        afterClipImport = ::recordGlClipKeys
+        afterClipImport = ::recordGlClipKeys,
+        onHardwareBitmapPresented = ::installPresentedBitmap
     )
-    private val rootCapture = GraphicsLayerCapture(
-        executorName = "ImlaRootCapture",
-        textureCaptureFactory = glOwner::createCanvasTextureCapture,
-        captureThread = captureThread,
-        // Ping-pong two single-lease renderers so the producer can capture frame
-        // N+1 while GL still holds N's lease, without overlapping leases on one
-        // queue. Slots stay single-lease (default).
-        platformRendererCount = 2
-    )
+    private val backdropCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
     private val slotCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
     private val glResidentContent: MutableSet<SceneSlotId> =
         Collections.newSetFromMap(ConcurrentHashMap<SceneSlotId, Boolean>())
@@ -93,9 +87,10 @@ internal class SceneRenderer internal constructor(
         SceneProgressiveMaskCache(glOwner::createCanvasTextureCapture, captureThread)
     private val clipShapeCache = SceneClipShapeCache(glOwner::createCanvasTextureCapture, captureThread)
     private var renderTarget: SceneRenderTarget? = null
-    private var outputSurface: Surface? = null
-    @RequiresApi(29)
-    private var outputSurfaceView: SurfaceView? = null
+    private var attachedSize: IntSize = IntSize.Zero
+    private var presentedBitmaps = mutableMapOf<SceneSlotId, Bitmap>()
+    private var presentedImages = mutableMapOf<SceneSlotId, ImageBitmap>()
+    private val presentInvalidates = mutableMapOf<SceneSlotId, () -> Unit>()
 
     @Volatile
     private var lastSceneRenderCompleteNanos: Long = 0L
@@ -104,19 +99,18 @@ internal class SceneRenderer internal constructor(
     private var lastPreDrawMeasuredUiDataNanos: Long = 0L
     private var lastFrameBuildMeasuredUiDataNanos: Long = 0L
     private var flushSequence: Long = 0L
-    private var rootCaptureInFlight: Boolean = false
-    private var pendingRootRequest: RootCaptureRequest? = null
+    private var inFlightBackdropIds = mutableSetOf<SceneSlotId>()
+    private val pendingBackdropRequests = mutableMapOf<SceneSlotId, RootCaptureRequest>()
 
-    // The GraphicsLayer instance the in-flight root capture is reading, or null
-    // when no capture is in flight. Set on the main thread alongside
-    // rootCaptureInFlight and read on the main thread by SceneSourceModifier so
-    // it never re-records the RenderNode the capture thread is currently
-    // syncing. Captures are single-in-flight, so at most one layer is busy.
+    // GraphicsLayer instance currently being crop-captured for any in-flight
+    // backdrop. SceneSourceModifier ping-pongs away from this instance.
     @get:MainThread
     internal var rootCaptureLayer: GraphicsLayer? = null
         private set
 
-    // Retries a root capture that was refused because every capture buffer was busy
+    internal var presentingOutput: Boolean = false
+
+    // Retries a backdrop crop that was refused because every capture buffer was busy.
     // (backpressure). Without it a one-shot dirty refused at kick time would wait for
     // the next unrelated dirty. Main-thread only; paced to ~one frame to avoid a busy
     // spin while GL still holds the leases.
@@ -124,14 +118,11 @@ internal class SceneRenderer internal constructor(
     private var rootRetryScheduled: Boolean = false
     private val rootRetryRunnable = Runnable {
         rootRetryScheduled = false
-        val next = pendingRootRequest
-        if (next == null || rootCaptureInFlight) return@Runnable
-        if (!hasOutputSurface) {
-            pendingRootRequest = null
+        if (!hasPresentTarget) {
+            pendingBackdropRequests.clear()
             return@Runnable
         }
-        pendingRootRequest = null
-        kickRootCapture(next)
+        kickNextBackdropCapture()
     }
 
     // Main-thread only. SceneSourceModifier installs this to request one trailing drain flush.
@@ -149,7 +140,25 @@ internal class SceneRenderer internal constructor(
     @get:MainThread @set:MainThread
     internal var hostView: View? = null
 
-    internal val hasOutputSurface: Boolean
+    internal fun setPresentInvalidate(id: SceneSlotId, invalidate: (() -> Unit)?) {
+        if (invalidate == null) {
+            presentInvalidates.remove(id)
+        } else {
+            presentInvalidates[id] = invalidate
+        }
+    }
+
+    internal fun presentedImage(id: SceneSlotId?): ImageBitmap? {
+        return id?.let { presentedImages[it] }
+    }
+
+    internal fun consumePresentingOutput(): Boolean {
+        if (!presentingOutput) return false
+        presentingOutput = false
+        return true
+    }
+
+    internal val hasPresentTarget: Boolean
         get() = renderTarget != null
 
     internal fun onRootDirty(
@@ -164,34 +173,76 @@ internal class SceneRenderer internal constructor(
         vsyncTimeNanos: Long? = null,
         kickSlotRenders: Boolean = true
     ) {
-        if (!hasOutputSurface) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            ensureGlTarget()
+        }
+        if (!hasPresentTarget) {
             return
         }
-        captureRoot(
-            RootCaptureRequest(
-                layer = layer,
-                size = size,
-                density = density,
-                layoutDirection = layoutDirection,
-                rootGeneration = rootGeneration,
-                rootRecordedNanos = rootRecordedNanos,
-                slots = slots.toList(),
-                preDrawStartedNanos = preDrawStartedNanos,
-                vsyncTimeNanos = vsyncTimeNanos,
-                kickSlotRenders = kickSlotRenders
+        val liveSlotIds = slots.mapTo(mutableSetOf()) { it.id }
+        pruneSlotCapturesTo(liveSlotIds)
+        pruneBackdropCapturesTo(liveSlotIds)
+        prunePresentedTo(liveSlotIds)
+        val sourceBounds = IntRect(0, 0, size.width, size.height)
+        slots.forEach { slot ->
+            val crop = slot.geometry.rootBounds.intersect(sourceBounds)
+            if (crop.isEmpty || crop.width <= 0 || crop.height <= 0) return@forEach
+            captureRoot(
+                RootCaptureRequest(
+                    layer = layer,
+                    size = IntSize(crop.width, crop.height),
+                    cropOffset = Offset(crop.left.toFloat(), crop.top.toFloat()),
+                    density = density,
+                    layoutDirection = layoutDirection,
+                    rootGeneration = rootGeneration,
+                    rootRecordedNanos = rootRecordedNanos,
+                    slot = slot,
+                    liveSlotIds = liveSlotIds,
+                    preDrawStartedNanos = preDrawStartedNanos,
+                    vsyncTimeNanos = vsyncTimeNanos,
+                    kickSlotRenders = kickSlotRenders
+                )
             )
-        )
+        }
     }
 
     private fun captureRoot(request: RootCaptureRequest) {
-        if (rootCaptureInFlight) {
-            pendingRootRequest = request
+        val slotId = request.slot.id
+        // Ping-pong source layers assume a single in-flight HardwareRenderer
+        // read of the source GraphicsLayer. Concurrent crops of the same layer
+        // blank the on-screen feed.
+        if (inFlightBackdropIds.isNotEmpty()) {
+            pendingBackdropRequests[slotId] = request
             return
         }
-        // A fresh direct kick supersedes any request left pending by a prior
-        // backpressure refusal, so newest still wins.
-        pendingRootRequest = null
+        pendingBackdropRequests.remove(slotId)
         kickRootCapture(request)
+    }
+
+    private fun kickNextBackdropCapture(
+        preferOtherThan: SceneSlotId? = null,
+        recapturePreferred: Boolean = true
+    ) {
+        if (inFlightBackdropIds.isNotEmpty()) return
+        val next = takeNextPendingBackdrop(preferOtherThan, recapturePreferred)
+        if (next != null) {
+            kickRootCapture(next)
+        } else {
+            rootCaptureLayer = null
+        }
+    }
+
+    private fun takeNextPendingBackdrop(
+        preferOtherThan: SceneSlotId?,
+        recapturePreferred: Boolean
+    ): RootCaptureRequest? {
+        val other = pendingBackdropRequests.entries.firstOrNull { it.key != preferOtherThan }
+        if (other != null) {
+            pendingBackdropRequests.remove(other.key)
+            return other.value
+        }
+        if (!recapturePreferred) return null
+        return preferOtherThan?.let { pendingBackdropRequests.remove(it) }
     }
 
     private fun kickRootCapture(request: RootCaptureRequest) {
@@ -199,35 +250,36 @@ internal class SceneRenderer internal constructor(
         val metricsFrame = metrics.beginRootFrame(request.preDrawStartedNanos)
         recordUiDataPreDrawAge(request)
         val captureStartedNanos = System.nanoTime()
-        rootCaptureInFlight = true
+        val slotId = request.slot.id
+        inFlightBackdropIds += slotId
         rootCaptureLayer = request.layer
-        val started = rootCapture.kickCapture(
+        val capture = backdropCapture(slotId)
+        val started = capture.kickCapture(
             layer = request.layer,
             size = request.size,
             density = request.density,
             layoutDirection = request.layoutDirection,
             bucketPhysicalSize = false,
             logicalSize = request.size,
-            contentOffset = Offset.Zero,
+            contentOffset = request.cropOffset,
             vsyncTimeNanos = request.vsyncTimeNanos,
             onCompleted = { onRootCaptureCompleted(request, metricsFrame, captureStartedNanos) }
         )
         if (!started) {
-            rootCaptureInFlight = false
-            rootCaptureLayer = null
+            inFlightBackdropIds -= slotId
             recordRootCaptureMetrics(
                 success = false,
                 captureStartedNanos = captureStartedNanos,
                 captureFinishedNanos = System.nanoTime()
             )
-            // A non-zero size that still failed to start means every capture buffer
-            // was busy (backpressure), not "nothing to capture". Retain the request
-            // and retry next frame; a newer request overwrites it first via
-            // captureRoot, so newest still wins.
             if (request.size != IntSize.Zero) {
-                pendingRootRequest = request
+                pendingBackdropRequests[slotId] = request
                 scheduleRootRetry()
             }
+            kickNextBackdropCapture(
+                preferOtherThan = slotId,
+                recapturePreferred = false
+            )
         }
     }
 
@@ -250,9 +302,9 @@ internal class SceneRenderer internal constructor(
         captureStartedNanos: Long
     ) {
         val captureFinishedNanos = System.nanoTime()
-        rootCaptureInFlight = false
-        rootCaptureLayer = null
-        val rootFrame = rootCapture.takeLatestFrame()
+        val slotId = request.slot.id
+        inFlightBackdropIds -= slotId
+        val rootFrame = backdropCapture(slotId).takeLatestFrame()
         when {
             rootFrame == null -> recordRootCaptureMetrics(
                 success = false,
@@ -260,7 +312,7 @@ internal class SceneRenderer internal constructor(
                 captureFinishedNanos = captureFinishedNanos
             )
 
-            !hasOutputSurface -> rootFrame.close()
+            !hasPresentTarget -> rootFrame.close()
 
             else -> {
                 submitCapturedRoot(
@@ -276,11 +328,7 @@ internal class SceneRenderer internal constructor(
                 )
             }
         }
-        val next = pendingRootRequest
-        pendingRootRequest = null
-        if (next != null) {
-            kickRootCapture(next)
-        }
+        kickNextBackdropCapture(preferOtherThan = slotId)
     }
 
     private fun recordRootCaptureMetrics(
@@ -302,13 +350,17 @@ internal class SceneRenderer internal constructor(
         rootCaptureDurationNanos: Long,
         metricsFrame: SceneMetricsFrame?
     ) {
+        val remappedSlot = request.slot.copy(
+            geometry = request.slot.geometry.relativeTo(request.cropOffset)
+        )
         val uiCapture = SceneRenderMetricsLog.time(
             phase = "snapshot.assemble.total",
-            details = "slots=${request.slots.size}"
+            details = "slots=1"
         ) {
             assembleSnapshot(
                 rootFrame = rootFrame,
                 request = request,
+                remappedSlot = remappedSlot,
                 rootCaptureDurationNanos = rootCaptureDurationNanos,
                 metricsFrame = metricsFrame
             )
@@ -355,12 +407,13 @@ internal class SceneRenderer internal constructor(
     private fun assembleSnapshot(
         rootFrame: CapturedLayerFrame,
         request: RootCaptureRequest,
+        remappedSlot: SceneRegisteredSlot,
         rootCaptureDurationNanos: Long,
         metricsFrame: SceneMetricsFrame?
     ): UiSceneCapture = trace("SceneSnapshot#assemble") {
         val density = request.density
         val layoutDirection = request.layoutDirection
-        val slots = request.slots
+        val slots = listOf(remappedSlot)
         recordUiDataFrameBuildAge(
             rootRecordedNanos = request.rootRecordedNanos,
             slots = slots,
@@ -381,7 +434,7 @@ internal class SceneRenderer internal constructor(
                     kickSlotRenders = request.kickSlotRenders
                 )
             }
-            val renderSlots = selectRenderSlots(slots, contentFrames)
+            val renderSlots = selectRenderSlots(slots, contentFrames, request.liveSlotIds)
 
             val clipShapeResult = captureClips(renderSlots, request)
                 .also { capturedFrames += it.changedFrames.values }
@@ -403,6 +456,7 @@ internal class SceneRenderer internal constructor(
                             progressiveMaskIds = progressiveMaskResult.availableIds,
                             clipIds = clipShapeResult.availableIds
                         ),
+                        liveSlotIds = request.liveSlotIds,
                         uiCaptures = UiCaptures(
                             contentFrames = contentFrames,
                             maskFrames = progressiveMaskResult.changedFrames,
@@ -419,13 +473,13 @@ internal class SceneRenderer internal constructor(
 
     private fun selectRenderSlots(
         slots: List<SceneRegisteredSlot>,
-        contentFrames: Map<SceneSlotId, CapturedLayerFrame>
+        contentFrames: Map<SceneSlotId, CapturedLayerFrame>,
+        liveSlotIds: Set<SceneSlotId>
     ): List<SceneRegisteredSlot> = SceneRenderMetricsLog.time(
         phase = "snapshot.pruneSlots",
         details = "available=${contentFrames.size}"
     ) {
         trace("SceneSnapshot#pruneSlots") {
-            val liveSlotIds = slots.mapTo(mutableSetOf()) { it.id }
             pruneSlotCapturesTo(liveSlotIds)
             slots.filter { slot ->
                 slot.id in contentFrames || slot.id in glResidentContent
@@ -589,55 +643,55 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    internal fun setOutputSurface(surface: Surface, size: IntSize) {
+    @MainThread
+    @android.annotation.SuppressLint("NewApi")
+    internal fun ensureGlTarget() {
+        if (Build.VERSION.SDK_INT < 29) return
+        if (renderTarget != null) return
+        val size = EGL_PLACEHOLDER_SIZE
         metrics.recordTargetSize(size)
-        val target = renderTarget
-        if (target != null && outputSurface === surface) {
-            target.resize(size)
-        } else {
-            clearOutputSurface()
-            renderTarget = glOwner.attachRenderTarget(surface, size)
-            outputSurface = surface
-        }
+        renderTarget = glOwner.attachOffscreenRenderTarget(size)
+        attachedSize = size
     }
 
-    internal fun resizeOutputSurface(size: IntSize) {
-        metrics.recordTargetSize(size)
-        renderTarget?.resize(size)
+    @MainThread
+    internal fun detachPresentTarget() {
+        renderTarget?.detach()
+        renderTarget = null
+        attachedSize = IntSize.Zero
+        presentedBitmaps.values.forEach { it.recycle() }
+        presentedBitmaps.clear()
+        presentedImages.clear()
+        metrics.recordTargetSize(IntSize.Zero)
     }
 
-    internal fun clearOutputSurface(surface: Surface? = null) {
-        if (surface == null || outputSurface === surface) {
-            renderTarget?.detach()
-            renderTarget = null
-            outputSurface = null
-            metrics.recordTargetSize(IntSize.Zero)
+    @MainThread
+    private fun installPresentedBitmap(slotId: SceneSlotId, bitmap: Bitmap) {
+        val invalidate = presentInvalidates[slotId]
+        if (invalidate == null) {
+            bitmap.recycle()
+            return
         }
-    }
-
-    @RequiresApi(29)
-    internal fun setOutputSurfaceView(surfaceView: SurfaceView, size: IntSize) {
-        metrics.recordTargetSize(size)
-        val target = renderTarget
-        if (target != null && outputSurfaceView === surfaceView) {
-            target.resize(size)
-        } else {
-            clearOutputSurface()
-            renderTarget = glOwner.attachRenderTargetWithSurfaceView(surfaceView, size)
-            outputSurfaceView = surfaceView
-        }
+        presentedBitmaps.remove(slotId)?.recycle()
+        presentedBitmaps[slotId] = bitmap
+        presentedImages[slotId] = bitmap.asImageBitmap()
+        presentingOutput = true
+        invalidate()
     }
 
     internal fun onRootDetached() {
         releaseSlotResources()
+        detachPresentTarget()
     }
 
     internal fun release() {
         mainHandler.removeCallbacks(rootRetryRunnable)
         rootRetryScheduled = false
-        pendingRootRequest = null
-        clearOutputSurface()
-        rootCapture.release()
+        pendingBackdropRequests.clear()
+        inFlightBackdropIds.clear()
+        detachPresentTarget()
+        backdropCaptures.values.forEach { it.release() }
+        backdropCaptures.clear()
         releaseSlotResources()
         captureThread.close()
         glOwner.close()
@@ -691,9 +745,45 @@ internal class SceneRenderer internal constructor(
         }
     }
 
+    private fun pruneBackdropCapturesTo(liveIds: Set<SceneSlotId>) {
+        val removedIds = backdropCaptures.keys - liveIds
+        removedIds.forEach { slotId ->
+            backdropCaptures.remove(slotId)?.release()
+            inFlightBackdropIds.remove(slotId)
+            pendingBackdropRequests.remove(slotId)
+        }
+        if (inFlightBackdropIds.isEmpty()) {
+            rootCaptureLayer = null
+        }
+    }
+
+    private fun prunePresentedTo(liveIds: Set<SceneSlotId>) {
+        val removedIds = presentedBitmaps.keys - liveIds
+        removedIds.forEach { slotId ->
+            presentedBitmaps.remove(slotId)?.recycle()
+            presentedImages.remove(slotId)
+            presentInvalidates.remove(slotId)
+        }
+    }
+
+    private fun backdropCapture(slotId: SceneSlotId): GraphicsLayerCapture {
+        return backdropCaptures.getOrPut(slotId) {
+            GraphicsLayerCapture(
+                executorName = "ImlaBackdrop${slotId.value}",
+                textureCaptureFactory = glOwner::createCanvasTextureCapture,
+                captureThread = captureThread,
+                platformRendererCount = 2
+            )
+        }
+    }
+
     private fun releaseSlotResources() {
         slotCaptures.values.forEach { it.release() }
         slotCaptures.clear()
+        backdropCaptures.values.forEach { it.release() }
+        backdropCaptures.clear()
+        inFlightBackdropIds.clear()
+        pendingBackdropRequests.clear()
         glResidentContent.clear()
         glMaskKeys.clear()
         glClipKeys.clear()
@@ -770,15 +860,18 @@ internal val LocalSceneRenderer = staticCompositionLocalOf<SceneRenderer?> { nul
 
 private const val DEFAULT_FRAME_BUDGET_NANOS = 16_666_667L
 private const val NANOS_PER_MILLI = 1_000_000L
+private val EGL_PLACEHOLDER_SIZE = IntSize(64, 64)
 
 private data class RootCaptureRequest(
     val layer: GraphicsLayer,
     val size: IntSize,
+    val cropOffset: Offset,
     val density: Density,
     val layoutDirection: LayoutDirection,
     val rootGeneration: Long,
     val rootRecordedNanos: Long,
-    val slots: List<SceneRegisteredSlot>,
+    val slot: SceneRegisteredSlot,
+    val liveSlotIds: Set<SceneSlotId>,
     val preDrawStartedNanos: Long,
     val vsyncTimeNanos: Long?,
     val kickSlotRenders: Boolean
@@ -812,7 +905,7 @@ private fun SceneBackdropEffect.withProgressiveMask(hasProgressiveMask: Boolean)
 private fun RootCaptureRequest.latestUiDataNanos(): Long {
     return latestUiDataNanos(
         rootRecordedNanos = rootRecordedNanos,
-        slots = slots
+        slots = listOf(slot)
     )
 }
 

@@ -89,6 +89,11 @@ internal class GlStore(
         )
     }
 
+    fun currentRootSize(): IntSize? {
+        threadGuard.checkCurrentThread()
+        return currentRoot?.rootSize
+    }
+
     fun destroy() {
         threadGuard.checkCurrentThread()
         currentRoot?.release()

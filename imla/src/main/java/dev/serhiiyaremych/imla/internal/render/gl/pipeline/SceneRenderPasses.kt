@@ -157,124 +157,23 @@ internal class SceneStencilClipPass(
 }
 
 internal class SceneRootDrawPass(
-    private val commandsProvider: () -> RenderCommands,
-    private val quadBatchRenderer: QuadBatchRenderer
+    private val commandsProvider: () -> RenderCommands
 ) {
-    fun draw(
+    fun beginOverlay(
         frame: SceneGlRenderFrame,
         target: SceneRenderBuffer
-    ) = trace("SceneRootDrawPass#draw") {
+    ) = trace("SceneRootDrawPass#beginOverlay") {
         val startedNanos = System.nanoTime()
-        val targetSize = frame.targetSize
-        val size = Size(
-            width = targetSize.width.toFloat(),
-            height = targetSize.height.toFloat()
-        )
-        val center = Offset(
-            x = size.width / 2f,
-            y = size.height / 2f
-        )
         target.bindForFrameStart(commandsProvider())
-        quadBatchRenderer.draw(
-            targetSize = targetSize,
-            debug = false,
-            enableBlending = false,
-            traceLabel = "SceneRootDrawPass#quad"
-        ) {
-            submit(
-                RenderQuad(
-                    id = "scene-root",
-                    center = center,
-                    size = size,
-                    texture = frame.rootTexture,
-                    maskValue = 0f,
-                    alpha = 1f,
-                    flipTexture = frame.rootTextureFlipYForScreen,
-                    tint = Color.Transparent,
-                    transform = translateScale(center, size)
-                )
-            )
-        }
-        val outputPixels = targetSize.pixelCount()
+        val outputPixels = frame.targetSize.pixelCount()
         frame.metricsFrame?.recordRenderPass(
             pass = SceneRenderPassMetric.RootPresent,
             startedNanos = startedNanos,
             finishedNanos = System.nanoTime(),
             outputPixels = outputPixels,
-            textureSamples = outputPixels
+            textureSamples = 0
         )
     }
-}
-
-internal class SceneFinalPresentPass(
-    private val commandsProvider: () -> RenderCommands,
-    private val quadBatchRenderer: QuadBatchRenderer
-) {
-    fun draw(
-        frame: SceneGlRenderFrame,
-        buffer: SceneRenderBuffer,
-        viewportDivisor: Int = 1
-    ) = trace("SceneFinalPresentPass#draw") {
-        val startedNanos = System.nanoTime()
-        val targetSize = frame.targetSize
-        val presentSize = targetSize.presentViewportSize(viewportDivisor)
-        val viewportX = (targetSize.width - presentSize.width) / 2
-        val viewportY = (targetSize.height - presentSize.height) / 2
-        val size = Size(
-            width = presentSize.width.toFloat(),
-            height = presentSize.height.toFloat()
-        )
-        val center = Offset(
-            x = size.width / 2f,
-            y = size.height / 2f
-        )
-        commandsProvider().run {
-            bindDefaultFramebuffer()
-            setViewPort(
-                x = viewportX,
-                y = viewportY,
-                width = presentSize.width,
-                height = presentSize.height
-            )
-        }
-        trace("SceneFinalPresentPass#viewport[${presentSize.width}x${presentSize.height}]") {}
-        quadBatchRenderer.draw(
-            targetSize = presentSize,
-            debug = false,
-            enableBlending = false,
-            traceLabel = "SceneFinalPresentPass#quad"
-        ) {
-            submit(
-                RenderQuad(
-                    id = "scene-final",
-                    center = center,
-                    size = size,
-                    texture = buffer.texture,
-                    maskValue = 0f,
-                    alpha = 1f,
-                    flipTexture = true,
-                    tint = Color.Transparent,
-                    transform = translateScale(center, size)
-                )
-            )
-        }
-        val outputPixels = presentSize.pixelCount()
-        frame.metricsFrame?.recordRenderPass(
-            pass = SceneRenderPassMetric.FinalPresent,
-            startedNanos = startedNanos,
-            finishedNanos = System.nanoTime(),
-            outputPixels = outputPixels,
-            textureSamples = outputPixels
-        )
-    }
-}
-
-private fun IntSize.presentViewportSize(divisor: Int): IntSize {
-    if (divisor <= 1) return this
-    return IntSize(
-        width = (width / divisor).coerceAtLeast(1),
-        height = (height / divisor).coerceAtLeast(1)
-    )
 }
 
 internal class SceneBackdropEffectPass(

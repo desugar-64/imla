@@ -81,7 +81,7 @@ internal class CapturedFrameImporter(
         ) { sourceTexture ->
             copyToOwnedRootFramebuffer(
                 sourceTexture = sourceTexture,
-                size = frame.size,
+                size = frame.contentSize,
                 label = HardwareBufferTextureSource.Root.name
             ).colorAttachmentTexture
         }

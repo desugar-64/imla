@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import dev.serhiiyaremych.imla.ImlaHost
-import dev.serhiiyaremych.imla.effectGroup
 import dev.serhiiyaremych.imla.effectLayer
 import kotlin.math.cos
 import kotlin.math.min
@@ -69,12 +68,8 @@ internal fun ShowcaseScene(modifier: Modifier = Modifier) {
     }
 
     ImlaHost(modifier = modifier, showMetricsOverlay = false) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .effectGroup()
-        ) {
-            ShowcaseGrid()
+        Box(modifier = Modifier.fillMaxSize()) {
+            ShowcaseGrid(Modifier.fillMaxSize().effectSource())
 
             Column(
                 modifier = Modifier
@@ -297,9 +292,9 @@ private fun TileAccents(primary: Color, secondary: Color?) {
 }
 
 @Composable
-private fun ShowcaseGrid() {
+private fun ShowcaseGrid(modifier: Modifier = Modifier) {
     val density = LocalDensity.current
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    Canvas(modifier = modifier) {
         drawRect(color = ShowcaseColors.base)
 
         // Subtle checkerboard so the light backdrop still has structure to soften.

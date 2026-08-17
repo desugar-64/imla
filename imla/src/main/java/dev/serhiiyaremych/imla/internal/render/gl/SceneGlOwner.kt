@@ -1,19 +1,13 @@
 package dev.serhiiyaremych.imla.internal.render.gl
 
-import android.annotation.SuppressLint
 import android.content.res.AssetManager
 import android.os.Build
-import android.util.Log
-import android.view.Surface
-import android.view.SurfaceView
 import androidx.annotation.AnyThread
 import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
-import androidx.graphics.surface.SurfaceControlCompat
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCapture
 import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
@@ -24,7 +18,6 @@ import dev.serhiiyaremych.imla.internal.render.RenderCommands
 import dev.serhiiyaremych.imla.internal.render.Renderer2D
 import dev.serhiiyaremych.imla.internal.render.SimpleRenderer
 import dev.serhiiyaremych.imla.internal.render.Texture2D
-import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind
 import dev.serhiiyaremych.imla.internal.render.framebuffer.FramebufferLendingPool
 import dev.serhiiyaremych.imla.internal.render.objects.QuadShaderProgram
 import dev.serhiiyaremych.imla.internal.render.opengl.OpenGLRendererAPI
@@ -34,10 +27,8 @@ import dev.serhiiyaremych.imla.internal.render.shader.ShaderProgram
 import dev.serhiiyaremych.imla.internal.render.stats.HardwareBufferTextureSource
 import dev.serhiiyaremych.imla.internal.render.processing.QuadBatchRenderer
 import dev.serhiiyaremych.imla.internal.render.processing.SimpleQuadRenderer
-import dev.serhiiyaremych.imla.internal.render.gl.pipeline.BlitPresenter
-import dev.serhiiyaremych.imla.internal.render.gl.pipeline.HardwareBufferPresenter
+import dev.serhiiyaremych.imla.internal.render.gl.pipeline.HardwareBitmapPresenter
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneBackdropEffectPass
-import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneFinalPresentPass
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.ScenePresenter
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneRenderPipeline
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneRootDrawPass
@@ -53,8 +44,8 @@ import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotDeclaration
 import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.render.scheduler.SceneFrameDropReason
 import dev.serhiiyaremych.imla.internal.render.scheduler.SceneFrameRequest
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 
 internal class SceneGlOwner(
     assetManager: AssetManager,
@@ -62,7 +53,8 @@ internal class SceneGlOwner(
     private val afterRenderComplete: () -> Unit = {},
     private val afterContentImport: (Set<SceneSlotId>) -> Unit = {},
     private val afterProgressiveMaskImport: (Map<SceneSlotId, SceneProgressiveMaskKey>) -> Unit = {},
-    private val afterClipImport: (Map<SceneSlotId, SceneClipShapeKey>) -> Unit = {}
+    private val afterClipImport: (Map<SceneSlotId, SceneClipShapeKey>) -> Unit = {},
+    private val onHardwareBitmapPresented: (SceneSlotId, android.graphics.Bitmap) -> Unit = { _, _ -> }
 ) : AutoCloseable {
     private val shaderLibrary = ShaderLibrary(assetManager)
     private val shaderBinder = ShaderBinder()
@@ -85,56 +77,18 @@ internal class SceneGlOwner(
     private val glStore = GlStore(threadGuard)
     private val glRenderer = GLRenderer().apply { start("ImlaSceneGL") }
     private val closed = AtomicBoolean(false)
-    private val pendingRequest = AtomicReference<SceneFrameRequest?>(null)
+    private val pendingBySlot = ConcurrentHashMap<SceneSlotId, SceneFrameRequest>()
     private val presentScheduled = AtomicBoolean(false)
-    // Snapshotted once so the surface-attach and pipeline-build decisions stay consistent.
-    private val hwPresentEnabled = SceneRenderFlags.hwPresentEnabled()
 
     private var graphicsContext: GraphicsContext? = null
     private var pendingRenderCompleteFrame: SceneMetricsFrame? = null
     private var renderPipeline: SceneRenderPipeline? = null
-    // Created at attach on the main thread when the HW present path is selected; borrowed by
-    // HardwareBufferPresenter and released here at detach. Null = blit path.
-    @RequiresApi(29)
-    private var sceneSurfaceControl: SurfaceControlCompat? = null
-
-    @MainThread
-    fun attachRenderTarget(surface: Surface, size: IntSize): SceneRenderTarget {
-        check(!closed.get()) { "SceneGlOwner is closed" }
-        check(size != IntSize.Zero) { "Scene render target size must be non-zero" }
-        val callback = SceneRenderCallback()
-        val renderTarget = glRenderer.attach(
-            surface = surface,
-            width = size.width,
-            height = size.height,
-            renderer = callback
-        )
-        return SceneRenderTarget(
-            glOwner = this,
-            glRenderer = glRenderer,
-            renderTarget = renderTarget,
-            initialSize = size
-        ).also {
-            callback.target = it
-        }
-    }
 
     @MainThread
     @RequiresApi(29)
-    fun attachRenderTargetWithSurfaceView(surfaceView: SurfaceView, size: IntSize): SceneRenderTarget {
+    fun attachOffscreenRenderTarget(size: IntSize): SceneRenderTarget {
         check(!closed.get()) { "SceneGlOwner is closed" }
         check(size != IntSize.Zero) { "Scene render target size must be non-zero" }
-        Log.i("ImlaScenePresent", "present path: ${if (hwPresentEnabled) "HW" else "BLIT"}")
-        if (!hwPresentEnabled) {
-            // Blit on the SurfaceView's window surface (no zero-copy present).
-            return attachRenderTarget(surfaceView.holder.surface, size)
-        }
-        // HW present: render offscreen into the HardwareBuffer ring and hand each buffer to
-        // SurfaceFlinger via this SurfaceControl, so the GL target has no window surface.
-        sceneSurfaceControl = SurfaceControlCompat.Builder()
-            .setParent(surfaceView)
-            .setName("ImlaScene")
-            .build()
         val callback = SceneRenderCallback()
         val glTarget = glRenderer.createRenderTarget(size.width, size.height, callback)
         return SceneRenderTarget(
@@ -148,7 +102,8 @@ internal class SceneGlOwner(
     @MainThread
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
-        pendingRequest.getAndSet(null)?.close()
+        pendingBySlot.values.forEach { it.close() }
+        pendingBySlot.clear()
         presentScheduled.set(false)
         glRenderer.execute {
             threadGuard.bindCurrentThread()
@@ -164,10 +119,6 @@ internal class SceneGlOwner(
             renderPipeline = null
             graphicsContext?.destroy()
             graphicsContext = null
-            if (Build.VERSION.SDK_INT >= 29) {
-                sceneSurfaceControl?.release()
-                sceneSurfaceControl = null
-            }
         }
         glRenderer.stop(cancelPending = false)
     }
@@ -182,7 +133,12 @@ internal class SceneGlOwner(
         request.uiCapture.metricsFrame?.let { frame ->
             metrics.recordSubmitted(frame, request.readyAtNanos)
         }
-        val displaced = pendingRequest.getAndSet(request)
+        val slotId = request.uiCapture.slots.firstOrNull()?.id
+        if (slotId == null) {
+            request.close()
+            return
+        }
+        val displaced = pendingBySlot.put(slotId, request)
         displaced?.close()
         if (presentScheduled.compareAndSet(false, true) &&
             !target.requestRender(::onRenderComplete)
@@ -193,7 +149,8 @@ internal class SceneGlOwner(
 
     @MainThread
     internal fun onTargetDetached() {
-        pendingRequest.getAndSet(null)?.close()
+        pendingBySlot.values.forEach { it.close() }
+        pendingBySlot.clear()
         presentScheduled.set(false)
     }
 
@@ -228,11 +185,16 @@ internal class SceneGlOwner(
 
     @OnGlThread
     internal fun draw(targetSize: IntSize) {
-        consumePendingRequest()
+        val requests = drainPendingRequests()
+        if (requests.isEmpty()) return
         ensureGlResources()
-        val frame = glStore.frameForDraw(targetSize) ?: return
-        metrics.recordTargetSize(targetSize)
-        drawGlFrame(frame)
+        requests.forEach { request ->
+            consumeRequest(request)
+            val rootSize = glStore.currentRootSize() ?: return@forEach
+            val frame = glStore.frameForDraw(rootSize) ?: return@forEach
+            metrics.recordTargetSize(frame.targetSize)
+            drawGlFrame(frame)
+        }
     }
 
     private fun drawGlFrame(frame: SceneGlRenderFrame) {
@@ -247,38 +209,24 @@ internal class SceneGlOwner(
                 requireNotNull(renderPipeline).render(frame)
             }
         }
-        drawDropDebugMarkerIfNeeded(frame.targetSize)
         val finishedNanos = System.nanoTime()
         metrics.recordGlRender(frame.metricsFrame, startedNanos, finishedNanos)
         pendingRenderCompleteFrame = frame.metricsFrame
     }
 
-    private fun drawDropDebugMarkerIfNeeded(targetSize: IntSize) {
-        if (!metrics.consumeDropDebugMarker()) return
-        val markerSize = DROP_DEBUG_MARKER_SIZE_PX.coerceAtMost(
-            minOf(targetSize.width, targetSize.height)
-        )
-        if (markerSize <= 0) return
-        val commands = requireNotNull(graphicsContext).commands
-        SceneRenderMetricsLog.time("gl.dropDebugMarker") {
-            commands.bindDefaultFramebuffer(Bind.DRAW)
-            commands.enableScissorTest()
-            commands.setScissor(
-                x = 0,
-                y = targetSize.height - markerSize,
-                width = markerSize,
-                height = markerSize
-            )
-            commands.setClearColor(Color.Magenta)
-            commands.clear(commands.colorBufferBit)
-            commands.disableScissorTest()
+    @OnGlThread
+    private fun drainPendingRequests(): List<SceneFrameRequest> {
+        presentScheduled.set(false)
+        if (pendingBySlot.isEmpty()) return emptyList()
+        val drained = ArrayList<SceneFrameRequest>(pendingBySlot.size)
+        pendingBySlot.keys.toList().forEach { slotId ->
+            pendingBySlot.remove(slotId)?.let(drained::add)
         }
+        return drained
     }
 
     @OnGlThread
-    private fun consumePendingRequest() {
-        presentScheduled.set(false)
-        val request = pendingRequest.getAndSet(null) ?: return
+    private fun consumeRequest(request: SceneFrameRequest) {
         SceneRenderMetricsLog.time(
             phase = "gl.consumeSnapshot.total",
             details = "slots=${request.uiCapture.slots.size}"
@@ -359,15 +307,14 @@ internal class SceneGlOwner(
     ): SceneRenderPipeline {
         val graphicsContext = context
         return SceneRenderPipeline(
-            presenter = createPresenter(context),
+            presenter = createPresenter(),
             noisePass = SceneNoisePass(
                 commandsProvider = { graphicsContext.commands },
                 quadBatchRenderer = quadBatchRenderer,
                 shaderProgram = shaderPrograms.noise
             ),
             rootPass = SceneRootDrawPass(
-                commandsProvider = { graphicsContext.commands },
-                quadBatchRenderer = quadBatchRenderer
+                commandsProvider = { graphicsContext.commands }
             ),
             backdropPass = createBackdropPass(context, shaderPrograms),
             contentPass = SceneSlotContentPass(
@@ -382,26 +329,10 @@ internal class SceneGlOwner(
         )
     }
 
-    // Single source of truth for the present backend: a SurfaceControl is created at attach
-    // only when the HW path is selected (hwPresentEnabled && API 29+), so its presence picks
-    // the presenter. The SurfaceControl is borrowed; SceneGlOwner.close releases it.
-    // @SuppressLint: the SDK_INT >= 29 guard and the @RequiresApi(29) HardwareBufferPresenter
-    // call are separated by the nullable surfaceControl local, which lint cannot correlate.
-    @SuppressLint("NewApi")
-    private fun createPresenter(context: GraphicsContext): ScenePresenter {
-        val surfaceControl = if (Build.VERSION.SDK_INT >= 29) sceneSurfaceControl else null
-        return if (surfaceControl != null) {
-            HardwareBufferPresenter(surfaceControl)
-        } else {
-            BlitPresenter(
-                framebufferPool = context.fboPool,
-                supportsStencil = context::supportsHardwareStencilClipping,
-                presentPass = SceneFinalPresentPass(
-                    commandsProvider = { context.commands },
-                    quadBatchRenderer = quadBatchRenderer
-                )
-            )
-        }
+    @android.annotation.SuppressLint("NewApi")
+    private fun createPresenter(): ScenePresenter {
+        check(Build.VERSION.SDK_INT >= 29) { "Hardware bitmap present requires API 29" }
+        return HardwareBitmapPresenter(onPresented = onHardwareBitmapPresented)
     }
 
     private fun createBackdropPass(
@@ -601,10 +532,12 @@ internal class SceneGlOwner(
         return GlFrame(
             root = root,
             textures = textures,
-            liveSlotIds = uiCapture.slots.mapTo(mutableSetOf()) { it.id },
-            clippedSlotIds = uiCapture.slots
-                .filter { it.requiresClip }
-                .mapTo(mutableSetOf()) { it.id }
+            liveSlotIds = uiCapture.liveSlotIds.ifEmpty {
+                uiCapture.slots.mapTo(mutableSetOf()) { it.id }
+            },
+            clippedSlotIds = uiCapture.liveSlotIds.ifEmpty {
+                uiCapture.slots.mapTo(mutableSetOf()) { it.id }
+            }
         )
     }
 
@@ -779,8 +712,6 @@ internal class SceneGlOwner(
         }
     }
 }
-
-private const val DROP_DEBUG_MARKER_SIZE_PX = 32
 
 private data class GlFrame(
     val root: PreparedSceneRoot,

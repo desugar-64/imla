@@ -43,12 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 @Composable
 internal fun CaptureFidelityScene(modifier: Modifier = Modifier) {
     ImlaHost(modifier = modifier, showMetricsOverlay = false) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .effectGroup()
-        ) {
-            Column(Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .effectSource()
+            ) {
                 Band("A: plain compose", Modifier.weight(1f)) {
                     Checkerboard(Modifier.fillMaxSize(), Color(0xFFFF5252), Color(0xFF4CAF50))
                 }

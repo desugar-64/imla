@@ -24,6 +24,15 @@ internal class SceneRegistry {
     private val slots = LinkedHashMap<SceneSlotId, RegisteredSceneSlot>()
     private var nextSlotId = 0L
     private var nextDrawOrder = 0
+    var sourceLayer: GraphicsLayer? = null
+        private set
+    var sourceCoordinates: LayoutCoordinates? = null
+        private set
+
+    fun setSource(layer: GraphicsLayer?, coordinates: LayoutCoordinates?) {
+        sourceLayer = layer
+        sourceCoordinates = coordinates
+    }
 
     fun createSlot(): SceneSlotHandle {
         val id = SceneSlotId(nextSlotId++)

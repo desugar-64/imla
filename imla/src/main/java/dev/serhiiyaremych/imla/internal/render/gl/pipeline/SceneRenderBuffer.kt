@@ -16,7 +16,7 @@ import dev.serhiiyaremych.imla.internal.render.framebuffer.Bind
 import dev.serhiiyaremych.imla.internal.render.framebuffer.Framebuffer
 
 /**
- * Owned scene draw target between the captured root texture and the default surface.
+ * Owned scene draw target between the captured root texture and hardware-bitmap present.
  *
  * Non-rectangle clip shapes use a stencil-capable attachment. Future cumulative blur should expand
  * this into read/write accumulation buffers so each slot can sample the scene produced by previous

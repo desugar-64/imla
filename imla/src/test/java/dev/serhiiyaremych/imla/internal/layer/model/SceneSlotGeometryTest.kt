@@ -37,4 +37,16 @@ class SceneSlotGeometryTest {
         assertEquals(Offset(0f, 140f), geometry.rootQuad.topLeft)
         assertEquals(Offset(100f, 240f), geometry.rootQuad.bottomRight)
     }
+
+    @Test
+    fun relativeToShiftsRootBoundsIntoCropSpace() {
+        val localToRoot = Matrix().apply { translate(40f, 80f) }
+        val geometry = SceneSlotGeometry.from(
+            localSize = IntSize(100, 50),
+            localToRoot = localToRoot
+        ).relativeTo(Offset(40f, 80f))
+
+        assertEquals(Offset(0f, 0f), geometry.rootQuad.topLeft)
+        assertEquals(Offset(100f, 50f), geometry.rootQuad.bottomRight)
+    }
 }

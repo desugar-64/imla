@@ -164,7 +164,7 @@ class MainActivity : ComponentActivity() {
                                 Surface(
                                     Modifier
                                         .fillMaxSize()
-                                        .effectGroup(),
+                                        .effectSource(),
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         if (alphaCompositeSceneEnabled) {
@@ -268,11 +268,11 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun PlainRootListScene(modifier: Modifier = Modifier) {
-        Box(modifier = modifier) {
+            Box(modifier = modifier) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .effectGroup()
+                    .effectSource()
                     .background(Color.White),
                 contentPadding = PaddingValues(
                     top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
@@ -366,28 +366,7 @@ class MainActivity : ComponentActivity() {
             modifier = modifier
                 .height(120.dp)
                 .fillMaxWidth()
-                .effectLayer(
-                    style = DemoEffectStyle.default.copy(
-                        sigma = 10f,
-                        tint = Color.White.copy(alpha = 0.1f),
-                        noiseAlpha = 0.1f,
-                        blurOpacity = 1f
-                    ),
-                    blurMask = Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color.Transparent,
-                            0.04f to Color.White.copy(alpha = 0.05f),
-                            0.09f to Color.White.copy(alpha = 0.15f),
-                            0.17f to Color.White.copy(alpha = 0.3f),
-                            0.25f to Color.White.copy(alpha = 0.5f),
-                            0.34f to Color.White,
-                            1.0f to Color.White
-                        ),
-                    )
-                )
                 .padding(horizontal = 30.dp, vertical = 16.dp)
-                .fillMaxWidth(0.9f)
-                .height(72.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -617,44 +596,42 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     Modifier
                         .fillMaxSize()
-                        .effectGroup(),
+                        .effectSource(),
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Content(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = 64.dp + WindowInsets.statusBars.asPaddingValues()
-                                    .calculateTopPadding(),
-                                bottom = 64.dp + WindowInsets.navigationBars.asPaddingValues()
-                                    .calculateBottomPadding() + 16.dp
-                            ),
-                            onImageClick = { viewingImage.value = it },
-                        )
-
-                        BottomNavigationGlass(
-                            selectedIndex = 0,
-                            onItemSelected = {},
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-
-                        BlurredTopBar(
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            onSettingsClick = { showBottomSheet.value = true }
-                        )
-
-                        BlurSettingsBottomSheet(
-                            visible = showBottomSheet.value,
-                            onDismissRequest = { showBottomSheet.value = false }
-                        )
-
-                        SceneImageViewerOverlay(
-                            imageUrl = viewingImage.value,
-                            blurSigma = blurAnimationValue.value,
-                            tintAlpha = tintAnimationValue.value,
-                            onDismiss = { viewingImage.value = "" }
-                        )
-                    }
+                    Content(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            top = 64.dp + WindowInsets.statusBars.asPaddingValues()
+                                .calculateTopPadding(),
+                            bottom = 64.dp + WindowInsets.navigationBars.asPaddingValues()
+                                .calculateBottomPadding() + 16.dp
+                        ),
+                        onImageClick = { viewingImage.value = it },
+                    )
                 }
+
+                BottomNavigationGlass(
+                    selectedIndex = 0,
+                    onItemSelected = {},
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+
+                BlurredTopBar(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    onSettingsClick = { showBottomSheet.value = true }
+                )
+
+                BlurSettingsBottomSheet(
+                    visible = showBottomSheet.value,
+                    onDismissRequest = { showBottomSheet.value = false }
+                )
+
+                SceneImageViewerOverlay(
+                    imageUrl = viewingImage.value,
+                    blurSigma = blurAnimationValue.value,
+                    tintAlpha = tintAnimationValue.value,
+                    onDismiss = { viewingImage.value = "" }
+                )
             }
         }
     }
@@ -685,13 +662,11 @@ class MainActivity : ComponentActivity() {
             label = "blob-progress"
         )
         ImlaHost(modifier = modifier) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .effectGroup()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 androidx.compose.foundation.Canvas(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .effectSource()
                 ) {
                     drawRect(Color(0xFF0D0830))
                     val w = size.width

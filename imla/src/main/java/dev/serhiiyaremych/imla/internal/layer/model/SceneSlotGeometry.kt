@@ -48,6 +48,20 @@ internal data class SceneSlotGeometry(
             )
         }
     }
+
+    /**
+     * Rebases this geometry so [cropOrigin] in root space becomes (0, 0). Used when the
+     * backdrop capture is a crop of the source layer rather than the full source.
+     */
+    fun relativeTo(cropOrigin: Offset): SceneSlotGeometry {
+        val cropSpace = Matrix()
+        cropSpace.translate(-cropOrigin.x, -cropOrigin.y)
+        cropSpace *= localToRoot
+        return from(
+            localSize = localSize,
+            localToRoot = cropSpace
+        )
+    }
 }
 
 internal data class SceneQuad(

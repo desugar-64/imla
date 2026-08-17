@@ -59,17 +59,13 @@ backdrop — rendered on a calibration grid so the effect is easy to read.
 ## Usage
 
 Wrap a screen — or any region — in `ImlaHost`, then declare blur regions with the
-`effectGroup` / `effectLayer` modifiers. No renderer or OpenGL objects are passed
+`effectSource` / `effectLayer` modifiers. No renderer or OpenGL objects are passed
 to children; they register through the host.
 
 ```kotlin
 ImlaHost {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .effectGroup() // the backdrop that effect layers sample from
-    ) {
-        FeedContent()
+    Box(Modifier.fillMaxSize()) {
+        FeedContent(Modifier.fillMaxSize().effectSource())
 
         TopBar(
             modifier = Modifier.effectLayer {
@@ -85,49 +81,48 @@ ImlaHost {
 
 Public API:
 [`ImlaHost`](imla/src/main/java/dev/serhiiyaremych/imla/ImlaHost.kt#L58),
-[`Modifier.effectGroup()`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L25),
-[`Modifier.effectLayer { ... }`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L33),
+[`Modifier.effectSource()`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L24),
+[`Modifier.effectLayer { ... }`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L40),
 [`EffectLayerScope`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L59), and
 [`EffectLayerBoundsProvider`](imla/src/main/java/dev/serhiiyaremych/imla/EffectLayer.kt#L45).
 
 ## Architecture
 
-`ImlaHost` wraps everything inside it into a **single** GPU-backed surface and
-renders all content and effects through it. Children never touch the renderer —
-they register through the host's `SceneRegistry`.
+`ImlaHost` provides a renderer and layer registry. On API 29+ `Modifier.effectSource()`
+records backdrop content and draws it through HWUI. Each sibling `effectLayer`
+crop-captures that source in its own bounds, the renderer composites effects into a
+layer-sized hardware `Bitmap`, and the layer `drawImage`s it. There is no host
+`SurfaceView`. On API 23–28 the source and layers draw recorded content with no
+effects.
 
 ```mermaid
 flowchart TB
     Host["ImlaHost { }"]
     Content["content() — your screen UI"]
-    Group["Modifier.effectGroup()<br/>backdrop the layers sample"]
-    Layer["Modifier.effectLayer { }<br/>blur · tint · noise · clip"]
+    Source["Modifier.effectSource()<br/>records backdrop, drawLayer"]
+    Layer["Modifier.effectLayer { }<br/>crop · blur · tint · noise · clip"]
     Registry[("SceneRegistry")]
     Renderer["SceneRenderer"]
-    Surface["single output SurfaceView<br/>API 29+ · SurfaceControl (zero-copy)<br/>API 23–28 · blit into Surface"]
+    Bitmap["hardware Bitmap in effectLayer draw"]
 
     Host --> Content
-    Host --> Surface
-    Content --> Group
+    Content --> Source
     Content --> Layer
-    Group -. registers .-> Registry
+    Source -. registers .-> Registry
     Layer -. registers .-> Registry
     Registry --> Renderer
-    Renderer -- presents --> Surface
+    Renderer -- presents --> Bitmap
+    Layer --> Bitmap
 ```
 
-The output is a single `SurfaceView` on all supported APIs (Compose's
-`AndroidExternalSurface` is itself backed by a `SurfaceView`). What differs is how
-the renderer presents into it:
+- **API 29+** — GL composites each layer offscreen into a `HardwareBuffer`, wraps
+  it as a hardware `Bitmap`, and `effectLayer` `drawImage`s it (Y-flipped to
+  match HWUI).
+- **API 23–28** — `wrapHardwareBuffer` does not exist; the source and layers draw
+  their recorded `GraphicsLayer`s with no GL present.
 
-- **API 29+** — the `SurfaceView` is driven via `SurfaceControl`; the renderer
-  hands `HardwareBuffer`s straight to SurfaceFlinger with no present pass or
-  `eglSwapBuffers` (zero-copy).
-- **API 23–28** — there is no `SurfaceControl`, so the renderer blits into the
-  `SurfaceView`'s `Surface` (obtained through `AndroidExternalSurface`).
-
-The root content is captured **once per frame** and shared by every effect
-layer that samples it.
+Each effect layer captures only its bounds from the source `GraphicsLayer`, not
+the full window.
 
 ### Per-frame flow
 
@@ -136,22 +131,22 @@ sequenceDiagram
     participant UI as Compose main thread
     participant CAP as Capture thread
     participant GL as GL thread
-    participant OUT as Output (SurfaceControl / EGL)
     UI->>UI: record content into a GraphicsLayer (draw pass)
+    UI->>UI: drawImage latest hardware Bitmap (or drawLayer until first result)
     UI->>UI: vsync-align capture (postOnAnimation)
     UI->>CAP: HardwareRenderer.syncAndDraw → HardwareBuffer
     CAP-->>UI: HardwareBuffer ready (async)
     UI->>GL: hand off latest-only snapshot, requestRender
     GL->>GL: import HardwareBuffer zero-copy (EGLImage)
     Note over GL: noise (once) → root draw →<br/>per slot: [stencil clip] prepare → separable blur →<br/>composite (tint · noise · mask fused) → content
-    GL->>OUT: present — API 29+ SurfaceControl (zero-copy) · else blit + swap
+    GL->>UI: wrapHardwareBuffer → invalidateDraw
 ```
 
 ### HardwareBuffers end-to-end
 
-The Compose root is drawn into a single shared `HardwareBuffer` (a `RenderNode`
-rendered single-buffered off the main thread), and every effect layer samples that
-one backdrop. Capture lives in
+The Compose source is recorded into a `GraphicsLayer`. Each effect layer
+crop-captures that layer in its own bounds into a small `HardwareBuffer` (a
+`RenderNode` rendered single-buffered off the main thread). Capture lives in
 [`SingleBufferRenderer`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/SingleBufferRenderer.kt);
 the buffer is leased to the GL thread via
 [`BufferLease`](imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/BufferLease.kt).
@@ -162,12 +157,13 @@ The GL thread imports it **zero-copy** with `eglCreateImageFromHardwareBuffer` +
 driven by
 [`CapturedFrameImporter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/CapturedFrameImporter.kt).
 
-On API 29+ the finished `HardwareBuffer` goes straight to SurfaceFlinger (see
+On API 29+ the finished `HardwareBuffer` is wrapped as a hardware `Bitmap` (see
 [`ScenePresenter`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt)
 and the buffer ring
-[`SceneHwBufferRing`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneHwBufferRing.kt)),
-so pixels stay in GPU/shared memory across capture → effects → present. This path
-is the main thing being experimented with here, and is still being tuned.
+[`SceneHwBufferRing`](imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneHwBufferRing.kt))
+and drawn in the effect layer. Pixels stay in GPU/shared memory across capture →
+effects → present. This path is the main thing being experimented with here, and
+is still being tuned.
 
 ## Rendering Abstraction
 
@@ -212,7 +208,8 @@ adds overhead — a future optimization target.
 
 ## Roadmap
 
-- [x] Render the Compose root through OpenGL behind a single host surface;
+- [x] Present each `effectLayer` as a layer-sized hardware `Bitmap` (API 29+;
+  no host SurfaceView); `effectSource` draws through HWUI;
 - [x] Capture and draw child content as GL textures;
 - [x] Validate rotated slot geometry and root-space backdrop sampling;
 - [x] Real separable Gaussian blur passes;
@@ -222,12 +219,9 @@ adds overhead — a future optimization target.
 
 ### To explore
 
-- **Present via hardware `Bitmap`, no SurfaceView.** Wrap the result
-  `HardwareBuffer` as a hardware `Bitmap` (`Bitmap.wrapHardwareBuffer`, API 29+)
-  and draw it in the Compose layout. It then composites through the normal Android
-  (HWUI) path, so the host need not redirect the whole layout through our renderer.
-  Open question: is it faster than the SurfaceView present, especially on low-end
-  devices?
+- **Pre-29 effect present without a SurfaceView.** `wrapHardwareBuffer` is API
+  29+; older APIs currently passthrough-draw with no effects. Options: software
+  `Bitmap` copy, or raise `minSdk`.
 - **Compute-shader effect path.** Run the separable blur as a GLES 3.1 compute
   shader instead of fragment passes into FBOs, skipping rasterization and some FBO
   ping-pong. Open questions: faster on mobile GPUs? compute-support / min-API

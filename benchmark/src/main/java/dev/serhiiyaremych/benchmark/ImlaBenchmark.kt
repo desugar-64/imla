@@ -95,21 +95,15 @@ class ImlaBenchmark {
     private fun traceSectionMaxMetrics(vararg sectionNames: String) =
         sectionNames.map { metricSection(it, TraceSectionMetric.Mode.Max) }
 
-    /** Zero-copy HardwareBuffer + SurfaceControl present path (default). */
+    /** Hardware Bitmap present path (API 29+). */
     @RequiresApi(Build.VERSION_CODES.Q)
     @OptIn(ExperimentalMetricApi::class)
     @Test
-    fun measureRendering_hwPresent() = measureRendering(hwPresent = true)
-
-    /** Blit control arm: same binary + SurfaceView, only the present mechanism differs. */
-    @RequiresApi(Build.VERSION_CODES.Q)
-    @OptIn(ExperimentalMetricApi::class)
-    @Test
-    fun measureRendering_blit() = measureRendering(hwPresent = false)
+    fun measureRendering_bitmapPresent() = measureRendering()
 
     @RequiresApi(Build.VERSION_CODES.Q)
     @OptIn(ExperimentalMetricApi::class)
-    private fun measureRendering(hwPresent: Boolean) = benchmarkRule.measureRepeated(
+    private fun measureRendering() = benchmarkRule.measureRepeated(
         packageName = "dev.serhiiyaremych.imla",
         compilationMode = CompilationMode.Full(),
         // Basic control + the pacing probe. traceSectionMaxMetrics stay out until
@@ -121,11 +115,6 @@ class ImlaBenchmark {
         iterations = 3,
         startupMode = StartupMode.WARM,
         setupBlock = {
-            // Select the present path for this arm, then force a fresh process so the
-            // renderer snapshots the new value (SceneRenderFlags reads it at attach).
-            device.executeShellCommand(
-                "setprop log.tag.ImlaBlitPresent " + if (hwPresent) "ASSERT" else "DEBUG"
-            )
             killProcess()
             pressHome()
             startActivityAndWait()

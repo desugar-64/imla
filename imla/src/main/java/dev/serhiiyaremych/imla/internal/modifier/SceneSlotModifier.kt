@@ -1,15 +1,20 @@
 package dev.serhiiyaremych.imla.internal.modifier
 
+import android.os.Build
 import android.view.View
 import android.view.ViewTreeObserver
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -18,6 +23,7 @@ import androidx.compose.ui.node.LayoutAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalDensity
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import dev.serhiiyaremych.imla.EffectLayerBoundsProvider
 import dev.serhiiyaremych.imla.internal.layer.model.SceneBackdropComposite
 import dev.serhiiyaremych.imla.internal.layer.model.SceneBackdropEffect
+import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.layer.registry.LocalSceneRegistry
 import dev.serhiiyaremych.imla.internal.layer.registry.SceneRegistry
 import dev.serhiiyaremych.imla.internal.layer.registry.SceneSlotHandle
@@ -84,6 +91,8 @@ private class SceneSlotNode(
     private var currentView: View? = null
     private var sceneRenderer: SceneRenderer? = null
     private var outOfWindowKickView: View? = null
+    private var presentingOutput: Boolean = false
+    private var presentInvalidateId: SceneSlotId? = null
 
     // A slot in a separate window (e.g. a ModalBottomSheet overlay) is invisible
     // to the effect group's main-window draw listener, so its content and moving
@@ -134,10 +143,37 @@ private class SceneSlotNode(
     }
 
     override fun ContentDrawScope.draw() {
-        if (drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
-            recordContentLayer()
-        } else {
+        if (!drawContext.canvas.nativeCanvas.isHardwareAccelerated) {
             drawContent()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+            sceneRenderer?.ensureGlTarget()
+            bindPresentInvalidate()
+            val presented = sceneRenderer?.presentedImage(handle?.id)
+            if (presented != null) {
+                if (!presentingOutput) {
+                    recordContentLayer()
+                }
+                drawPresentedImage(presented)
+                presentingOutput = false
+                return
+            }
+        }
+        recordContentLayer()
+        layerRing.latestRecorded?.let { drawLayer(it) } ?: drawContent()
+    }
+
+    private fun ContentDrawScope.drawPresentedImage(image: ImageBitmap) {
+        scale(
+            scaleX = 1f,
+            scaleY = -1f,
+            pivot = Offset(size.width / 2f, size.height / 2f)
+        ) {
+            drawImage(
+                image,
+                dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
+            )
         }
     }
 
@@ -172,6 +208,8 @@ private class SceneSlotNode(
     override fun onDetach() {
         super.onDetach()
         removeOutOfWindowKick()
+        presentInvalidateId?.let { sceneRenderer?.setPresentInvalidate(it, null) }
+        presentInvalidateId = null
         handle?.detach()
         layerRing.releaseAll(this)
         handle = null
@@ -212,6 +250,19 @@ private class SceneSlotNode(
             clipContent = config.clipContent,
             contentLayer = layerRing.latestRecorded
         )
+        bindPresentInvalidate()
+    }
+
+    private fun bindPresentInvalidate() {
+        val renderer = sceneRenderer ?: return
+        val id = handle?.id ?: return
+        if (presentInvalidateId == id) return
+        presentInvalidateId?.let { renderer.setPresentInvalidate(it, null) }
+        presentInvalidateId = id
+        renderer.setPresentInvalidate(id) {
+            presentingOutput = true
+            invalidateDraw()
+        }
     }
 
     private fun resolveBlurSigmaPx(): Float? {

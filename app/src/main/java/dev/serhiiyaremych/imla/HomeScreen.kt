@@ -34,7 +34,7 @@ private val DEMO_ENTRIES = listOf(
     DemoEntry(DemoScene.PAGER, "Pager", "Multi-page glass cards"),
     DemoEntry(DemoScene.ROTATING_CARDS, "Rotating Cards", "3D-tilt blur tiles"),
     DemoEntry(DemoScene.HAZE_CARDS, "Haze Cards (ref)", "Same tiles via Haze backdrop blur"),
-    DemoEntry(DemoScene.RESIZE_CARD, "Resize Card", "Expand/collapse blur card bounds"),
+    DemoEntry(DemoScene.RESIZE_CARD, "Resize Card", "Expand/collapse blur card; sibling UI outside the group"),
     DemoEntry(DemoScene.CAPTURE_FIDELITY, "Capture Fidelity", "RenderEffect & SurfaceView capture probe (#13)"),
 )
 

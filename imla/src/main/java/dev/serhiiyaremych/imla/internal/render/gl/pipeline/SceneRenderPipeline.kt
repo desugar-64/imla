@@ -60,7 +60,8 @@ internal class SceneRenderPipeline(
         ) {
             presenter.acquire(
                 size = targetSize,
-                requiresStencil = slots.any { it.requiresClip }
+                requiresStencil = slots.any { it.requiresClip },
+                slotId = slots.firstOrNull()?.id
             )
         }
 
@@ -95,15 +96,13 @@ internal class SceneRenderPipeline(
     }
 
     private fun drawFrame(preparedFrame: ScenePreparedFrame) {
-        drawRoot(preparedFrame)
+        // Overlay present: the source is already in HWUI. Clear to transparent and
+        // composite only this layer's glass + content so the bitmap has real alpha.
+        SceneRenderMetricsLog.time("render.root") {
+            rootPass.beginOverlay(preparedFrame.frame, preparedFrame.renderBuffer)
+        }
         drawSlots(preparedFrame)
         present(preparedFrame)
-    }
-
-    private fun drawRoot(preparedFrame: ScenePreparedFrame) {
-        SceneRenderMetricsLog.time("render.root") {
-            rootPass.draw(preparedFrame.frame, preparedFrame.renderBuffer)
-        }
     }
 
     private fun drawSlots(preparedFrame: ScenePreparedFrame) {
@@ -139,7 +138,7 @@ internal class SceneRenderPipeline(
         slot: SceneGlRenderSlot
     ): ScenePreparedSlot {
         val backdrop = backdropPass.prepare(
-            input = BackdropInput.accumulatedScene(preparedFrame.renderBuffer),
+            input = BackdropInput.root(preparedFrame.frame),
             frame = preparedFrame.frame,
             slot = slot
         )

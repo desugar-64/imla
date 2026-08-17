@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,8 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.serhiiyaremych.imla.ImlaHost
-import dev.serhiiyaremych.imla.effectGroup
 import dev.serhiiyaremych.imla.effectLayer
+import dev.serhiiyaremych.imla.effectSource
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 
@@ -71,12 +72,28 @@ internal fun ResizeCardScene(modifier: Modifier = Modifier) {
     )
 
     ImlaHost(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .effectGroup()
-                .drawResizeBackground()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "Sibling chrome above the effect group",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF123A25))
+                    .clickable { }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .effectSource()
+                        .drawResizeBackground()
+                )
             val shape = RoundedCornerShape(28.dp)
             Surface(
                 modifier = Modifier
@@ -127,6 +144,17 @@ internal fun ResizeCardScene(modifier: Modifier = Modifier) {
                     }
                 }
             }
+            }
+            Text(
+                text = "Sibling chrome below the effect group",
+                color = Color.White,
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF4A1616))
+                    .clickable { }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            )
         }
     }
 }

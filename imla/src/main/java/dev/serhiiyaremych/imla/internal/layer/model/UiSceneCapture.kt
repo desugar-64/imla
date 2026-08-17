@@ -9,6 +9,7 @@ internal data class UiSceneCapture(
     val rootCaptureDurationNanos: Long = 0L,
     val frameBudgetNanos: Long = 0L,
     val slots: List<SceneSlotDeclaration> = emptyList(),
+    val liveSlotIds: Set<SceneSlotId> = emptySet(),
     val uiCaptures: UiCaptures = UiCaptures.Empty,
     val metricsFrame: SceneMetricsFrame? = null
 ) {

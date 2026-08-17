@@ -16,19 +16,26 @@ import dev.serhiiyaremych.imla.internal.modifier.effectGroupInternal
 import dev.serhiiyaremych.imla.internal.modifier.effectLayerInternal
 
 /**
- * Marks this subtree as one Imla effect group.
+ * Marks this subtree as the backdrop source for sibling [effectLayer] modifiers.
  *
- * The group is captured as backdrop content and defines the coordinate space used by descendant
- * [effectLayer] modifiers. Imla handles this capture as part of its rendering pipeline; callers
- * should not treat it as generic post-processing over the whole app window.
+ * Records a [GraphicsLayer] and draws it through HWUI. Layers crop-capture this
+ * layer in their own bounds; the source is never presented through GL.
  */
-public fun Modifier.effectGroup(): Modifier {
+public fun Modifier.effectSource(): Modifier {
     return effectGroupInternal()
+}
+
+@Deprecated(
+    message = "Renamed to effectSource(); the source is not a GL present surface",
+    replaceWith = ReplaceWith("effectSource()")
+)
+public fun Modifier.effectGroup(): Modifier {
+    return effectSource()
 }
 
 /**
  * Marks this composable as an Imla foreground effect layer. Effects are declared in [configure];
- * the layer samples the backdrop of its enclosing [effectGroup].
+ * the layer crop-captures the nearest [effectSource] and presents a layer-sized bitmap.
  */
 public fun Modifier.effectLayer(
     configure: EffectLayerScope.() -> Unit

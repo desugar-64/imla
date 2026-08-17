@@ -5,7 +5,6 @@
 
 package dev.serhiiyaremych.imla.internal.render.gl.pipeline
 
-import android.annotation.SuppressLint
 import android.hardware.HardwareBuffer
 import android.opengl.GLES30
 import androidx.annotation.RequiresApi
@@ -36,13 +35,6 @@ internal class SceneHwBuffer private constructor(
     }
 
     companion object {
-        // AHARDWAREBUFFER_USAGE_COMPOSER_OVERLAY is required for ASurfaceTransaction#setBuffer.
-        // The SDK constant (HardwareBuffer.USAGE_COMPOSER_OVERLAY) is API 33+, so we pass the raw
-        // value; it is valid from API 29. @SuppressLint("WrongConstant") because the literal is not
-        // one of the recognised HardwareBuffer.USAGE_* @IntDef values at this compile SDK.
-        private const val USAGE_COMPOSER_OVERLAY: Long = 2048L
-
-        @SuppressLint("WrongConstant")
         fun create(size: IntSize): SceneHwBuffer {
             val hwBuffer = HardwareBuffer.create(
                 size.width,
@@ -50,8 +42,7 @@ internal class SceneHwBuffer private constructor(
                 HardwareBuffer.RGBA_8888,
                 1,
                 HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or
-                    HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or
-                    USAGE_COMPOSER_OVERLAY
+                    HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
             )
             val texture = checkNotNull(
                 OpenGLHardwareBufferTexture2D.createFromBuffer(
