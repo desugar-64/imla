@@ -36,6 +36,7 @@ internal class SceneMetrics {
     private val glRenderTime = DurationWindow()
     private val glFrameTime = DurationWindow()
     private val drawLatency = DurationWindow()
+    private val presentLag = DurationWindow()
     private val renderedFrameTimes = LongWindow()
     private val slotCaptureAttempted = LatestLongMetric()
     private val slotCaptureCaptured = LatestLongMetric()
@@ -274,6 +275,12 @@ internal class SceneMetrics {
         }
     }
 
+    fun recordPresentLag(lagNanos: Long) {
+        synchronized(lock) {
+            presentLag.add(lagNanos)
+        }
+    }
+
     fun snapshot(): SceneMetricsSnapshot {
         val nowNanos = System.nanoTime()
         return synchronized(lock) {
@@ -317,6 +324,8 @@ internal class SceneMetrics {
                 latestMainSubmitMs = mainSubmitTime.latestMs(),
                 latestGlFrameMs = glFrameTime.latestMs(),
                 latestDrawLatencyMs = drawLatency.latestMs(),
+                presentLagMs = presentLag.averageMs(),
+                latestPresentLagMs = presentLag.latestMs(),
                 featureStats = featureStats.snapshot(),
                 resourceStats = ShaderStats.snapshot(),
                 renderPasses = SceneRenderPassMetric.entries.map { pass ->
@@ -374,6 +383,8 @@ internal class SceneMetrics {
  * @property glRenderMs average time spent rendering the scene pipeline into the output surface.
  * @property glFrameMs average GL work for one scene frame: imports and render.
  * @property drawLatencyMs average time from source modifier pre-draw to GL render completion.
+ * @property presentLagMs average time from captured UI vsync to first `drawImage` of that frame.
+ * @property latestPresentLagMs newest capture-vsync to first-`drawImage` sample.
  * @property latestMainSubmitMs newest main-thread pre-draw-to-submit sample.
  * @property latestGlFrameMs newest GL import-plus-draw sample.
  * @property latestDrawLatencyMs newest pre-draw-to-render-complete sample.
@@ -421,6 +432,8 @@ internal data class SceneMetricsSnapshot(
     val latestMainSubmitMs: Float = 0f,
     val latestGlFrameMs: Float = 0f,
     val latestDrawLatencyMs: Float = 0f,
+    val presentLagMs: Float = 0f,
+    val latestPresentLagMs: Float = 0f,
     val featureStats: SceneFeatureStats = SceneFeatureStats(),
     val resourceStats: ShaderStatsSnapshot = ShaderStatsSnapshot(),
     val renderPasses: List<SceneRenderPassSnapshot> = emptyList()

@@ -162,11 +162,12 @@ private fun SceneMetricsOverlayState.formatCollapsedOverlayText(): String {
     }
     return String.format(
         Locale.US,
-        "Scene %.1ffps  CPU %.1fms  GL %.1fms  Lat %.1fms%s",
+        "Scene %.1ffps  CPU %.1fms  GL %.1fms  Lag %.1ff %.0fms%s",
         snapshot.fps,
         snapshot.mainSubmitMs,
         snapshot.glFrameMs,
-        snapshot.drawLatencyMs,
+        presentLagFrames(snapshot),
+        snapshot.presentLagMs,
         pressureSkips
     )
 }
@@ -235,6 +236,7 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
                 "Shader    %s\n" +
                 "Shader binds/uploads %d/%d\n\n" +
                 "END-TO-END\n" +
+                "Present lag             %.2f ms   %.2f frames   latest %.2f ms\n" +
                 "Input -> rendered       %.2f ms\n" +
                 "Submit -> GL start      %.2f ms\n" +
                 "Frames                  %d rendered / %d submitted\n" +
@@ -318,6 +320,9 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
         resourceStats.shader.formatResourceLifetime(),
         resourceStats.shaderBinds,
         resourceStats.shaderUploads,
+        snapshot.presentLagMs,
+        presentLagFrames(snapshot),
+        snapshot.latestPresentLagMs,
         snapshot.drawLatencyMs,
         snapshot.glQueueDelayMs,
         snapshot.renderedFrames,
@@ -329,6 +334,14 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
         snapshot.sceneWorkCoalescedFrames,
         snapshot.captureFailures
     )
+}
+
+private fun SceneMetricsOverlayState.presentLagFrames(
+    snapshot: SceneMetricsSnapshot = this.snapshot
+): Float {
+    val budgetMs = frameBudgetMs ?: (DEFAULT_FRAME_BUDGET_NANOS / 1_000_000f)
+    if (budgetMs <= 0f) return 0f
+    return snapshot.presentLagMs / budgetMs
 }
 
 private fun SceneMetricsSnapshot.renderPass(pass: SceneRenderPassMetric): SceneRenderPassSnapshot {

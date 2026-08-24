@@ -20,6 +20,10 @@ internal class SceneRenderTarget internal constructor(
         glOwner.submit(this, request)
     }
 
+    fun submitAndWait(request: SceneFrameRequest, timeoutMs: Long): Boolean {
+        return glOwner.submitAndWait(this, request, timeoutMs)
+    }
+
     fun resize(size: IntSize) {
         if (size == IntSize.Zero || detached.get()) return
         this.size = size

@@ -83,6 +83,13 @@ internal class SceneGlOwner(
     private var graphicsContext: GraphicsContext? = null
     private var pendingRenderCompleteFrame: SceneMetricsFrame? = null
     private var renderPipeline: SceneRenderPipeline? = null
+    @android.annotation.SuppressLint("NewApi")
+    private val hardwareBitmapPresenter: HardwareBitmapPresenter? =
+        if (Build.VERSION.SDK_INT >= 29) {
+            HardwareBitmapPresenter(onPresented = onHardwareBitmapPresented)
+        } else {
+            null
+        }
 
     @MainThread
     @RequiresApi(29)
@@ -145,6 +152,23 @@ internal class SceneGlOwner(
         ) {
             presentScheduled.set(false)
         }
+    }
+
+    @MainThread
+    internal fun submitAndWait(
+        target: SceneRenderTarget,
+        request: SceneFrameRequest,
+        timeoutMs: Long
+    ): Boolean {
+        val presenter = hardwareBitmapPresenter ?: run {
+            submit(target, request)
+            return false
+        }
+        presenter.beginSynchronousPresent()
+        submit(target, request)
+        val result = presenter.awaitSynchronousPresent(timeoutMs) ?: return false
+        onHardwareBitmapPresented(result.first, result.second)
+        return true
     }
 
     @MainThread
@@ -332,7 +356,7 @@ internal class SceneGlOwner(
     @android.annotation.SuppressLint("NewApi")
     private fun createPresenter(): ScenePresenter {
         check(Build.VERSION.SDK_INT >= 29) { "Hardware bitmap present requires API 29" }
-        return HardwareBitmapPresenter(onPresented = onHardwareBitmapPresented)
+        return requireNotNull(hardwareBitmapPresenter)
     }
 
     private fun createBackdropPass(

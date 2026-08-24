@@ -151,7 +151,7 @@ class MainActivity : ComponentActivity() {
                     if (blurBenchmarkParams != null) {
                         ImlaHost(
                             modifier = Modifier.fillMaxSize(),
-                            showMetricsOverlay = false
+                            showMetricsOverlay = true
                         ) {
                             BlurBenchmarkScene(
                                 params = blurBenchmarkParams,

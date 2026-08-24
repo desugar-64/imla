@@ -36,9 +36,10 @@ import kotlin.math.roundToInt
 /**
  * Records backdrop content into a [GraphicsLayer] and draws it through HWUI.
  *
- * Sibling [effectLayer]s crop-capture this layer. Capture is deferred to the view-tree
- * draw callback so the latest Compose draw has recorded the layer first.
- * Falls back to normal content drawing on non-hardware-accelerated canvases.
+ * Sibling [effectLayer]s crop-capture this layer. Capture + GL present block in
+ * [ViewTreeObserver.OnDrawListener] after HWUI has drawn, then the next Compose
+ * draw `drawImage`s the hardware bitmap. Falls back to normal content drawing
+ * on non-hardware-accelerated canvases.
  */
 internal fun Modifier.effectGroupInternal(): Modifier {
     return this then SceneSourceElement
@@ -65,12 +66,11 @@ private class SceneSourceNode : Modifier.Node(),
     private var pendingKickSlotRenders: Boolean = false
     private var captureFlushView: View? = null
 
+    private var presentInProgress: Boolean = false
+
     private val onDrawListener = ViewTreeObserver.OnDrawListener {
-        val renderer = sceneRenderer ?: return@OnDrawListener
-        if (renderer.consumePresentingOutput()) return@OnDrawListener
-        if (renderer.hasPresentTarget) {
-            scheduleCaptureFlush(kickSlotRenders = true)
-        }
+        sceneRenderer?.consumePresentingOutput()
+        presentAfterHwuiDraw()
     }
 
     private val requestDrainCaptureFlush = {
@@ -120,14 +120,7 @@ private class SceneSourceNode : Modifier.Node(),
             drawContent()
             return
         }
-        val busyLayer = sceneRenderer?.rootCaptureLayer
-        val latest = layerRing.latestRecorded
-        val skipRecord = sceneRenderer?.presentingOutput == true &&
-            latest != null &&
-            latest !== busyLayer
-        if (!skipRecord) {
-            recordContentLayer()
-        }
+        recordContentLayer()
         layerRing.latestRecorded?.let { drawLayer(it) } ?: drawContent()
         if (Build.VERSION.SDK_INT >= 29) {
             sceneRenderer?.ensureGlTarget()
@@ -135,6 +128,39 @@ private class SceneSourceNode : Modifier.Node(),
                 layer = layerRing.latestRecorded,
                 coordinates = rootCoordinates
             )
+        }
+    }
+
+    /**
+     * HWUI has finished this view's draw, so HardwareRenderer can crop the
+     * recorded layer without fighting the window RenderThread. The wrapped
+     * bitmap is picked up on the next Compose draw.
+     */
+    private fun presentAfterHwuiDraw() {
+        if (!isAttached || presentInProgress) return
+        if (Build.VERSION.SDK_INT < 29) return
+        val recordedLayer = layerRing.latestRecorded ?: return
+        val renderer = sceneRenderer ?: return
+        if (recordedSize == IntSize.Zero || !renderer.hasPresentTarget) return
+        presentInProgress = true
+        try {
+            trace("SceneCaptureKick") {
+                val registrySnapshot = sceneRegistry?.snapshot(rootCoordinates)
+                renderer.presentSynchronously(
+                    layer = recordedLayer,
+                    size = recordedSize,
+                    density = recordedDensity,
+                    layoutDirection = recordedLayoutDirection,
+                    rootGeneration = rootGeneration,
+                    rootRecordedNanos = recordedNanos,
+                    slots = registrySnapshot?.slots.orEmpty(),
+                    preDrawStartedNanos = System.nanoTime(),
+                    vsyncTimeNanos = vsyncFrameTime.latestFrameTimeNanos,
+                    kickSlotRenders = true
+                )
+            }
+        } finally {
+            presentInProgress = false
         }
     }
 

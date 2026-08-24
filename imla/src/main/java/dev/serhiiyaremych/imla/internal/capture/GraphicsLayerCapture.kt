@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.internal.metrics.SceneRenderMetricsLog
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.ceil
 
 /**
@@ -64,12 +67,12 @@ internal class GraphicsLayerCapture(
         logicalSize: IntSize,
         contentOffset: Offset,
         vsyncTimeNanos: Long?,
-        onCompleted: () -> Unit
+        onCompleted: () -> Unit,
+        captureScale: Float = 1f
     ): Boolean {
         checkMainThread()
         if (size == IntSize.Zero) return false
 
-        val captureScale = 1f
         val contentSize = size.scaledBy(captureScale)
         val sizes = CaptureSizes(
             logical = logicalSize,
@@ -106,6 +109,117 @@ internal class GraphicsLayerCapture(
                 onCompleted = onCompleted
             )
         }
+    }
+
+    /**
+     * Records [layer] and blocks the caller until the HardwareRenderer crop (or
+     * pre-Q texture capture) is ready. ImageReader still completes on
+     * [captureThread]; this waits on a latch instead of posting back to main.
+     */
+    @MainThread
+    fun captureBlocking(
+        layer: GraphicsLayer,
+        size: IntSize,
+        density: Density,
+        layoutDirection: LayoutDirection,
+        bucketPhysicalSize: Boolean,
+        logicalSize: IntSize,
+        contentOffset: Offset,
+        vsyncTimeNanos: Long?,
+        timeoutMs: Long = MAIN_THREAD_DRAW_WAIT_TIMEOUT_MS,
+        captureScale: Float = 1f
+    ): CapturedLayerFrame? {
+        checkMainThread()
+        if (size == IntSize.Zero) return null
+
+        val contentSize = size.scaledBy(captureScale)
+        val sizes = CaptureSizes(
+            logical = logicalSize,
+            content = contentSize,
+            capture = captureSize(
+                contentSize = contentSize,
+                bucketPhysicalSize = bucketPhysicalSize
+            )
+        )
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            captureHardwareBufferBlocking(
+                layer = layer,
+                sizes = sizes,
+                captureScale = captureScale,
+                density = density,
+                layoutDirection = layoutDirection,
+                contentOffset = contentOffset,
+                vsyncTimeNanos = vsyncTimeNanos,
+                timeoutMs = timeoutMs
+            )
+        } else {
+            captureToTexture(
+                layer = layer,
+                sizes = sizes,
+                captureScale = captureScale,
+                density = density,
+                layoutDirection = layoutDirection,
+                contentOffset = contentOffset
+            )?.also(::publishLatestFrame)
+            takeLatestFrame()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun captureHardwareBufferBlocking(
+        layer: GraphicsLayer,
+        sizes: CaptureSizes,
+        captureScale: Float,
+        density: Density,
+        layoutDirection: LayoutDirection,
+        contentOffset: Offset,
+        vsyncTimeNanos: Long?,
+        timeoutMs: Long
+    ): CapturedLayerFrame? {
+        val bufferSize = ensurePlatformRenderers(size = sizes.capture) ?: return null
+        val generation = mailboxGeneration
+        val held = AtomicReference<CapturedLayerFrame?>(null)
+        val latch = CountDownLatch(1)
+        val started = kickOnFreeUnit(
+            vsyncTimeNanos = vsyncTimeNanos,
+            record = { node ->
+                recordLayerToRenderNode(
+                    renderNode = node,
+                    layer = layer,
+                    sizes = sizes,
+                    captureScale = captureScale,
+                    density = density,
+                    layoutDirection = layoutDirection,
+                    contentOffset = contentOffset
+                )
+            },
+            onResult = { lease ->
+                val frame = lease?.let {
+                    CapturedHardwareBufferFrame(
+                        lease = it,
+                        size = bufferSize,
+                        contentSize = sizes.content,
+                        logicalSize = sizes.logical
+                    )
+                }
+                if (generation != mailboxGeneration) {
+                    frame?.close()
+                } else {
+                    held.set(frame)
+                }
+                latch.countDown()
+            }
+        )
+        if (!started) return null
+        val completed = latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        if (!completed) {
+            mailboxGeneration++
+            held.getAndSet(null)?.close()
+            return null
+        }
+        val frame = held.get() ?: return null
+        publishLatestFrame(frame)
+        return takeLatestFrame()
     }
 
     /**
@@ -497,3 +611,5 @@ internal class GraphicsLayerCapture(
         private const val MAIN_THREAD_DRAW_WAIT_TIMEOUT_MS = 500L
     }
 }
+
+internal const val BACKDROP_HARDWARE_CAPTURE_SCALE = 0.5f

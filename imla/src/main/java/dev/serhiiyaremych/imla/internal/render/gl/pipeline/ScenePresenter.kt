@@ -17,6 +17,8 @@ import dev.serhiiyaremych.imla.internal.ext.logd
 import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.metrics.SceneRenderPassMetric
 import dev.serhiiyaremych.imla.internal.render.gl.SceneGlRenderFrame
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Owns how a finished scene buffer reaches Compose: wrap the scene [HardwareBuffer] as a
@@ -42,6 +44,27 @@ internal class HardwareBitmapPresenter(
 ) : ScenePresenter {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val rings = mutableMapOf<SceneSlotId, SceneHwBufferRing>()
+    private val syncLock = Any()
+    private var syncLatch: CountDownLatch? = null
+    private var syncResult: Pair<SceneSlotId, Bitmap>? = null
+
+    fun beginSynchronousPresent() {
+        synchronized(syncLock) {
+            syncLatch = CountDownLatch(1)
+            syncResult = null
+        }
+    }
+
+    fun awaitSynchronousPresent(timeoutMs: Long): Pair<SceneSlotId, Bitmap>? {
+        val latch = synchronized(syncLock) { syncLatch } ?: return null
+        latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        return synchronized(syncLock) {
+            val result = syncResult
+            syncLatch = null
+            syncResult = null
+            result
+        }
+    }
 
     override fun acquire(
         size: IntSize,
@@ -62,7 +85,11 @@ internal class HardwareBitmapPresenter(
     }
 
     override fun present(frame: SceneGlRenderFrame, buffer: SceneRenderBuffer) {
-        val slotId = frame.slots.firstOrNull()?.id ?: return
+        val slotId = frame.slots.firstOrNull()?.id
+        if (slotId == null) {
+            completePresent(result = null)
+            return
+        }
         val hwBuffer = (buffer.backing as SceneRenderBuffer.Backing.Hw).hwBuffer
         val startedNanos = System.nanoTime()
         val fence = SyncFenceCompat.createNativeSyncFence()
@@ -75,7 +102,11 @@ internal class HardwareBitmapPresenter(
                 hwBuffer.hardwareBuffer,
                 ColorSpace.get(ColorSpace.Named.SRGB)
             )
-        } ?: return
+        }
+        if (bitmap == null) {
+            completePresent(result = null)
+            return
+        }
         val outputPixels = buffer.size.width.toLong() * buffer.size.height.toLong()
         frame.metricsFrame?.recordRenderPass(
             pass = SceneRenderPassMetric.FinalPresent,
@@ -84,7 +115,7 @@ internal class HardwareBitmapPresenter(
             outputPixels = outputPixels,
             textureSamples = outputPixels
         )
-        mainHandler.post { onPresented(slotId, bitmap) }
+        completePresent(slotId to bitmap)
         logd(
             "ImlaPresent",
             "${buffer.size.width}x${buffer.size.height} fence=${
@@ -93,9 +124,28 @@ internal class HardwareBitmapPresenter(
         )
     }
 
+    private fun completePresent(result: Pair<SceneSlotId, Bitmap>?) {
+        val latch = synchronized(syncLock) { syncLatch }
+        if (latch != null) {
+            synchronized(syncLock) {
+                syncResult = result
+            }
+            latch.countDown()
+            return
+        }
+        if (result != null) {
+            mainHandler.post { onPresented(result.first, result.second) }
+        }
+    }
+
     override fun release(buffer: SceneRenderBuffer) = Unit
 
     override fun close() {
+        synchronized(syncLock) {
+            syncLatch?.countDown()
+            syncLatch = null
+            syncResult = null
+        }
         rings.values.forEach { it.close() }
         rings.clear()
     }

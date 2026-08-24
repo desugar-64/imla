@@ -152,10 +152,17 @@ private class SceneSlotNode(
             bindPresentInvalidate()
             val presented = sceneRenderer?.presentedImage(handle?.id)
             if (presented != null) {
-                if (!presentingOutput) {
-                    recordContentLayer()
+                // Glass pixels come back as the hardware bitmap. Do not record
+                // or drawLayer slot content — that would replay the same
+                // subtree on the RenderThread every frame.
+                if (handle == null) {
+                    updateSlot()
+                }
+                handle?.id?.let { slotId ->
+                    registry?.recordSlotDraw(slotId)
                 }
                 drawPresentedImage(presented)
+                handle?.id?.let { sceneRenderer?.onPresentedImageDrawn(it) }
                 presentingOutput = false
                 return
             }
