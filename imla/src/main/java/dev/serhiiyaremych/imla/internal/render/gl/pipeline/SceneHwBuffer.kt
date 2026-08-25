@@ -42,6 +42,7 @@ internal class SceneHwBuffer private constructor(
     }
 
     companion object {
+        @RequiresApi(29)
         fun create(size: IntSize): SceneHwBuffer {
             val hwBuffer = HardwareBuffer.create(
                 size.width,

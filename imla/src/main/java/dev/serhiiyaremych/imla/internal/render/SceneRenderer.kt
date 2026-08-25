@@ -167,7 +167,9 @@ internal class SceneRenderer internal constructor(
         metrics.recordPresentLag(lagNanos)
         val lagMs = lagNanos / 1_000_000.0
         val frames = lagNanos.toDouble() / frameBudgetNanos.coerceAtLeast(1L)
-        Trace.setCounter("ImlaPresentLagUs", lagNanos / 1_000L)
+        if (Build.VERSION.SDK_INT >= 29) {
+            Trace.setCounter("ImlaPresentLagUs", lagNanos / 1_000L)
+        }
         logd(
             "ImlaPipelineLag",
             String.format(Locale.US, "lag=%.1fms frames=%.2f", lagMs, frames)

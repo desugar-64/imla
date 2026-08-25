@@ -399,6 +399,7 @@ internal class CapturedFrameImporter(
 private const val MAX_ROOT_HARDWARE_BUFFER_TEXTURE_CACHE_SIZE = 2
 private const val MAX_SLOT_HARDWARE_BUFFER_TEXTURE_CACHE_SIZE = 8
 
+@RequiresApi(Build.VERSION_CODES.O)
 private fun hardwareBufferCacheKey(buffer: HardwareBuffer): Long? {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         buffer.id

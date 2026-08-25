@@ -21,7 +21,7 @@ internal object HardwareBufferId {
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun nativePtr(buffer: HardwareBuffer): Long {
-        if (!nativeLibraryLoaded || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+        if (!nativeLibraryLoaded) {
             return 0L
         }
         return nativePtrNative(buffer)
