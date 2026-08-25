@@ -5,11 +5,10 @@
 
 package dev.serhiiyaremych.imla.internal.render.gl.pipeline
 
-import android.graphics.Bitmap
-import android.graphics.ColorSpace
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.hardware.SyncFenceCompat
 import androidx.tracing.trace
@@ -20,12 +19,6 @@ import dev.serhiiyaremych.imla.internal.render.gl.SceneGlRenderFrame
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/**
- * Owns how a finished scene buffer reaches Compose: wrap the scene [HardwareBuffer] as a
- * hardware [Bitmap] and post it to the main thread for `drawImage`.
- *
- * Each frame is `acquire → render → present → release`, driven from the GL thread.
- */
 internal interface ScenePresenter {
     fun acquire(size: IntSize, requiresStencil: Boolean, slotId: SceneSlotId?): SceneRenderBuffer
     fun present(frame: SceneGlRenderFrame, buffer: SceneRenderBuffer)
@@ -33,20 +26,15 @@ internal interface ScenePresenter {
     fun close()
 }
 
-/**
- * Zero-copy present into Compose: wrap the scene HardwareBuffer as a hardware Bitmap after GPU
- * completion. A 2-deep ring keeps GL from writing the buffer HWUI is still sampling. Wrapping
- * takes a HardwareBuffer ref, so the GL slot may `close()` its handle independently.
- */
 @RequiresApi(29)
 internal class HardwareBitmapPresenter(
-    private val onPresented: (SceneSlotId, Bitmap) -> Unit
+    private val onPresented: (SceneSlotId, ImageBitmap) -> Unit
 ) : ScenePresenter {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val rings = mutableMapOf<SceneSlotId, SceneHwBufferRing>()
     private val syncLock = Any()
     private var syncLatch: CountDownLatch? = null
-    private var syncResult: Pair<SceneSlotId, Bitmap>? = null
+    private var syncResult: Pair<SceneSlotId, ImageBitmap>? = null
 
     fun beginSynchronousPresent() {
         synchronized(syncLock) {
@@ -55,7 +43,7 @@ internal class HardwareBitmapPresenter(
         }
     }
 
-    fun awaitSynchronousPresent(timeoutMs: Long): Pair<SceneSlotId, Bitmap>? {
+    fun awaitSynchronousPresent(timeoutMs: Long): Pair<SceneSlotId, ImageBitmap>? {
         val latch = synchronized(syncLock) { syncLatch } ?: return null
         latch.await(timeoutMs, TimeUnit.MILLISECONDS)
         return synchronized(syncLock) {
@@ -97,16 +85,7 @@ internal class HardwareBitmapPresenter(
             fence.await(FENCE_AWAIT_TIMEOUT_NANOS)
         }
         fence.close()
-        val bitmap = trace("HardwareBitmapPresenter#wrap") {
-            Bitmap.wrapHardwareBuffer(
-                hwBuffer.hardwareBuffer,
-                ColorSpace.get(ColorSpace.Named.SRGB)
-            )
-        }
-        if (bitmap == null) {
-            completePresent(result = null)
-            return
-        }
+        val image = hwBuffer.image
         val outputPixels = buffer.size.width.toLong() * buffer.size.height.toLong()
         frame.metricsFrame?.recordRenderPass(
             pass = SceneRenderPassMetric.FinalPresent,
@@ -115,7 +94,7 @@ internal class HardwareBitmapPresenter(
             outputPixels = outputPixels,
             textureSamples = outputPixels
         )
-        completePresent(slotId to bitmap)
+        completePresent(slotId to image)
         logd(
             "ImlaPresent",
             "${buffer.size.width}x${buffer.size.height} fence=${
@@ -124,7 +103,7 @@ internal class HardwareBitmapPresenter(
         )
     }
 
-    private fun completePresent(result: Pair<SceneSlotId, Bitmap>?) {
+    private fun completePresent(result: Pair<SceneSlotId, ImageBitmap>?) {
         val latch = synchronized(syncLock) { syncLatch }
         if (latch != null) {
             synchronized(syncLock) {

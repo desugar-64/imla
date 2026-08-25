@@ -1,7 +1,6 @@
 package dev.serhiiyaremych.imla.internal.render
 
 import android.content.res.AssetManager
-import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -14,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Density
@@ -80,7 +78,7 @@ internal class SceneRenderer internal constructor(
         afterContentImport = ::recordGlResidentContent,
         afterProgressiveMaskImport = ::recordGlMaskKeys,
         afterClipImport = ::recordGlClipKeys,
-        onHardwareBitmapPresented = ::installPresentedBitmap
+        onHardwareBitmapPresented = ::installPresentedImage
     )
     private val backdropCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
     private val slotCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
@@ -93,7 +91,6 @@ internal class SceneRenderer internal constructor(
     private val clipShapeCache = SceneClipShapeCache(glOwner::createCanvasTextureCapture, captureThread)
     private var renderTarget: SceneRenderTarget? = null
     private var attachedSize: IntSize = IntSize.Zero
-    private var presentedBitmaps = mutableMapOf<SceneSlotId, Bitmap>()
     private var presentedImages = mutableMapOf<SceneSlotId, ImageBitmap>()
     private val presentInvalidates = mutableMapOf<SceneSlotId, () -> Unit>()
 
@@ -804,22 +801,14 @@ internal class SceneRenderer internal constructor(
         renderTarget?.detach()
         renderTarget = null
         attachedSize = IntSize.Zero
-        presentedBitmaps.values.forEach { it.recycle() }
-        presentedBitmaps.clear()
         presentedImages.clear()
         metrics.recordTargetSize(IntSize.Zero)
     }
 
     @MainThread
-    private fun installPresentedBitmap(slotId: SceneSlotId, bitmap: Bitmap) {
-        val invalidate = presentInvalidates[slotId]
-        if (invalidate == null) {
-            bitmap.recycle()
-            return
-        }
-        presentedBitmaps.remove(slotId)?.recycle()
-        presentedBitmaps[slotId] = bitmap
-        presentedImages[slotId] = bitmap.asImageBitmap()
+    private fun installPresentedImage(slotId: SceneSlotId, image: ImageBitmap) {
+        val invalidate = presentInvalidates[slotId] ?: return
+        presentedImages[slotId] = image
         invalidate()
     }
 
@@ -902,9 +891,8 @@ internal class SceneRenderer internal constructor(
     }
 
     private fun prunePresentedTo(liveIds: Set<SceneSlotId>) {
-        val removedIds = presentedBitmaps.keys - liveIds
+        val removedIds = presentedImages.keys - liveIds
         removedIds.forEach { slotId ->
-            presentedBitmaps.remove(slotId)?.recycle()
             presentedImages.remove(slotId)
             presentInvalidates.remove(slotId)
             pendingPresentVsyncBySlot.remove(slotId)

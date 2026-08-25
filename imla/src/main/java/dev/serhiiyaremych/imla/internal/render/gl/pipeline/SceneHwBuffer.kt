@@ -5,9 +5,13 @@
 
 package dev.serhiiyaremych.imla.internal.render.gl.pipeline
 
+import android.graphics.Bitmap
+import android.graphics.ColorSpace
 import android.hardware.HardwareBuffer
 import android.opengl.GLES30
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.IntSize
 import dev.serhiiyaremych.imla.internal.render.CoordinateOrigin
 import dev.serhiiyaremych.imla.internal.render.Texture2D
@@ -17,6 +21,8 @@ import dev.serhiiyaremych.imla.internal.render.stats.HardwareBufferTextureSource
 @RequiresApi(26)
 internal class SceneHwBuffer private constructor(
     val hardwareBuffer: HardwareBuffer,
+    val bitmap: Bitmap,
+    val image: ImageBitmap,
     val texture: Texture2D,
     val fboId: Int,
     private val stencilRboId: Int
@@ -26,6 +32,7 @@ internal class SceneHwBuffer private constructor(
     }
 
     fun close() {
+        bitmap.recycle()
         GLES30.glDeleteFramebuffers(1, intArrayOf(fboId), 0)
         if (stencilRboId != 0) {
             GLES30.glDeleteRenderbuffers(1, intArrayOf(stencilRboId), 0)
@@ -44,6 +51,14 @@ internal class SceneHwBuffer private constructor(
                 HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or
                     HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
             )
+            val bitmap = Bitmap.wrapHardwareBuffer(
+                hwBuffer,
+                ColorSpace.get(ColorSpace.Named.SRGB)
+            ) ?: run {
+                hwBuffer.close()
+                error("Failed to wrap HardwareBuffer as Bitmap (${size.width}x${size.height})")
+            }
+            val image = bitmap.asImageBitmap()
             val texture = checkNotNull(
                 OpenGLHardwareBufferTexture2D.createFromBuffer(
                     hardwareBuffer = hwBuffer,
@@ -51,7 +66,11 @@ internal class SceneHwBuffer private constructor(
                     coordinateOrigin = CoordinateOrigin.BOTTOM_LEFT,
                     source = HardwareBufferTextureSource.Other
                 )
-            ) { "Failed to import HardwareBuffer as GL texture (${size.width}x${size.height})" }
+            ) {
+                bitmap.recycle()
+                hwBuffer.close()
+                "Failed to import HardwareBuffer as GL texture (${size.width}x${size.height})"
+            }
 
             val fbos = IntArray(1)
             GLES30.glGenFramebuffers(1, fbos, 0)
@@ -87,6 +106,8 @@ internal class SceneHwBuffer private constructor(
 
             return SceneHwBuffer(
                 hardwareBuffer = hwBuffer,
+                bitmap = bitmap,
+                image = image,
                 texture = texture,
                 fboId = fboId,
                 stencilRboId = stencilRboId

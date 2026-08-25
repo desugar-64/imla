@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.annotation.AnyThread
 import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.graphics.opengl.GLRenderer
 import androidx.graphics.opengl.egl.EGLManager
@@ -54,7 +55,7 @@ internal class SceneGlOwner(
     private val afterContentImport: (Set<SceneSlotId>) -> Unit = {},
     private val afterProgressiveMaskImport: (Map<SceneSlotId, SceneProgressiveMaskKey>) -> Unit = {},
     private val afterClipImport: (Map<SceneSlotId, SceneClipShapeKey>) -> Unit = {},
-    private val onHardwareBitmapPresented: (SceneSlotId, android.graphics.Bitmap) -> Unit = { _, _ -> }
+    private val onHardwareBitmapPresented: (SceneSlotId, ImageBitmap) -> Unit = { _, _ -> }
 ) : AutoCloseable {
     private val shaderLibrary = ShaderLibrary(assetManager)
     private val shaderBinder = ShaderBinder()
