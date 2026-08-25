@@ -82,6 +82,7 @@ internal class SceneRenderer internal constructor(
     )
     private val backdropCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
     private val slotCaptures = mutableMapOf<SceneSlotId, GraphicsLayerCapture>()
+    private val slotKickEpochs = mutableMapOf<SceneSlotId, Long>()
     private val glResidentContent: MutableSet<SceneSlotId> =
         Collections.newSetFromMap(ConcurrentHashMap<SceneSlotId, Boolean>())
     private val glMaskKeys = ConcurrentHashMap<SceneSlotId, SceneProgressiveMaskKey>()
@@ -262,7 +263,7 @@ internal class SceneRenderer internal constructor(
                 liveSlotIds = liveSlotIds,
                 flushStartedNanos = flushStartedNanos,
                 vsyncTimeNanos = vsyncTimeNanos,
-                kickSlotRenders = kickSlotRenders
+                kickSlotRenders = false
             )
             pendingPresentVsyncBySlot[request.slot.id] =
                 request.vsyncTimeNanos ?: request.rootRecordedNanos
@@ -297,6 +298,14 @@ internal class SceneRenderer internal constructor(
         if (syncPresentJobs.isEmpty()) {
             rootCaptureLayer = null
             return false
+        }
+        if (kickSlotRenders) {
+            kickSlotContentCaptures(
+                slots = syncPresentJobs.map { it.request.slot },
+                density = density,
+                layoutDirection = layoutDirection,
+                vsyncTimeNanos = vsyncTimeNanos
+            )
         }
         return true
     }
@@ -707,18 +716,7 @@ internal class SceneRenderer internal constructor(
             attemptedSlots++
 
             val slotCapture = measuredNanos({ rendererNanos += it }) {
-                slotCaptures.getOrPut(slot.id) {
-                    GraphicsLayerCapture(
-                        executorName = "ImlaSlot${slot.id.value}",
-                        textureCaptureFactory = glOwner::createCanvasTextureCapture,
-                        captureThread = captureThread,
-                        // Ping-pong two buffers like the root: while GL holds frame N's lease, the
-                        // slot can capture N+1 instead of refusing the kick. Single-buffered slots
-                        // stall under continuous resize, so the content texture updated in
-                        // multi-frame jumps while geometry moved every frame -> stretch/bounce.
-                        platformRendererCount = 2
-                    )
-                }
+                slotCapture(slot.id)
             }
 
             measuredNanos({ bookkeepingNanos += it }) {
@@ -732,33 +730,14 @@ internal class SceneRenderer internal constructor(
             if (!kickSlotRenders) return@forEach
 
             measuredNanos({ layerCaptureNanos += it }) {
-                val seqAtKick = flushSequence
-                val started = slotCapture.kickCapture(
-                    layer = contentLayer,
-                    size = slot.contentSize,
+                kickSlotContentCapture(
+                    slot = slot,
+                    contentLayer = contentLayer,
                     density = density,
                     layoutDirection = layoutDirection,
-                    bucketPhysicalSize = true,
-                    logicalSize = slot.layoutSize,
-                    contentOffset = slot.contentOffset,
                     vsyncTimeNanos = vsyncTimeNanos,
-                    onCompleted = {
-                        // The capture thread is done reading contentLayer's
-                        // RenderNode by the time the image is available, so the
-                        // slot modifier may record into it again.
-                        slot.captureState.capturingLayer = null
-                        if (flushSequence == seqAtKick) {
-                            captureFlushRequester?.invoke()
-                        }
-                    }
+                    slotCapture = slotCapture
                 )
-                // Mark the in-flight layer so the slot modifier records into a
-                // different ring instance until this capture completes. Only a
-                // started kick reads the layer; a refused one leaves any prior
-                // in-flight layer marked.
-                if (started) {
-                    slot.captureState.capturingLayer = contentLayer
-                }
             }
         }
         metrics.recordSlotCapture(
@@ -772,6 +751,63 @@ internal class SceneRenderer internal constructor(
             capturedSlots = capturedSlots
         )
         return contentFrames
+    }
+
+    private fun kickSlotContentCaptures(
+        slots: List<SceneRegisteredSlot>,
+        density: Density,
+        layoutDirection: LayoutDirection,
+        vsyncTimeNanos: Long?
+    ) {
+        slots.forEach { slot ->
+            val contentLayer = slot.contentLayer ?: return@forEach
+            kickSlotContentCapture(
+                slot = slot,
+                contentLayer = contentLayer,
+                density = density,
+                layoutDirection = layoutDirection,
+                vsyncTimeNanos = vsyncTimeNanos,
+                slotCapture = slotCapture(slot.id)
+            )
+        }
+    }
+
+    private fun kickSlotContentCapture(
+        slot: SceneRegisteredSlot,
+        contentLayer: GraphicsLayer,
+        density: Density,
+        layoutDirection: LayoutDirection,
+        vsyncTimeNanos: Long?,
+        slotCapture: GraphicsLayerCapture
+    ) {
+        val previousCapturingLayer = slot.captureState.capturingLayer
+        val previousEpoch = slotKickEpochs[slot.id] ?: 0L
+        val epoch = previousEpoch + 1L
+        slotKickEpochs[slot.id] = epoch
+        slot.captureState.capturingLayer = contentLayer
+        val seqAtKick = flushSequence
+        val started = slotCapture.kickCapture(
+            layer = contentLayer,
+            size = slot.contentSize,
+            density = density,
+            layoutDirection = layoutDirection,
+            bucketPhysicalSize = true,
+            logicalSize = slot.layoutSize,
+            contentOffset = slot.contentOffset,
+            vsyncTimeNanos = vsyncTimeNanos,
+            onCompleted = {
+                if (slotKickEpochs[slot.id] == epoch) {
+                    slot.captureState.capturingLayer = null
+                    if (flushSequence == seqAtKick) {
+                        captureFlushRequester?.invoke()
+                    }
+                }
+            }
+        )
+        if (!started) {
+            slotKickEpochs[slot.id] = previousEpoch
+            slot.captureState.capturingLayer = previousCapturingLayer
+        }
     }
 
     private fun List<SceneRegisteredSlot>.toDeclarations(
@@ -882,6 +918,7 @@ internal class SceneRenderer internal constructor(
         val removedIds = slotCaptures.keys - liveIds
         removedIds.forEach { slotId ->
             slotCaptures.remove(slotId)?.release()
+            slotKickEpochs.remove(slotId)
             glResidentContent.remove(slotId)
             glMaskKeys.remove(slotId)
             glClipKeys.remove(slotId)
@@ -910,6 +947,21 @@ internal class SceneRenderer internal constructor(
         }
     }
 
+    private fun slotCapture(slotId: SceneSlotId): GraphicsLayerCapture {
+        return slotCaptures.getOrPut(slotId) {
+            GraphicsLayerCapture(
+                executorName = "ImlaSlot${slotId.value}",
+                textureCaptureFactory = glOwner::createCanvasTextureCapture,
+                captureThread = captureThread,
+                // Ping-pong two buffers like the root: while GL holds frame N's lease, the
+                // slot can capture N+1 instead of refusing the kick. Single-buffered slots
+                // stall under continuous resize, so the content texture updated in
+                // multi-frame jumps while geometry moved every frame -> stretch/bounce.
+                platformRendererCount = 2
+            )
+        }
+    }
+
     private fun backdropCapture(slotId: SceneSlotId): GraphicsLayerCapture {
         return backdropCaptures.getOrPut(slotId) {
             GraphicsLayerCapture(
@@ -924,6 +976,7 @@ internal class SceneRenderer internal constructor(
     private fun releaseSlotResources() {
         slotCaptures.values.forEach { it.release() }
         slotCaptures.clear()
+        slotKickEpochs.clear()
         backdropCaptures.values.forEach { it.release() }
         backdropCaptures.clear()
         inFlightBackdropIds.clear()
