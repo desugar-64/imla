@@ -112,6 +112,7 @@ internal class SceneRenderer internal constructor(
 
     private val pendingPresentVsyncBySlot = mutableMapOf<SceneSlotId, Long>()
     private val drawnPresentVsyncBySlot = mutableMapOf<SceneSlotId, Long>()
+    private var syncPresentJobs: ArrayList<SyncPresentJob> = ArrayList()
 
     // Retries a backdrop crop that was refused because every capture buffer was busy.
     // (backpressure). Without it a one-shot dirty refused at kick time would wait for
@@ -221,7 +222,7 @@ internal class SceneRenderer internal constructor(
     }
 
     @MainThread
-    internal fun presentSynchronously(
+    internal fun beginSyncPresent(
         layer: GraphicsLayer,
         size: IntSize,
         density: Density,
@@ -232,66 +233,79 @@ internal class SceneRenderer internal constructor(
         flushStartedNanos: Long = System.nanoTime(),
         vsyncTimeNanos: Long? = null,
         kickSlotRenders: Boolean = true
-    ) {
+    ): Boolean {
+        if (syncPresentJobs.isNotEmpty()) {
+            cancelSyncPresent()
+        }
         if (Build.VERSION.SDK_INT >= 29) {
             ensureGlTarget()
         }
-        if (!hasPresentTarget) return
+        if (!hasPresentTarget) return false
         val liveSlotIds = slots.mapTo(mutableSetOf()) { it.id }
         pruneSlotCapturesTo(liveSlotIds)
         pruneBackdropCapturesTo(liveSlotIds)
         prunePresentedTo(liveSlotIds)
         rootCaptureLayer = layer
-        try {
-            val jobs = mutableListOf<SyncPresentJob>()
-            val sourceBounds = IntRect(0, 0, size.width, size.height)
-            slots.forEach { slot ->
-                val crop = slot.geometry.rootBounds.intersect(sourceBounds)
-                if (crop.isEmpty || crop.width <= 0 || crop.height <= 0) return@forEach
-                val request = RootCaptureRequest(
-                    layer = layer,
-                    size = IntSize(crop.width, crop.height),
-                    cropOffset = Offset(crop.left.toFloat(), crop.top.toFloat()),
-                    density = density,
-                    layoutDirection = layoutDirection,
-                    rootGeneration = rootGeneration,
-                    rootRecordedNanos = rootRecordedNanos,
-                    slot = slot,
-                    liveSlotIds = liveSlotIds,
-                    flushStartedNanos = flushStartedNanos,
-                    vsyncTimeNanos = vsyncTimeNanos,
-                    kickSlotRenders = kickSlotRenders
+        val sourceBounds = IntRect(0, 0, size.width, size.height)
+        slots.forEach { slot ->
+            val crop = slot.geometry.rootBounds.intersect(sourceBounds)
+            if (crop.isEmpty || crop.width <= 0 || crop.height <= 0) return@forEach
+            val request = RootCaptureRequest(
+                layer = layer,
+                size = IntSize(crop.width, crop.height),
+                cropOffset = Offset(crop.left.toFloat(), crop.top.toFloat()),
+                density = density,
+                layoutDirection = layoutDirection,
+                rootGeneration = rootGeneration,
+                rootRecordedNanos = rootRecordedNanos,
+                slot = slot,
+                liveSlotIds = liveSlotIds,
+                flushStartedNanos = flushStartedNanos,
+                vsyncTimeNanos = vsyncTimeNanos,
+                kickSlotRenders = kickSlotRenders
+            )
+            pendingPresentVsyncBySlot[request.slot.id] =
+                request.vsyncTimeNanos ?: request.rootRecordedNanos
+            val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
+            recordUiDataFlushAge(request)
+            val captureStartedNanos = System.nanoTime()
+            val started = backdropCapture(request.slot.id).submit(
+                layer = request.layer,
+                size = request.size,
+                density = request.density,
+                layoutDirection = request.layoutDirection,
+                bucketPhysicalSize = false,
+                logicalSize = request.size,
+                contentOffset = request.cropOffset,
+                vsyncTimeNanos = request.vsyncTimeNanos,
+                captureScale = BACKDROP_HARDWARE_CAPTURE_SCALE
+            )
+            if (!started) {
+                recordRootCaptureMetrics(
+                    success = false,
+                    captureStartedNanos = captureStartedNanos,
+                    captureFinishedNanos = System.nanoTime()
                 )
-                pendingPresentVsyncBySlot[request.slot.id] =
-                    request.vsyncTimeNanos ?: request.rootRecordedNanos
-                val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
-                recordUiDataFlushAge(request)
-                val captureStartedNanos = System.nanoTime()
-                val started = backdropCapture(request.slot.id).submit(
-                    layer = request.layer,
-                    size = request.size,
-                    density = request.density,
-                    layoutDirection = request.layoutDirection,
-                    bucketPhysicalSize = false,
-                    logicalSize = request.size,
-                    contentOffset = request.cropOffset,
-                    vsyncTimeNanos = request.vsyncTimeNanos,
-                    captureScale = BACKDROP_HARDWARE_CAPTURE_SCALE
-                )
-                if (!started) {
-                    recordRootCaptureMetrics(
-                        success = false,
-                        captureStartedNanos = captureStartedNanos,
-                        captureFinishedNanos = System.nanoTime()
-                    )
-                    return@forEach
-                }
-                jobs += SyncPresentJob(
-                    request = request,
-                    metricsFrame = metricsFrame,
-                    captureStartedNanos = captureStartedNanos
-                )
+                return@forEach
             }
+            syncPresentJobs += SyncPresentJob(
+                request = request,
+                metricsFrame = metricsFrame,
+                captureStartedNanos = captureStartedNanos
+            )
+        }
+        if (syncPresentJobs.isEmpty()) {
+            rootCaptureLayer = null
+            return false
+        }
+        return true
+    }
+
+    @MainThread
+    internal fun completeSyncPresent() {
+        val jobs = takeSyncPresentJobs()
+        try {
+            if (jobs.isEmpty()) return
             val deadlineElapsedRealtime = SystemClock.elapsedRealtime() + SYNC_WAIT_TIMEOUT_MS
             jobs.forEach { job ->
                 val remaining = deadlineElapsedRealtime - SystemClock.elapsedRealtime()
@@ -315,6 +329,24 @@ internal class SceneRenderer internal constructor(
         } finally {
             rootCaptureLayer = null
         }
+    }
+
+    @MainThread
+    internal fun cancelSyncPresent() {
+        val jobs = takeSyncPresentJobs()
+        try {
+            jobs.forEach { job ->
+                backdropCapture(job.request.slot.id).finish(timeoutMs = 0)?.close()
+            }
+        } finally {
+            rootCaptureLayer = null
+        }
+    }
+
+    private fun takeSyncPresentJobs(): ArrayList<SyncPresentJob> {
+        val taken = syncPresentJobs
+        syncPresentJobs = ArrayList()
+        return taken
     }
 
     @MainThread

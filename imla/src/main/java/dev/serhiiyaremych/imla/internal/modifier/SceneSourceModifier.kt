@@ -33,14 +33,7 @@ import dev.serhiiyaremych.imla.internal.render.SceneRenderer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 
-/**
- * Records backdrop content into a [GraphicsLayer] and draws it through HWUI.
- *
- * Sibling [effectLayer]s crop-capture this layer. Capture + GL present block in
- * [ViewTreeObserver.OnDrawListener] after HWUI has drawn, then the next Compose
- * draw `drawImage`s the hardware bitmap. Falls back to normal content drawing
- * on non-hardware-accelerated canvases.
- */
+// OnDraw waits before ThreadedRenderer.draw, not after HWUI.
 internal fun Modifier.effectGroupInternal(): Modifier {
     return this then SceneSourceElement
 }
@@ -68,8 +61,18 @@ private class SceneSourceNode : Modifier.Node(),
 
     private var presentInProgress: Boolean = false
 
+    private val onPreDrawListener = ViewTreeObserver.OnPreDrawListener {
+        beginHostSyncPresent()
+        true
+    }
+
     private val onDrawListener = ViewTreeObserver.OnDrawListener {
-        presentAfterHwuiDraw()
+        if (!presentInProgress) return@OnDrawListener
+        try {
+            sceneRenderer?.completeSyncPresent()
+        } finally {
+            presentInProgress = false
+        }
     }
 
     private val requestDrainCaptureFlush = {
@@ -130,36 +133,29 @@ private class SceneSourceNode : Modifier.Node(),
         }
     }
 
-    /**
-     * HWUI has finished this view's draw, so HardwareRenderer can crop the
-     * recorded layer without fighting the window RenderThread. The wrapped
-     * bitmap is picked up on the next Compose draw.
-     */
-    private fun presentAfterHwuiDraw() {
-        if (!isAttached || presentInProgress) return
+    private fun beginHostSyncPresent() {
+        if (!isAttached) return
         if (Build.VERSION.SDK_INT < 29) return
         val recordedLayer = layerRing.latestRecorded ?: return
         val renderer = sceneRenderer ?: return
         if (recordedSize == IntSize.Zero || !renderer.hasPresentTarget) return
-        presentInProgress = true
-        try {
-            trace("SceneCaptureKick") {
-                val registrySnapshot = sceneRegistry?.snapshot(rootCoordinates)
-                renderer.presentSynchronously(
-                    layer = recordedLayer,
-                    size = recordedSize,
-                    density = recordedDensity,
-                    layoutDirection = recordedLayoutDirection,
-                    rootGeneration = rootGeneration,
-                    rootRecordedNanos = recordedNanos,
-                    slots = registrySnapshot?.slots.orEmpty(),
-                    flushStartedNanos = System.nanoTime(),
-                    vsyncTimeNanos = vsyncFrameTime.latestFrameTimeNanos,
-                    kickSlotRenders = true
-                )
-            }
-        } finally {
+        if (presentInProgress) {
+            renderer.cancelSyncPresent()
             presentInProgress = false
+        }
+        presentInProgress = trace("SceneCaptureKick") {
+            renderer.beginSyncPresent(
+                layer = recordedLayer,
+                size = recordedSize,
+                density = recordedDensity,
+                layoutDirection = recordedLayoutDirection,
+                rootGeneration = rootGeneration,
+                rootRecordedNanos = recordedNanos,
+                slots = sceneRegistry?.snapshot(rootCoordinates)?.slots.orEmpty(),
+                flushStartedNanos = System.nanoTime(),
+                vsyncTimeNanos = vsyncFrameTime.latestFrameTimeNanos,
+                kickSlotRenders = true
+            )
         }
     }
 
@@ -190,6 +186,8 @@ private class SceneSourceNode : Modifier.Node(),
 
     override fun onDetach() {
         super.onDetach()
+        sceneRenderer?.cancelSyncPresent()
+        presentInProgress = false
         sceneRegistry?.setSource(layer = null, coordinates = null)
         sceneRenderer?.onRootDetached()
         updateSceneRenderer(null)
@@ -201,6 +199,8 @@ private class SceneSourceNode : Modifier.Node(),
     private fun updateSceneRenderer(nextRenderer: SceneRenderer?) {
         val previousRenderer = sceneRenderer
         if (previousRenderer === nextRenderer) return
+        previousRenderer?.cancelSyncPresent()
+        presentInProgress = false
         if (previousRenderer?.captureFlushRequester === requestDrainCaptureFlush) {
             previousRenderer.captureFlushRequester = null
         }
@@ -255,11 +255,14 @@ private class SceneSourceNode : Modifier.Node(),
 
     private fun subscribeViewTreeObservers() {
         if (Build.VERSION.SDK_INT < 29) return
-        currentView?.viewTreeObserver?.addOnDrawListener(onDrawListener)
+        val observer = currentView?.viewTreeObserver ?: return
+        observer.addOnPreDrawListener(onPreDrawListener)
+        observer.addOnDrawListener(onDrawListener)
     }
 
     private fun removeViewTreeObservers() {
         currentView?.let { view ->
+            view.viewTreeObserver.removeOnPreDrawListener(onPreDrawListener)
             view.viewTreeObserver.removeOnDrawListener(onDrawListener)
             view.removeCallbacks(postDrawCaptureFlush)
             if (captureFlushView === view) {
