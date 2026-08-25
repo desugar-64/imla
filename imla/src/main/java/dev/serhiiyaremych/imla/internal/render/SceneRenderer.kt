@@ -322,9 +322,13 @@ internal class SceneRenderer internal constructor(
                 )
             }
             jobs.forEach { job ->
-                if (job.rootFrame != null) {
-                    presentCapturedRootSynchronously(job)
-                }
+                val rootFrame = job.rootFrame ?: return@forEach
+                submitCapturedRoot(
+                    rootFrame = rootFrame,
+                    request = job.request,
+                    rootCaptureDurationNanos = job.captureFinishedNanos - job.captureStartedNanos,
+                    metricsFrame = job.metricsFrame
+                )
             }
         } finally {
             rootCaptureLayer = null
@@ -347,32 +351,6 @@ internal class SceneRenderer internal constructor(
         val taken = syncPresentJobs
         syncPresentJobs = ArrayList()
         return taken
-    }
-
-    @MainThread
-    private fun presentCapturedRootSynchronously(job: SyncPresentJob) {
-        val rootFrame = job.rootFrame ?: return
-        val request = job.request
-        val remappedSlot = request.slot.copy(
-            geometry = request.slot.geometry.relativeTo(request.cropOffset)
-        )
-        val uiCapture = assembleSnapshot(
-            rootFrame = rootFrame,
-            request = request,
-            remappedSlot = remappedSlot,
-            rootCaptureDurationNanos = job.captureFinishedNanos - job.captureStartedNanos,
-            metricsFrame = job.metricsFrame
-        )
-        val sceneRequest = SceneFrameRequest(
-            uiCapture = uiCapture,
-            readyAtNanos = System.nanoTime()
-        )
-        val target = renderTarget
-        if (target == null) {
-            dropFrame(sceneRequest, SceneFrameDropReason.NoRenderTarget)
-            return
-        }
-        target.submitAndWait(sceneRequest, SYNC_WAIT_TIMEOUT_MS)
     }
 
     private fun captureRoot(request: RootCaptureRequest) {

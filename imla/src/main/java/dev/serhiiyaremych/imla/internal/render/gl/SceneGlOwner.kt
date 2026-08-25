@@ -156,23 +156,6 @@ internal class SceneGlOwner(
     }
 
     @MainThread
-    internal fun submitAndWait(
-        target: SceneRenderTarget,
-        request: SceneFrameRequest,
-        timeoutMs: Long
-    ): Boolean {
-        val presenter = hardwareBitmapPresenter ?: run {
-            submit(target, request)
-            return false
-        }
-        presenter.beginSynchronousPresent()
-        submit(target, request)
-        val result = presenter.awaitSynchronousPresent(timeoutMs) ?: return false
-        onHardwareBitmapPresented(result.first, result.second)
-        return true
-    }
-
-    @MainThread
     internal fun onTargetDetached() {
         pendingBySlot.values.forEach { it.close() }
         pendingBySlot.clear()
