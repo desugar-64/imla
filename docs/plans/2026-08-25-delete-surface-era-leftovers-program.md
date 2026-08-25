@@ -142,7 +142,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
@@ -216,7 +216,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
@@ -235,7 +235,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 - [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSourceModifier.kt`.
 - [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSlotModifier.kt`.
 - [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/scheduler/SceneFrameRequest.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/metrics/SceneMetrics.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/metrics/SceneMetrics.kt`.
 - [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneBackdropEffectPasses.kt`.
 
 **Build.**
@@ -284,7 +284,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
@@ -348,7 +348,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
@@ -408,7 +408,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
@@ -463,7 +463,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 **Merge.**
 
 - [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
+- [x] Bugbot triage done.
 - [ ] Rebased onto current trunk after the verdict, patch-id unchanged.
 - [ ] The root appends the PR to the Graphite stack. The operator lands it.
 
