@@ -61,7 +61,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 Each live lane checks out the PR head and drives the installed debug app on serial `T81164GB23417442888`. Drive through `tools/adb-timeout` and `tools/adb-screenshot-half`. Capture full-size PNGs for `tools/screenshot-diff`. Crop the status bar before compare. Force-stop `dev.serhiiyaremych.imla` after the lane.
 
 - [ ] `git fetch origin <head-branch> && git checkout <head SHA>`.
-- [ ] Build and install with `./gradlew -q :app:assembleDebug`, then `tools/adb-timeout --timeout 60 -s T81164GB23417442888 install -r app/build/outputs/apk/debug/app-debug.apk`. Launch `dev.serhiiyaremych.imla/.MainActivity`. Wait until HomeScreen demo cards show.
+- [ ] Build and install with `./gradlew -q :app:assembleDebug`, then `tools/adb-timeout --device T81164GB23417442888 --timeout 60 -- install -r app/build/outputs/apk/debug/app-debug.apk`. Launch `dev.serhiiyaremych.imla/.MainActivity`. Wait until HomeScreen demo cards show.
 - [ ] Deliver input only through `tools/adb-timeout --timeout 20`. Tap the HomeScreen card whose title matches the lane scene. Read-only diagnostics are logcat via `tools/adb-timeout` and `dumpsys package dexopt` when a perf lane needs ART speed.
 - [ ] Save every screenshot to `/tmp/swarm-<pr-id>/worker-<n>/<slug>.png` and return the paths with the report.
 
