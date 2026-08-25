@@ -41,9 +41,6 @@ internal class SceneStencilClipPass(
         val clipTexture: SceneSampledTexture = requireNotNull(slot.clipTexture) {
             "Scene slot ${slot.id.value} requires a clip texture"
         }
-        check(target.hasStencil) {
-            "Scene clip texture requires a stencil-capable scene render buffer"
-        }
         try {
             val startedNanos = System.nanoTime()
             setupClip(

@@ -23,7 +23,7 @@ internal class GlStore(
         rootCaptureDurationNanos: Long,
         frameBudgetNanos: Long,
         metricsFrame: SceneMetricsFrame?,
-        slots: List<SceneSlotDeclaration>,
+        slot: SceneSlotDeclaration,
         releaseTexture: (Texture2D) -> Unit
     ) {
         threadGuard.checkCurrentThread()
@@ -34,7 +34,7 @@ internal class GlStore(
             rootCaptureDurationNanos = rootCaptureDurationNanos,
             frameBudgetNanos = frameBudgetNanos,
             metricsFrame = metricsFrame,
-            slots = slots,
+            slot = slot,
             releaseTexture = releaseTexture
         )
     }
@@ -145,7 +145,7 @@ internal data class SceneRootResource(
     val rootCaptureDurationNanos: Long,
     val frameBudgetNanos: Long,
     val metricsFrame: SceneMetricsFrame?,
-    val slots: List<SceneSlotDeclaration>,
+    val slot: SceneSlotDeclaration,
     private val releaseTexture: (Texture2D) -> Unit
 ) {
     fun release() {
@@ -166,13 +166,11 @@ private fun SceneRootResource.toFrameForDraw(
         rootTextureFlipYForScreen = texture.coordinateOrigin != CoordinateOrigin.TOP_LEFT,
         rootCaptureDurationNanos = rootCaptureDurationNanos,
         frameBudgetNanos = frameBudgetNanos,
-        slots = slots.map { slot ->
-            slot.toGlRenderSlot(
-                contentTextures = contentTextures,
-                maskTextures = maskTextures,
-                clipTextures = clipTextures
-            )
-        },
+        slot = slot.toGlRenderSlot(
+            contentTextures = contentTextures,
+            maskTextures = maskTextures,
+            clipTextures = clipTextures
+        ),
         metricsFrame = metricsFrame
     )
 }

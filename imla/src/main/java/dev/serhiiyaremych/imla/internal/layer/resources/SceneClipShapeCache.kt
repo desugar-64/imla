@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
-import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCaptureFactory
 import dev.serhiiyaremych.imla.internal.capture.CaptureSizeBuckets
 import dev.serhiiyaremych.imla.internal.capture.CaptureThread
 import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
@@ -31,29 +30,28 @@ import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.layer.registry.SceneRegisteredSlot
 
 internal class SceneClipShapeCache(
-    private val textureCaptureFactory: CanvasTextureCaptureFactory?,
     private val captureThread: CaptureThread
 ) {
     private val entries = mutableMapOf<SceneSlotId, CachedClipShape>()
 
     @MainThread
     fun captureChangedClips(
-        slots: List<SceneRegisteredSlot>,
+        slot: SceneRegisteredSlot,
         density: Density,
         layoutDirection: LayoutDirection,
         glKeys: Map<SceneSlotId, SceneClipShapeKey>
     ): SceneClipShapeCaptureResult {
         checkMainThread()
-        val clipSlots = slots.mapNotNull { slot ->
+        val clipSlots = buildList {
             val shape = slot.clipShape
             if (shape != null && shape != RectangleShape && slot.needsClipTexture) {
-                ClipShapeSlot(
-                    slot = slot,
-                    shape = shape,
-                    inset = slot.clipInset
+                add(
+                    ClipShapeSlot(
+                        slot = slot,
+                        shape = shape,
+                        inset = slot.clipInset
+                    )
                 )
-            } else {
-                null
             }
         }
         val liveIds = clipSlots.mapTo(mutableSetOf()) { it.slot.id }
@@ -66,7 +64,7 @@ internal class SceneClipShapeCache(
         clipSlots.forEach { clipSlot ->
             val slot = clipSlot.slot
             val cachedClip = entries.getOrPut(slot.id) {
-                CachedClipShape(textureCaptureFactory, captureThread)
+                CachedClipShape(captureThread)
             }
             val key = clipSlot.toClipShapeKey(
                 density = density,
@@ -151,7 +149,6 @@ internal data class SceneClipShapeCaptureResult(
 )
 
 private class CachedClipShape(
-    private val textureCaptureFactory: CanvasTextureCaptureFactory?,
     private val captureThread: CaptureThread
 ) {
     private val drawScope = CanvasDrawScope()
@@ -269,7 +266,6 @@ private class CachedClipShape(
                 label = "clip shape",
                 size = grown,
                 renderNode = renderNode,
-                textureCaptureFactory = textureCaptureFactory,
                 captureThread = captureThread
             )
             bufferSize = grown

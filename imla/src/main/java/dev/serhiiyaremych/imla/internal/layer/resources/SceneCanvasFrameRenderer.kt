@@ -10,8 +10,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.graphics.CanvasBufferedRenderer
 import androidx.hardware.SyncFenceCompat
 import dev.serhiiyaremych.imla.internal.capture.BufferLease
-import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCapture
-import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCaptureFactory
 import dev.serhiiyaremych.imla.internal.capture.CaptureThread
 import dev.serhiiyaremych.imla.internal.capture.CapturedHardwareBufferFrame
 import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
@@ -24,7 +22,6 @@ internal class SceneCanvasFrameRenderer private constructor(
     private val label: String,
     private val renderNode: RenderNode,
     private val canvasRenderer: CanvasBufferedRenderer?,
-    private val textureCapture: CanvasTextureCapture?,
     private val captureThread: CaptureThread
 ) {
     private val lock = Any()
@@ -41,12 +38,7 @@ internal class SceneCanvasFrameRenderer private constructor(
         timeoutMs: Long,
         contentSize: IntSize = size
     ): CapturedLayerFrame? {
-        val renderer = canvasRenderer ?: return textureCapture?.capture(
-            size = size,
-            timeoutMs = timeoutMs
-        ) { canvas ->
-            canvas.drawRenderNode(renderNode)
-        }
+        val renderer = canvasRenderer ?: return null
         val pendingResult = SceneCanvasRenderResult(renderer)
         renderer.obtainRenderRequest().drawAsync(captureThread.executor, pendingResult::complete)
         val renderResult = pendingResult.await(timeoutMs) ?: return null
@@ -55,7 +47,6 @@ internal class SceneCanvasFrameRenderer private constructor(
 
     @MainThread
     fun requestClose() {
-        textureCapture?.close()
         val rendererToClose = synchronized(lock) {
             closeRequested = true
             rendererToCloseIfReady()
@@ -143,7 +134,6 @@ internal class SceneCanvasFrameRenderer private constructor(
             label: String,
             size: IntSize,
             renderNode: RenderNode,
-            textureCaptureFactory: CanvasTextureCaptureFactory?,
             captureThread: CaptureThread
         ): SceneCanvasFrameRenderer {
             val canvasRenderer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -161,13 +151,6 @@ internal class SceneCanvasFrameRenderer private constructor(
                 label = label,
                 renderNode = renderNode,
                 canvasRenderer = canvasRenderer,
-                textureCapture = if (canvasRenderer == null) {
-                    requireNotNull(textureCaptureFactory) {
-                        "SurfaceTexture capture is required below API 29"
-                    }.create(label)
-                } else {
-                    null
-                },
                 captureThread = captureThread
             )
         }

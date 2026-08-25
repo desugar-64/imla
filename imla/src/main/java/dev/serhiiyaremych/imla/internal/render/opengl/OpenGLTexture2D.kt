@@ -7,7 +7,6 @@
 
 package dev.serhiiyaremych.imla.internal.render.opengl
 
-import android.opengl.GLES11Ext
 import android.opengl.GLES30
 import androidx.tracing.trace
 import dev.serhiiyaremych.imla.internal.ext.checkGlError
@@ -37,23 +36,21 @@ internal class OpenGLTexture2D : Texture2D {
         val glTarget = target.toGlTextureTarget()
         createGLTexture(glTarget)
 
-        if (target != Texture.Target.TEXTURE_EXTERNAL_OES) {
-            val maxSize: Int = width.coerceAtLeast(height)
-            val maxLevels =
-                if (specification.generateMips) (1 + (ln(maxSize.toDouble()) / ln(2.0)).toInt()).coerceAtMost(
-                    6
-                ) else 1
-            logd("OpenGLTexture2D", "create texture: $target, $specification, mipmaps $maxLevels")
-            checkGlError(
-                GLES30.glTexStorage2D(
-                    /* target = */ GLES30.GL_TEXTURE_2D,
-                    /* levels = */ maxLevels,
-                    /* internalformat = */ specification.format.toGlInternalFormat(),
-                    /* width = */ width,
-                    /* height = */ height
-                )
+        val maxSize: Int = width.coerceAtLeast(height)
+        val maxLevels =
+            if (specification.generateMips) (1 + (ln(maxSize.toDouble()) / ln(2.0)).toInt()).coerceAtMost(
+                6
+            ) else 1
+        logd("OpenGLTexture2D", "create texture: $target, $specification, mipmaps $maxLevels")
+        checkGlError(
+            GLES30.glTexStorage2D(
+                /* target = */ GLES30.GL_TEXTURE_2D,
+                /* levels = */ maxLevels,
+                /* internalformat = */ specification.format.toGlInternalFormat(),
+                /* width = */ width,
+                /* height = */ height
             )
-        }
+        )
 
         checkGlError(
             GLES30.glTexParameteri(
@@ -69,7 +66,7 @@ internal class OpenGLTexture2D : Texture2D {
                 GLES30.GL_CLAMP_TO_EDGE
             )
         )
-        if (target != Texture.Target.TEXTURE_EXTERNAL_OES && specification.mipmapFiltering) {
+        if (specification.mipmapFiltering) {
             checkGlError(
                 GLES30.glTexParameteri(
                     glTarget,
@@ -187,10 +184,7 @@ internal class OpenGLTexture2D : Texture2D {
 }
 
 internal fun Texture.Target.toGlTextureTarget(): Int {
-    return when (this) {
-        Texture.Target.TEXTURE_2D -> GLES30.GL_TEXTURE_2D
-        Texture.Target.TEXTURE_EXTERNAL_OES -> GLES11Ext.GL_TEXTURE_EXTERNAL_OES
-    }
+    return GLES30.GL_TEXTURE_2D
 }
 
 internal fun Texture.ImageFormat.toGlInternalFormat(): Int {

@@ -53,14 +53,6 @@ internal data class BackdropInput(
                 coordinateOrigin = texture.coordinateOrigin
             )
         }
-
-        fun accumulatedScene(buffer: SceneRenderBuffer): BackdropInput {
-            return BackdropInput(
-                texture = buffer.texture,
-                size = buffer.size,
-                coordinateOrigin = buffer.texture.coordinateOrigin
-            )
-        }
     }
 }
 

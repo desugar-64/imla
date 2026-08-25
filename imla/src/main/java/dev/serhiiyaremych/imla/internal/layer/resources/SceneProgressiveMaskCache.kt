@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.toSize
-import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCaptureFactory
 import dev.serhiiyaremych.imla.internal.capture.CaptureThread
 import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
 import dev.serhiiyaremych.imla.internal.layer.model.SceneProgressiveMaskKey
@@ -25,25 +24,22 @@ import dev.serhiiyaremych.imla.internal.layer.registry.SceneRegisteredSlot
 import kotlin.math.abs
 
 internal class SceneProgressiveMaskCache(
-    private val textureCaptureFactory: CanvasTextureCaptureFactory?,
     private val captureThread: CaptureThread
 ) {
     private val entries = mutableMapOf<SceneSlotId, CachedProgressiveMask>()
 
     @MainThread
     fun captureChangedMasks(
-        slots: List<SceneRegisteredSlot>,
+        slot: SceneRegisteredSlot,
         density: Density,
         layoutDirection: LayoutDirection,
         glKeys: Map<SceneSlotId, SceneProgressiveMaskKey>
     ): SceneProgressiveMaskCaptureResult {
         checkMainThread()
-        val maskSlots = slots.mapNotNull { slot ->
+        val maskSlots = buildList {
             val brush = slot.progressiveMaskBrush
             if (brush != null) {
-                ProgressiveMaskSlot(slot = slot, brush = brush)
-            } else {
-                null
+                add(ProgressiveMaskSlot(slot = slot, brush = brush))
             }
         }
         val liveIds = maskSlots.mapTo(mutableSetOf()) { it.slot.id }
@@ -56,7 +52,7 @@ internal class SceneProgressiveMaskCache(
         maskSlots.forEach { maskSlot ->
             val slot = maskSlot.slot
             val cachedMask = entries.getOrPut(slot.id) {
-                CachedProgressiveMask(textureCaptureFactory, captureThread)
+                CachedProgressiveMask(captureThread)
             }
             val key = maskSlot.toProgressiveMaskKey(
                 size = slot.contentSize,
@@ -136,7 +132,6 @@ internal data class SceneProgressiveMaskCaptureResult(
 )
 
 private class CachedProgressiveMask(
-    private val textureCaptureFactory: CanvasTextureCaptureFactory?,
     private val captureThread: CaptureThread
 ) {
     private val drawScope = CanvasDrawScope()
@@ -234,7 +229,6 @@ private class CachedProgressiveMask(
                 label = "progressive mask",
                 size = size,
                 renderNode = renderNode,
-                textureCaptureFactory = textureCaptureFactory,
                 captureThread = captureThread
             )
             currentSize = size

@@ -1,7 +1,6 @@
 package dev.serhiiyaremych.imla.internal.capture
 
 import androidx.compose.ui.unit.IntSize
-import dev.serhiiyaremych.imla.internal.render.Texture2D
 
 internal sealed interface CapturedLayerFrame : AutoCloseable {
     val size: IntSize
@@ -9,27 +8,6 @@ internal sealed interface CapturedLayerFrame : AutoCloseable {
     val logicalSize: IntSize
 
     fun awaitReady()
-}
-
-internal class CapturedTextureFrame internal constructor(
-    private var texture: Texture2D?,
-    override val size: IntSize,
-    override val contentSize: IntSize = size,
-    override val logicalSize: IntSize = size,
-    private val releaseTexture: (Texture2D) -> Unit = { it.destroy() }
-) : CapturedLayerFrame {
-    fun takeTexture(): Texture2D? {
-        val capturedTexture = texture
-        texture = null
-        return capturedTexture
-    }
-
-    override fun awaitReady() = Unit
-
-    override fun close() {
-        texture?.let(releaseTexture)
-        texture = null
-    }
 }
 
 internal class CapturedHardwareBufferFrame internal constructor(

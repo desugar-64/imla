@@ -88,14 +88,6 @@ internal class Renderer2D {
             }
         quadVertexArray.addVertexBuffer(quadVertexBuffer)
         quadVertexArray.indexBuffer = IndexBuffer.create(quadIndices)
-        val externalQuadShaderProgram = QuadShaderProgram(
-            shaderBinder,
-            shader = shaderLibrary.loadShaderFromFile(
-                vertFileName = "default_quad",
-                fragFileName = "external_quad",
-                preprocessorDefines = shaderPreprocessor
-            )
-        )
         val quadIndexCount = 0
         val quadVertexBufferBase: MutableList<QuadVertex> = ArrayList(MAX_VERTICES)
 
@@ -123,8 +115,7 @@ internal class Renderer2D {
             quadVertexArray = quadVertexArray,
             quadVertexBuffer = quadVertexBuffer,
             defaultQuadShaderProgram = defaultQuadShaderProgram,
-            externalQuadShaderProgram = externalQuadShaderProgram,
-            quadShaderProgram = externalQuadShaderProgram,
+            quadShaderProgram = defaultQuadShaderProgram,
             quadIndexCount = quadIndexCount,
             quadVertexBufferBase = quadVertexBufferBase,
             textureSlots = textureSlots,
@@ -137,7 +128,7 @@ internal class Renderer2D {
         )
 
         whiteTexture.setData(intArrayOf(Color.White.toArgb()).toIntBuffer())
-        externalQuadShaderProgram.shader.bind(shaderBinder)
+        defaultQuadShaderProgram.shader.bind(shaderBinder)
 
         textureSlots.fill(null)
         textureSlots[WHITE_TEXTURE_SLOT_INDEX] = whiteTexture
@@ -146,8 +137,6 @@ internal class Renderer2D {
 
     fun shutdown() {
         data.defaultQuadShaderProgram.destroy()
-        data.externalQuadShaderProgram.destroy()
-        data.quadShaderProgram.destroy()
         data.quadVertexArray.destroy()
         data.textureSlots.fill(null)
         _data = null
@@ -197,13 +186,11 @@ internal class Renderer2D {
             for (i in 0 until data.textureSlotIndex) {
                 data.textureSlots[i]?.bind(slot = i)
             }
-            val isCustomShader = data.quadShaderProgram != data.defaultQuadShaderProgram &&
-                    data.quadShaderProgram != data.externalQuadShaderProgram
-            // Determine and bind the shader that will actually be used
-            val activeShader = when {
-                isCustomShader -> data.quadShaderProgram
-                data.quadVertexBufferBase.any { ((it.flags.toInt() and 2) != 0) } -> data.externalQuadShaderProgram
-                else -> data.defaultQuadShaderProgram
+            val isCustomShader = data.quadShaderProgram != data.defaultQuadShaderProgram
+            val activeShader = if (isCustomShader) {
+                data.quadShaderProgram
+            } else {
+                data.defaultQuadShaderProgram
             }
             activeShader.shader.bind(data.shaderBinder)
             // Set view-projection lazily on the shader that's actually used
@@ -288,10 +275,8 @@ internal class Renderer2D {
 
         var texIndex = 0.0f
         var flipTexture = flipTextureOverride ?: false
-        var isExternalTexture = false
         if (texture2D != null) {
             flipTexture = flipTextureOverride ?: texture2D.flipTexture
-            isExternalTexture = texture2D.target == Texture.Target.TEXTURE_EXTERNAL_OES
             val textureIndex = textureSlotIndexFor(texture2D)
             texIndex = textureIndex.toFloat()
         }
@@ -299,7 +284,6 @@ internal class Renderer2D {
         val maskEnabled = (maskValue ?: if (withMask) 1.0f else 0.0f) > 0.5f
         var flags = 0
         if (flipTexture) flags = flags or 1
-        if (isExternalTexture) flags = flags or 2
         if (maskEnabled) flags = flags or 4
 
         submitQuad(
@@ -328,10 +312,8 @@ internal class Renderer2D {
 
         var texIndex = 0.0f
         var flipTexture = flipTextureOverride ?: false
-        var isExternalTexture = false
         if (texture2D != null) {
             flipTexture = flipTextureOverride ?: texture2D.flipTexture
-            isExternalTexture = texture2D.target == Texture.Target.TEXTURE_EXTERNAL_OES
             val textureIndex = textureSlotIndexFor(texture2D)
             texIndex = textureIndex.toFloat()
         }
@@ -339,7 +321,6 @@ internal class Renderer2D {
         val maskEnabled = (maskValue ?: if (withMask) 1.0f else 0.0f) > 0.5f
         var flags = 0
         if (flipTexture) flags = flags or 1
-        if (isExternalTexture) flags = flags or 2
         if (maskEnabled) flags = flags or 4
 
         submitQuad(
@@ -434,8 +415,6 @@ internal class Renderer2D {
         }
 
         val textureIndex = textureSlotIndexFor(subTexture.texture)
-        val isExternalTexture = subTexture.texture.target == Texture.Target.TEXTURE_EXTERNAL_OES
-        // Convert Array<Offset> to FloatArray to avoid boxing
         val coords = subTexture.texCoords
         val texCoordsFlat = floatArrayOf(
             coords[0].x, coords[0].y,
@@ -446,7 +425,6 @@ internal class Renderer2D {
         val maskEnabled = withMask
         var flags = 0
         if (subTexture.flipTexture) flags = flags or 1
-        if (isExternalTexture) flags = flags or 2
         if (maskEnabled) flags = flags or 4
 
         submitQuad(
@@ -576,7 +554,6 @@ internal data class Renderer2DData(
     var setStaticQuadData: Boolean,
 
     val defaultQuadShaderProgram: ShaderProgram,
-    val externalQuadShaderProgram: ShaderProgram,
 
     var quadVertexArray: VertexArray,
     var quadVertexBuffer: VertexBuffer,

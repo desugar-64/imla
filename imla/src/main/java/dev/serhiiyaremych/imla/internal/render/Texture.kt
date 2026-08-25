@@ -14,7 +14,6 @@ import java.nio.Buffer
 internal interface Texture {
     enum class Target {
         TEXTURE_2D,
-        TEXTURE_EXTERNAL_OES,
         //TEXTURE_2D_ARRAY // do I need it?
     }
 
