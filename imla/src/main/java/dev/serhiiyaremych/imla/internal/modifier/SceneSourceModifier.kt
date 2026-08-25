@@ -92,7 +92,7 @@ private class SceneSourceNode : Modifier.Node(),
         // Re-validate: this runs a message loop after it was posted, so attach
         // state, the host view, and the present target may all have changed
         // since scheduleCaptureFlush() queued it.
-        if (isAttached && currentView === postedView && renderer.hasPresentTarget) {
+        if (isAttached && currentView === postedView && renderer.hasGlSession) {
             flushCapture(renderer, kickSlotRenders)
         }
     }
@@ -125,7 +125,7 @@ private class SceneSourceNode : Modifier.Node(),
         recordContentLayer()
         layerRing.latestRecorded?.let { drawLayer(it) } ?: drawContent()
         if (Build.VERSION.SDK_INT >= 29) {
-            sceneRenderer?.ensureGlTarget()
+            sceneRenderer?.ensureGlSession()
             sceneRegistry?.setSource(
                 layer = layerRing.latestRecorded,
                 coordinates = rootCoordinates
@@ -138,7 +138,7 @@ private class SceneSourceNode : Modifier.Node(),
         if (Build.VERSION.SDK_INT < 29) return
         val recordedLayer = layerRing.latestRecorded ?: return
         val renderer = sceneRenderer ?: return
-        if (recordedSize == IntSize.Zero || !renderer.hasPresentTarget) return
+        if (recordedSize == IntSize.Zero || !renderer.hasGlSession) return
         if (presentInProgress) {
             renderer.cancelSyncPresent()
             presentInProgress = false

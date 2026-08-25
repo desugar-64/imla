@@ -17,52 +17,27 @@ import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.metrics.SceneRenderPassMetric
 import dev.serhiiyaremych.imla.internal.render.gl.SceneGlRenderFrame
 
-internal interface ScenePresenter {
-    fun acquire(size: IntSize, requiresStencil: Boolean, slotId: SceneSlotId?): SceneRenderBuffer
-    fun present(frame: SceneGlRenderFrame, buffer: SceneRenderBuffer)
-    fun release(buffer: SceneRenderBuffer)
-    fun close()
-}
-
 @RequiresApi(29)
 internal class HardwareBitmapPresenter(
     private val onPresented: (SceneSlotId, ImageBitmap) -> Unit
-) : ScenePresenter {
+) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val rings = mutableMapOf<SceneSlotId, SceneHwBufferRing>()
 
-    override fun acquire(
-        size: IntSize,
-        requiresStencil: Boolean,
-        slotId: SceneSlotId?
-    ): SceneRenderBuffer {
-        val ring = if (slotId != null) {
-            rings.getOrPut(slotId) { SceneHwBufferRing() }
-        } else {
-            rings.getOrPut(SceneSlotId(Long.MIN_VALUE)) { SceneHwBufferRing() }
-        }
-        val hwBuffer = ring.obtain(size)
-        return SceneRenderBuffer(
-            size = size,
-            hasStencil = true,
-            backing = SceneRenderBuffer.Backing.Hw(hwBuffer)
-        )
+    fun acquire(size: IntSize, slotId: SceneSlotId): SceneRenderBuffer {
+        val hwBuffer = rings.getOrPut(slotId) { SceneHwBufferRing() }.obtain(size)
+        return SceneRenderBuffer(size = size, hwBuffer = hwBuffer)
     }
 
-    override fun present(frame: SceneGlRenderFrame, buffer: SceneRenderBuffer) {
-        val slotId = frame.slots.firstOrNull()?.id
-        if (slotId == null) {
-            completePresent(result = null)
-            return
-        }
-        val hwBuffer = (buffer.backing as SceneRenderBuffer.Backing.Hw).hwBuffer
+    fun present(frame: SceneGlRenderFrame, buffer: SceneRenderBuffer) {
+        val slotId = frame.slot.id
         val startedNanos = System.nanoTime()
         val fence = SyncFenceCompat.createNativeSyncFence()
         trace("HardwareBitmapPresenter#awaitFence") {
             fence.await(FENCE_AWAIT_TIMEOUT_NANOS)
         }
         fence.close()
-        val image = hwBuffer.image
+        val image = buffer.hwBuffer.image
         val outputPixels = buffer.size.width.toLong() * buffer.size.height.toLong()
         frame.metricsFrame?.recordRenderPass(
             pass = SceneRenderPassMetric.FinalPresent,
@@ -86,9 +61,9 @@ internal class HardwareBitmapPresenter(
         }
     }
 
-    override fun release(buffer: SceneRenderBuffer) = Unit
+    fun release(buffer: SceneRenderBuffer) = Unit
 
-    override fun close() {
+    fun close() {
         rings.values.forEach { it.close() }
         rings.clear()
     }

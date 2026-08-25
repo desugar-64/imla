@@ -30,13 +30,12 @@ import kotlin.math.ceil
  * Captures a [GraphicsLayer] into a renderable frame.
  *
  * API 29+ uses platform [android.graphics.HardwareRenderer] output into an
- * [android.media.ImageReader]. Older APIs use a GL-thread-backed SurfaceTexture
- * bridge supplied by the renderer owner.
+ * [android.media.ImageReader]. Below API 29, capture is a no-op and the public
+ * modifiers draw recorded content without GL effects.
  */
 @MainThread
 internal class GraphicsLayerCapture(
     private val executorName: String = "ImlaLayerCapture",
-    private val textureCaptureFactory: CanvasTextureCaptureFactory? = null,
     private val captureThread: CaptureThread,
     platformRendererCount: Int = 1
 ) {
@@ -53,7 +52,6 @@ internal class GraphicsLayerCapture(
     private val platformUnits = ArrayList<PlatformRenderUnit>(rendererCount)
     private var currentPlatformSize: IntSize = IntSize.Zero
     private var nextPlatformUnit: Int = 0
-    private var textureCapture: CanvasTextureCapture? = null
     private var latestFrame: CapturedLayerFrame? = null
     private var mailboxGeneration: Long = 0L
     private var pendingSubmit: PendingHardwareCapture? = null
@@ -84,10 +82,8 @@ internal class GraphicsLayerCapture(
             )
         )
 
-        // Two distinct capture backends, selected by API level:
-        //  • API 29+  → kickHardwareBufferCapture: async HardwareRenderer → ImageReader,
-        //               ping-ponged across single-in-flight SingleBufferRenderer units.
-        //  • API < 29 → kickTextureCapture: synchronous SurfaceTexture bridge.
+        // API 29+ uses HardwareRenderer → ImageReader. Below that, modifiers
+        // already skip GL effects, so a capture kick is a no-op.
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             kickHardwareBufferCapture(
                 layer = layer,
@@ -100,15 +96,7 @@ internal class GraphicsLayerCapture(
                 onCompleted = onCompleted
             )
         } else {
-            kickTextureCapture(
-                layer = layer,
-                sizes = sizes,
-                captureScale = captureScale,
-                density = density,
-                layoutDirection = layoutDirection,
-                contentOffset = contentOffset,
-                onCompleted = onCompleted
-            )
+            false
         }
     }
 
@@ -148,19 +136,7 @@ internal class GraphicsLayerCapture(
                 vsyncTimeNanos = vsyncTimeNanos
             )
         } else {
-            val frame = captureToTexture(
-                layer = layer,
-                sizes = sizes,
-                captureScale = captureScale,
-                density = density,
-                layoutDirection = layoutDirection,
-                contentOffset = contentOffset
-            )
-            pendingSubmit = PendingHardwareCapture(
-                latch = CountDownLatch(0),
-                held = AtomicReference(frame)
-            )
-            true
+            false
         }
     }
 
@@ -229,32 +205,6 @@ internal class GraphicsLayerCapture(
             latch = latch,
             held = held
         )
-        return true
-    }
-
-    /**
-     * Pre-API 29 backend: synchronous SurfaceTexture-backed capture
-     * ([CanvasTextureCapture]). Always signals completion — even on failure (null
-     * frame) — so the caller's in-flight gate releases instead of wedging.
-     */
-    private fun kickTextureCapture(
-        layer: GraphicsLayer,
-        sizes: CaptureSizes,
-        captureScale: Float,
-        density: Density,
-        layoutDirection: LayoutDirection,
-        contentOffset: Offset,
-        onCompleted: () -> Unit
-    ): Boolean {
-        captureToTexture(
-            layer = layer,
-            sizes = sizes,
-            captureScale = captureScale,
-            density = density,
-            layoutDirection = layoutDirection,
-            contentOffset = contentOffset
-        )?.let(::publishLatestFrame)
-        onCompleted()
         return true
     }
 
@@ -390,8 +340,6 @@ internal class GraphicsLayerCapture(
             releasePlatformUnits()
         }
         currentPlatformSize = IntSize.Zero
-        textureCapture?.close()
-        textureCapture = null
     }
 
     private fun publishLatestFrame(frame: CapturedLayerFrame) {
@@ -468,41 +416,6 @@ internal class GraphicsLayerCapture(
         }
     }
 
-    private fun captureToTexture(
-        layer: GraphicsLayer,
-        sizes: CaptureSizes,
-        captureScale: Float,
-        density: Density,
-        layoutDirection: LayoutDirection,
-        contentOffset: Offset
-    ): CapturedTextureFrame? = trace(captureTraceLabel("textureCapture", sizes.capture)) {
-        val capture = textureCapture()
-        val frame = capture.capture(
-            size = sizes.capture,
-            logicalSize = sizes.logical,
-            timeoutMs = MAIN_THREAD_DRAW_WAIT_TIMEOUT_MS
-        ) { canvas ->
-            canvas.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-            canvas.scale(captureScale, captureScale)
-            drawScope.draw(
-                density = density,
-                layoutDirection = layoutDirection,
-                canvas = ComposeCanvas(canvas),
-                size = sizes.logical.toSize()
-            ) {
-                drawLayer(layer, contentOffset)
-            }
-        } ?: return@trace null
-        val texture = frame.takeTexture()
-        frame.close()
-        CapturedTextureFrame(
-            texture = texture,
-            size = frame.size,
-            contentSize = sizes.content,
-            logicalSize = frame.logicalSize
-        )
-    }
-
     @RequiresApi(Build.VERSION_CODES.Q)
     // Grow-only platform buffer: a smaller capture renders into the corner of an existing larger
     // buffer (the content's contentUv already crops the sampled sub-rect), so a resize only
@@ -552,17 +465,6 @@ internal class GraphicsLayerCapture(
 
     private fun captureTraceLabel(phase: String, size: IntSize): String {
         return "GraphicsLayerCapture#$phase[${size.width}x${size.height}]"
-    }
-
-    private fun textureCapture(): CanvasTextureCapture {
-        val existingCapture = textureCapture
-        return existingCapture ?: run {
-            requireNotNull(textureCaptureFactory) {
-                "SurfaceTexture capture is required below API 29"
-            }.create(executorName).also {
-                textureCapture = it
-            }
-        }
     }
 
     private fun DrawScope.drawLayer(layer: GraphicsLayer, contentOffset: Offset) {

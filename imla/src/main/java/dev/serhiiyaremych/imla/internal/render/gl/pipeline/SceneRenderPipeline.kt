@@ -10,13 +10,14 @@ import dev.serhiiyaremych.imla.internal.render.gl.SceneGlRenderFrame
 import dev.serhiiyaremych.imla.internal.render.gl.SceneGlRenderSlot
 import dev.serhiiyaremych.imla.internal.render.gl.SceneNoisePass
 import dev.serhiiyaremych.imla.internal.ext.logw
+import dev.serhiiyaremych.imla.internal.layer.model.SceneSlotId
 import dev.serhiiyaremych.imla.internal.metrics.SceneFeatureStats
 import dev.serhiiyaremych.imla.internal.metrics.SceneRenderMetricsLog
 
 private const val TAG = "SceneRenderPipeline"
 
 internal class SceneRenderPipeline(
-    private val presenter: ScenePresenter,
+    private val presenter: HardwareBitmapPresenter,
     private val noisePass: SceneNoisePass,
     private val rootPass: SceneRootDrawPass,
     private val backdropPass: SceneBackdropEffectPass,
@@ -25,13 +26,13 @@ internal class SceneRenderPipeline(
 ) {
     fun render(frame: SceneGlRenderFrame) = SceneRenderMetricsLog.time(
         phase = "renderAll.renderBatches",
-        details = "slots=${frame.slots.size}"
+        details = "slot=${frame.slot.id.value}"
     ) {
         trace("SceneRenderPipeline#render") {
             frame.metricsFrame?.recordFeatureStats(frame.featureStats())
             withRenderBuffer(
                 targetSize = frame.targetSize,
-                slots = frame.slots
+                slotId = frame.slot.id
             ) { renderBuffer ->
                 drawFrame(
                     preparedFrame = prepareFrame(
@@ -51,7 +52,7 @@ internal class SceneRenderPipeline(
 
     private inline fun withRenderBuffer(
         targetSize: IntSize,
-        slots: List<SceneGlRenderSlot>,
+        slotId: SceneSlotId,
         draw: (SceneRenderBuffer) -> Unit
     ) {
         val renderBuffer = SceneRenderMetricsLog.time(
@@ -60,8 +61,7 @@ internal class SceneRenderPipeline(
         ) {
             presenter.acquire(
                 size = targetSize,
-                requiresStencil = slots.any { it.requiresClip },
-                slotId = slots.firstOrNull()?.id
+                slotId = slotId
             )
         }
 
@@ -101,26 +101,25 @@ internal class SceneRenderPipeline(
         SceneRenderMetricsLog.time("render.root") {
             rootPass.beginOverlay(preparedFrame.frame, preparedFrame.renderBuffer)
         }
-        drawSlots(preparedFrame)
+        renderFrameSlot(preparedFrame)
         present(preparedFrame)
     }
 
-    private fun drawSlots(preparedFrame: ScenePreparedFrame) {
+    private fun renderFrameSlot(preparedFrame: ScenePreparedFrame) {
+        val slot = preparedFrame.frame.slot
         SceneRenderMetricsLog.time(
-            phase = "render.slots.total",
-            details = "slots=${preparedFrame.frame.slots.size}"
+            phase = "render.slot.total",
+            details = "slot=${slot.id.value}"
         ) {
-            preparedFrame.frame.slots.sortedBy { it.drawOrder }.forEach { slot ->
-                if (slot.requiresClip && slot.clipTexture == null) {
-                    // Clip mask not imported yet this frame (capture lag under heavy
-                    // re-capture). Skip the slot rather than crash; it renders once
-                    // the clip lands next frame.
-                    logw(TAG, "Slot ${slot.id.value} requires a clip texture but none is imported yet; skipping frame")
-                    return@forEach
-                }
-                val preparedSlot = prepareSlot(preparedFrame, slot)
-                drawSlot(preparedSlot)
+            if (slot.requiresClip && slot.clipTexture == null) {
+                // Clip mask not imported yet this frame (capture lag under heavy
+                // re-capture). Skip the slot rather than crash; it renders once
+                // the clip lands next frame.
+                logw(TAG, "Slot ${slot.id.value} requires a clip texture but none is imported yet; skipping frame")
+                return@time
             }
+            val preparedSlot = prepareSlot(preparedFrame, slot)
+            drawSlot(preparedSlot)
         }
     }
 
@@ -154,7 +153,7 @@ internal class SceneRenderPipeline(
     private fun drawSlot(
         preparedSlot: ScenePreparedSlot
     ) = SceneRenderMetricsLog.time(
-        phase = "render.slot.total",
+        phase = "render.slot.draw",
         details = "slot=${preparedSlot.slot.id.value} clip=${preparedSlot.slot.requiresClip}"
     ) {
         try {
@@ -233,18 +232,17 @@ private data class ScenePreparedSlot(
 )
 
 private val SceneGlRenderFrame.requiresNoise: Boolean
-    get() = slots.any { slot -> slot.backdrop?.composite?.hasNoise == true }
+    get() = slot.backdrop?.composite?.hasNoise == true
 
 private fun SceneGlRenderFrame.featureStats(): SceneFeatureStats {
-    val backdropSlots = slots.count { slot -> slot.backdrop != null }.toLong()
+    val hasBackdrop = slot.backdrop != null
     return SceneFeatureStats(
-        slots = slots.size.toLong(),
-        backdropSlots = backdropSlots,
-        cumulativeBackdropSlots = backdropSlots,
-        backdropClipSlots = slots.count { slot -> slot.requiresBackdropClip }.toLong(),
-        contentClipSlots = slots.count { slot -> slot.requiresContentClip }.toLong(),
-        tintSlots = slots.count { slot -> slot.backdrop?.composite?.tint != Color.Transparent }
-            .toLong(),
-        noiseSlots = slots.count { slot -> slot.backdrop?.composite?.hasNoise == true }.toLong()
+        slots = 1L,
+        backdropSlots = if (hasBackdrop) 1L else 0L,
+        cumulativeBackdropSlots = if (hasBackdrop) 1L else 0L,
+        backdropClipSlots = if (slot.requiresBackdropClip) 1L else 0L,
+        contentClipSlots = if (slot.requiresContentClip) 1L else 0L,
+        tintSlots = if (slot.backdrop?.composite?.tint != Color.Transparent) 1L else 0L,
+        noiseSlots = if (slot.backdrop?.composite?.hasNoise == true) 1L else 0L
     )
 }

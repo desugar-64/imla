@@ -147,7 +147,7 @@ private class SceneSlotNode(
             return
         }
         if (Build.VERSION.SDK_INT >= 29) {
-            sceneRenderer?.ensureGlTarget()
+            sceneRenderer?.ensureGlSession()
             bindPresentInvalidate()
             val presented = sceneRenderer?.presentedImage(handle?.id)
             if (presented != null) {

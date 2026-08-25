@@ -87,11 +87,9 @@ internal class SceneRenderer internal constructor(
         Collections.newSetFromMap(ConcurrentHashMap<SceneSlotId, Boolean>())
     private val glMaskKeys = ConcurrentHashMap<SceneSlotId, SceneProgressiveMaskKey>()
     private val glClipKeys = ConcurrentHashMap<SceneSlotId, SceneClipShapeKey>()
-    private val progressiveMaskCache =
-        SceneProgressiveMaskCache(glOwner::createCanvasTextureCapture, captureThread)
-    private val clipShapeCache = SceneClipShapeCache(glOwner::createCanvasTextureCapture, captureThread)
+    private val progressiveMaskCache = SceneProgressiveMaskCache(captureThread)
+    private val clipShapeCache = SceneClipShapeCache(captureThread)
     private var renderTarget: SceneRenderTarget? = null
-    private var attachedSize: IntSize = IntSize.Zero
     private var presentedImages = mutableMapOf<SceneSlotId, ImageBitmap>()
     private val presentInvalidates = mutableMapOf<SceneSlotId, () -> Unit>()
 
@@ -123,7 +121,7 @@ internal class SceneRenderer internal constructor(
     private var rootRetryScheduled: Boolean = false
     private val rootRetryRunnable = Runnable {
         rootRetryScheduled = false
-        if (!hasPresentTarget) {
+        if (!hasGlSession) {
             pendingBackdropRequests.clear()
             return@Runnable
         }
@@ -174,7 +172,7 @@ internal class SceneRenderer internal constructor(
         )
     }
 
-    internal val hasPresentTarget: Boolean
+    internal val hasGlSession: Boolean
         get() = renderTarget != null
 
     internal fun onRootDirty(
@@ -190,9 +188,9 @@ internal class SceneRenderer internal constructor(
         kickSlotRenders: Boolean = true
     ) {
         if (Build.VERSION.SDK_INT >= 29) {
-            ensureGlTarget()
+            ensureGlSession()
         }
-        if (!hasPresentTarget) {
+        if (!hasGlSession) {
             return
         }
         val liveSlotIds = slots.mapTo(mutableSetOf()) { it.id }
@@ -239,9 +237,9 @@ internal class SceneRenderer internal constructor(
             cancelSyncPresent()
         }
         if (Build.VERSION.SDK_INT >= 29) {
-            ensureGlTarget()
+            ensureGlSession()
         }
-        if (!hasPresentTarget) return false
+        if (!hasGlSession) return false
         val liveSlotIds = slots.mapTo(mutableSetOf()) { it.id }
         pruneSlotCapturesTo(liveSlotIds)
         pruneBackdropCapturesTo(liveSlotIds)
@@ -471,7 +469,7 @@ internal class SceneRenderer internal constructor(
                 captureFinishedNanos = captureFinishedNanos
             )
 
-            !hasPresentTarget -> rootFrame.close()
+            !hasGlSession -> rootFrame.close()
 
             else -> {
                 submitCapturedRoot(
@@ -514,7 +512,7 @@ internal class SceneRenderer internal constructor(
         )
         val uiCapture = SceneRenderMetricsLog.time(
             phase = "snapshot.assemble.total",
-            details = "slots=1"
+            details = "slot=${request.slot.id.value}"
         ) {
             assembleSnapshot(
                 rootFrame = rootFrame,
@@ -523,7 +521,7 @@ internal class SceneRenderer internal constructor(
                 rootCaptureDurationNanos = rootCaptureDurationNanos,
                 metricsFrame = metricsFrame
             )
-        }
+        } ?: return
         val readyAtNanos = System.nanoTime()
         val request = SceneFrameRequest(
             uiCapture = uiCapture,
@@ -536,20 +534,20 @@ internal class SceneRenderer internal constructor(
      * Terminal hand-off for an assembled frame: routes the owning [request] straight to GL
      * (the direct route — no scheduler/vsync queue) and resolves its ownership exactly once.
      *
-     * - Handed off ([tryHandOffToGl] returns true, a [renderTarget] exists): GL now owns the
+     * - Handed off ([tryHandOffToGl] returns true, a GL session exists): GL now owns the
      *   capture and releases each hardware buffer as it imports. The request is NOT closed here.
-     * - Rejected (no render target): [dropFrame] closes the request, releasing every buffer that
+     * - Rejected (no GL session): [dropFrame] closes the request, releasing every buffer that
      *   was never built into a GL texture, and records the drop.
      *
-     * [SceneFrameDropReason.NoRenderTarget] is the only reason emitted here because a missing
-     * target is [tryHandOffToGl]'s sole failure path; other drop reasons originate elsewhere.
+     * [SceneFrameDropReason.NoGlSession] is the only reason emitted here because a missing
+     * session is [tryHandOffToGl]'s sole failure path; other drop reasons originate elsewhere.
      */
     @MainThread
     private fun submitFrame(request: SceneFrameRequest) {
         trace("SceneFrameRoute#Direct") {
             val handedOff = tryHandOffToGl(request)
             if (!handedOff) {
-                dropFrame(request, SceneFrameDropReason.NoRenderTarget)
+                dropFrame(request, SceneFrameDropReason.NoGlSession)
             }
         }
     }
@@ -569,23 +567,22 @@ internal class SceneRenderer internal constructor(
         remappedSlot: SceneRegisteredSlot,
         rootCaptureDurationNanos: Long,
         metricsFrame: SceneMetricsFrame?
-    ): UiSceneCapture = trace("SceneSnapshot#assemble") {
+    ): UiSceneCapture? = trace("SceneSnapshot#assemble") {
         val density = request.density
         val layoutDirection = request.layoutDirection
-        val slots = listOf(remappedSlot)
         recordUiDataFrameBuildAge(
             rootRecordedNanos = request.rootRecordedNanos,
-            slots = slots,
+            slot = remappedSlot,
             checkpointNanos = System.nanoTime()
         )
         buildCapture { capturedFrames: MutableList<AutoCloseable> ->
             capturedFrames += rootFrame
             val contentFrames = SceneRenderMetricsLog.time(
                 phase = "content.captureLayer.total",
-                details = "slots=${slots.size}"
+                details = "slot=${remappedSlot.id.value}"
             ) {
-                captureSlotContentFrames(
-                    slots = slots,
+                captureSlotContentFrame(
+                    slot = remappedSlot,
                     density = density,
                     layoutDirection = layoutDirection,
                     capturedFrames = capturedFrames,
@@ -593,17 +590,18 @@ internal class SceneRenderer internal constructor(
                     kickSlotRenders = request.kickSlotRenders
                 )
             }
-            val renderSlots = selectRenderSlots(slots, contentFrames, request.liveSlotIds)
+            val renderSlot = selectRenderSlot(remappedSlot, contentFrames, request.liveSlotIds)
+                ?: return@buildCapture null
 
-            val clipShapeResult = captureClips(renderSlots, request)
+            val clipShapeResult = captureClips(renderSlot, request)
                 .also { capturedFrames += it.changedFrames.values }
 
-            val progressiveMaskResult = captureMasks(renderSlots, request)
+            val progressiveMaskResult = captureMasks(renderSlot, request)
                 .also { capturedFrames += it.changedFrames.values }
 
             SceneRenderMetricsLog.time(
                 phase = "snapshot.create",
-                details = "renderSlots=${renderSlots.size}"
+                details = "slot=${renderSlot.id.value}"
             ) {
                 trace("SceneSnapshot#create") {
                     UiSceneCapture(
@@ -611,7 +609,7 @@ internal class SceneRenderer internal constructor(
                         rootGeneration = request.rootGeneration,
                         rootCaptureDurationNanos = rootCaptureDurationNanos,
                         frameBudgetNanos = frameBudgetNanos,
-                        slots = renderSlots.toDeclarations(
+                        slot = renderSlot.toDeclaration(
                             progressiveMaskIds = progressiveMaskResult.availableIds,
                             clipIds = clipShapeResult.availableIds
                         ),
@@ -630,35 +628,38 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    private fun selectRenderSlots(
-        slots: List<SceneRegisteredSlot>,
+    private fun selectRenderSlot(
+        slot: SceneRegisteredSlot,
         contentFrames: Map<SceneSlotId, CapturedLayerFrame>,
         liveSlotIds: Set<SceneSlotId>
-    ): List<SceneRegisteredSlot> = SceneRenderMetricsLog.time(
+    ): SceneRegisteredSlot? = SceneRenderMetricsLog.time(
         phase = "snapshot.pruneSlots",
         details = "available=${contentFrames.size}"
     ) {
         trace("SceneSnapshot#pruneSlots") {
             pruneSlotCapturesTo(liveSlotIds)
-            slots.filter { slot ->
-                slot.id in contentFrames ||
-                    slot.id in glResidentContent ||
-                    slot.backdrop != null
+            if (slot.id in contentFrames ||
+                slot.id in glResidentContent ||
+                slot.backdrop != null
+            ) {
+                slot
+            } else {
+                null
             }
         }
     }
 
     private fun captureClips(
-        renderSlots: List<SceneRegisteredSlot>,
+        slot: SceneRegisteredSlot,
         request: RootCaptureRequest
     ): SceneClipShapeCaptureResult = SceneRenderMetricsLog.time(
         phase = "clip.captureLayer.total",
-        details = "slots=${renderSlots.size}"
+        details = "slot=${slot.id.value}"
     ) {
         trace("SceneSnapshot#captureClips") {
             val clipShapeStartedNanos = System.nanoTime()
             clipShapeCache.captureChangedClips(
-                slots = renderSlots,
+                slot = slot,
                 density = request.density,
                 layoutDirection = request.layoutDirection,
                 glKeys = glClipKeys
@@ -672,16 +673,16 @@ internal class SceneRenderer internal constructor(
     }
 
     private fun captureMasks(
-        renderSlots: List<SceneRegisteredSlot>,
+        slot: SceneRegisteredSlot,
         request: RootCaptureRequest
     ): SceneProgressiveMaskCaptureResult = SceneRenderMetricsLog.time(
         phase = "mask.captureLayer.total",
-        details = "slots=${renderSlots.size}"
+        details = "slot=${slot.id.value}"
     ) {
         trace("SceneSnapshot#captureMasks") {
             val progressiveMaskStartedNanos = System.nanoTime()
             progressiveMaskCache.captureChangedMasks(
-                slots = renderSlots,
+                slot = slot,
                 density = request.density,
                 layoutDirection = request.layoutDirection,
                 glKeys = glMaskKeys
@@ -694,8 +695,8 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    private fun captureSlotContentFrames(
-        slots: List<SceneRegisteredSlot>,
+    private fun captureSlotContentFrame(
+        slot: SceneRegisteredSlot,
         density: Density,
         layoutDirection: LayoutDirection,
         capturedFrames: MutableList<AutoCloseable>,
@@ -710,9 +711,8 @@ internal class SceneRenderer internal constructor(
         var attemptedSlots = 0L
         var capturedSlots = 0L
         val contentFrames = mutableMapOf<SceneSlotId, CapturedLayerFrame>()
-        slots.forEach { slot ->
-            val contentLayer = measuredNanos({ discoveryNanos += it }) { slot.contentLayer }
-            if (contentLayer == null) return@forEach
+        val contentLayer = measuredNanos({ discoveryNanos += it }) { slot.contentLayer }
+        if (contentLayer != null) {
             attemptedSlots++
 
             val slotCapture = measuredNanos({ rendererNanos += it }) {
@@ -727,17 +727,17 @@ internal class SceneRenderer internal constructor(
                 }
             }
 
-            if (!kickSlotRenders) return@forEach
-
-            measuredNanos({ layerCaptureNanos += it }) {
-                kickSlotContentCapture(
-                    slot = slot,
-                    contentLayer = contentLayer,
-                    density = density,
-                    layoutDirection = layoutDirection,
-                    vsyncTimeNanos = vsyncTimeNanos,
-                    slotCapture = slotCapture
-                )
+            if (kickSlotRenders) {
+                measuredNanos({ layerCaptureNanos += it }) {
+                    kickSlotContentCapture(
+                        slot = slot,
+                        contentLayer = contentLayer,
+                        density = density,
+                        layoutDirection = layoutDirection,
+                        vsyncTimeNanos = vsyncTimeNanos,
+                        slotCapture = slotCapture
+                    )
+                }
             }
         }
         metrics.recordSlotCapture(
@@ -810,43 +810,37 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    private fun List<SceneRegisteredSlot>.toDeclarations(
+    private fun SceneRegisteredSlot.toDeclaration(
         progressiveMaskIds: Set<SceneSlotId>,
         clipIds: Set<SceneSlotId>
-    ): List<SceneSlotDeclaration> {
-        return map { slot ->
-            val backdrop = slot.backdrop?.withProgressiveMask(
-                hasProgressiveMask = slot.id in progressiveMaskIds
-            )
-            val hasClip = slot.id in clipIds
-            SceneSlotDeclaration(
-                id = slot.id,
-                drawOrder = slot.drawOrder,
-                geometry = slot.geometry,
-                backdrop = backdrop,
-                debugColor = slot.debugColor,
-                requiresBackdropClip = hasClip && backdrop != null,
-                requiresContentClip = hasClip && slot.clipContent
-            )
-        }
+    ): SceneSlotDeclaration {
+        val backdrop = backdrop?.withProgressiveMask(
+            hasProgressiveMask = id in progressiveMaskIds
+        )
+        val hasClip = id in clipIds
+        return SceneSlotDeclaration(
+            id = id,
+            drawOrder = drawOrder,
+            geometry = geometry,
+            backdrop = backdrop,
+            debugColor = debugColor,
+            requiresBackdropClip = hasClip && backdrop != null,
+            requiresContentClip = hasClip && clipContent
+        )
     }
 
     @MainThread
     @android.annotation.SuppressLint("NewApi")
-    internal fun ensureGlTarget() {
+    internal fun ensureGlSession() {
         if (Build.VERSION.SDK_INT < 29) return
         if (renderTarget != null) return
-        val size = EGL_PLACEHOLDER_SIZE
-        metrics.recordTargetSize(size)
-        renderTarget = glOwner.attachOffscreenRenderTarget(size)
-        attachedSize = size
+        renderTarget = glOwner.attachOffscreenRenderTarget()
     }
 
     @MainThread
-    internal fun detachPresentTarget() {
+    internal fun detachGlSession() {
         renderTarget?.detach()
         renderTarget = null
-        attachedSize = IntSize.Zero
         presentedImages.clear()
         metrics.recordTargetSize(IntSize.Zero)
     }
@@ -860,7 +854,7 @@ internal class SceneRenderer internal constructor(
 
     internal fun onRootDetached() {
         releaseSlotResources()
-        detachPresentTarget()
+        detachGlSession()
     }
 
     internal fun release() {
@@ -868,7 +862,7 @@ internal class SceneRenderer internal constructor(
         rootRetryScheduled = false
         pendingBackdropRequests.clear()
         inFlightBackdropIds.clear()
-        detachPresentTarget()
+        detachGlSession()
         backdropCaptures.values.forEach { it.release() }
         backdropCaptures.clear()
         releaseSlotResources()
@@ -951,7 +945,6 @@ internal class SceneRenderer internal constructor(
         return slotCaptures.getOrPut(slotId) {
             GraphicsLayerCapture(
                 executorName = "ImlaSlot${slotId.value}",
-                textureCaptureFactory = glOwner::createCanvasTextureCapture,
                 captureThread = captureThread,
                 // Ping-pong two buffers like the root: while GL holds frame N's lease, the
                 // slot can capture N+1 instead of refusing the kick. Single-buffered slots
@@ -966,7 +959,6 @@ internal class SceneRenderer internal constructor(
         return backdropCaptures.getOrPut(slotId) {
             GraphicsLayerCapture(
                 executorName = "ImlaBackdrop${slotId.value}",
-                textureCaptureFactory = glOwner::createCanvasTextureCapture,
                 captureThread = captureThread,
                 platformRendererCount = 2
             )
@@ -1041,10 +1033,10 @@ internal class SceneRenderer internal constructor(
 
     private fun recordUiDataFrameBuildAge(
         rootRecordedNanos: Long,
-        slots: List<SceneRegisteredSlot>,
+        slot: SceneRegisteredSlot,
         checkpointNanos: Long
     ) {
-        val uiDataNanos = latestUiDataNanos(rootRecordedNanos, slots)
+        val uiDataNanos = latestUiDataNanos(rootRecordedNanos, slot)
         if (uiDataNanos <= lastFrameBuildMeasuredUiDataNanos) return
         lastFrameBuildMeasuredUiDataNanos = uiDataNanos
         metrics.recordUiDataFrameBuildAge(
@@ -1058,7 +1050,6 @@ internal val LocalSceneRenderer = staticCompositionLocalOf<SceneRenderer?> { nul
 private const val DEFAULT_FRAME_BUDGET_NANOS = 16_666_667L
 private const val NANOS_PER_MILLI = 1_000_000L
 private const val SYNC_WAIT_TIMEOUT_MS = 100L
-private val EGL_PLACEHOLDER_SIZE = IntSize(64, 64)
 
 private data class RootCaptureRequest(
     val layer: GraphicsLayer,
@@ -1111,15 +1102,15 @@ private fun SceneBackdropEffect.withProgressiveMask(hasProgressiveMask: Boolean)
 private fun RootCaptureRequest.latestUiDataNanos(): Long {
     return latestUiDataNanos(
         rootRecordedNanos = rootRecordedNanos,
-        slots = listOf(slot)
+        slot = slot
     )
 }
 
 private fun latestUiDataNanos(
     rootRecordedNanos: Long,
-    slots: List<SceneRegisteredSlot>
+    slot: SceneRegisteredSlot
 ): Long {
-    val latestSlotUpdateNanos = slots.maxOfOrNull { it.updatedNanos } ?: 0L
+    val latestSlotUpdateNanos = slot.updatedNanos
     return listOf(rootRecordedNanos, latestSlotUpdateNanos)
         .filter { it > 0L }
         .maxOrNull()

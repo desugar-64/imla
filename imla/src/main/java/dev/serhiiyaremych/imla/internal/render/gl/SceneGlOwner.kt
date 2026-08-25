@@ -2,18 +2,14 @@ package dev.serhiiyaremych.imla.internal.render.gl
 
 import android.content.res.AssetManager
 import android.os.Build
-import androidx.annotation.AnyThread
 import androidx.annotation.MainThread
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.IntSize
 import androidx.graphics.opengl.GLRenderer
-import androidx.graphics.opengl.egl.EGLManager
 import androidx.tracing.trace
-import dev.serhiiyaremych.imla.internal.capture.CanvasTextureCapture
-import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
 import dev.serhiiyaremych.imla.internal.capture.CapturedHardwareBufferFrame
-import dev.serhiiyaremych.imla.internal.capture.CapturedTextureFrame
+import dev.serhiiyaremych.imla.internal.capture.CapturedLayerFrame
 import dev.serhiiyaremych.imla.internal.render.GraphicsContext
 import dev.serhiiyaremych.imla.internal.render.RenderCommands
 import dev.serhiiyaremych.imla.internal.render.Renderer2D
@@ -30,7 +26,6 @@ import dev.serhiiyaremych.imla.internal.render.processing.QuadBatchRenderer
 import dev.serhiiyaremych.imla.internal.render.processing.SimpleQuadRenderer
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.HardwareBitmapPresenter
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneBackdropEffectPass
-import dev.serhiiyaremych.imla.internal.render.gl.pipeline.ScenePresenter
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneRenderPipeline
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneRootDrawPass
 import dev.serhiiyaremych.imla.internal.render.gl.pipeline.SceneSlotContentPass
@@ -94,17 +89,12 @@ internal class SceneGlOwner(
 
     @MainThread
     @RequiresApi(29)
-    fun attachOffscreenRenderTarget(size: IntSize): SceneRenderTarget {
+    fun attachOffscreenRenderTarget(): SceneRenderTarget {
         check(!closed.get()) { "SceneGlOwner is closed" }
-        check(size != IntSize.Zero) { "Scene render target size must be non-zero" }
-        val callback = SceneRenderCallback()
-        val glTarget = glRenderer.createRenderTarget(size.width, size.height, callback)
         return SceneRenderTarget(
             glOwner = this,
-            glRenderer = glRenderer,
-            renderTarget = glTarget,
-            initialSize = size
-        ).also { callback.target = it }
+            glRenderer = glRenderer
+        )
     }
 
     @MainThread
@@ -141,15 +131,11 @@ internal class SceneGlOwner(
         request.uiCapture.metricsFrame?.let { frame ->
             metrics.recordSubmitted(frame, request.readyAtNanos)
         }
-        val slotId = request.uiCapture.slots.firstOrNull()?.id
-        if (slotId == null) {
-            request.close()
-            return
-        }
+        val slotId = request.uiCapture.slot.id
         val displaced = pendingBySlot.put(slotId, request)
         displaced?.close()
         if (presentScheduled.compareAndSet(false, true) &&
-            !target.requestRender(::onRenderComplete)
+            !target.scheduleDraw(::onRenderComplete)
         ) {
             presentScheduled.set(false)
         }
@@ -162,37 +148,8 @@ internal class SceneGlOwner(
         presentScheduled.set(false)
     }
 
-    internal fun createCanvasTextureCapture(label: String): CanvasTextureCapture {
-        return SceneSurfaceTextureCapture(
-            label = label,
-            shaderLibrary = shaderLibrary,
-            shaderBinder = shaderBinder,
-            simpleQuadRenderer = simpleQuadRenderer,
-            commandsProvider = { requireNotNull(graphicsContext).commands },
-            executeOnGlThread = ::executeWithGlResources,
-            isOnGlThread = threadGuard::isCurrentThread
-        )
-    }
-
-    @AnyThread
-    private fun executeWithGlResources(block: () -> Unit) {
-        if (threadGuard.isCurrentThread()) {
-            if (!closed.get()) {
-                ensureGlResources()
-                block()
-            }
-        } else {
-            glRenderer.execute {
-                if (!closed.get()) {
-                    ensureGlResources()
-                    block()
-                }
-            }
-        }
-    }
-
     @OnGlThread
-    internal fun draw(targetSize: IntSize) {
+    internal fun draw() {
         val requests = drainPendingRequests()
         if (requests.isEmpty()) return
         ensureGlResources()
@@ -212,7 +169,7 @@ internal class SceneGlOwner(
         trace("SceneGlPresent") {
             SceneRenderMetricsLog.time(
                 phase = "gl.onDrawFrame.total",
-                details = "slots=${frame.slots.size}"
+                details = "slot=${frame.slot.id.value}"
             ) {
                 requireNotNull(renderPipeline).render(frame)
             }
@@ -237,7 +194,7 @@ internal class SceneGlOwner(
     private fun consumeRequest(request: SceneFrameRequest) {
         SceneRenderMetricsLog.time(
             phase = "gl.consumeSnapshot.total",
-            details = "slots=${request.uiCapture.slots.size}"
+            details = "slot=${request.uiCapture.slot.id.value}"
         ) {
             trace("SceneGlOwner#ConsumeSnapshot") {
                 if (closed.get()) {
@@ -338,7 +295,7 @@ internal class SceneGlOwner(
     }
 
     @android.annotation.SuppressLint("NewApi")
-    private fun createPresenter(): ScenePresenter {
+    private fun createPresenter(): HardwareBitmapPresenter {
         check(Build.VERSION.SDK_INT >= 29) { "Hardware bitmap present requires API 29" }
         return requireNotNull(hardwareBitmapPresenter)
     }
@@ -501,12 +458,7 @@ internal class SceneGlOwner(
         frame: CapturedLayerFrame,
         source: HardwareBufferTextureSource
     ): Texture2D? {
-        return when (frame) {
-            is CapturedHardwareBufferFrame -> importHardwareBufferFrame(slotId, frame, source)
-            is CapturedTextureFrame -> frame.takeTexture().also {
-                frame.close()
-            }
-        }
+        return importHardwareBufferFrame(slotId, frame as CapturedHardwareBufferFrame, source)
     }
 
     private fun importHardwareBufferFrame(
@@ -541,10 +493,10 @@ internal class SceneGlOwner(
             root = root,
             textures = textures,
             liveSlotIds = uiCapture.liveSlotIds.ifEmpty {
-                uiCapture.slots.mapTo(mutableSetOf()) { it.id }
+                setOf(uiCapture.slot.id)
             },
             clippedSlotIds = uiCapture.liveSlotIds.ifEmpty {
-                uiCapture.slots.mapTo(mutableSetOf()) { it.id }
+                setOf(uiCapture.slot.id)
             }
         )
     }
@@ -615,19 +567,7 @@ internal class SceneGlOwner(
             details = "${uiCapture.rootFrame.logicalSize.width}x${uiCapture.rootFrame.logicalSize.height}"
         ) {
             val startedNanos = System.nanoTime()
-            val importedRoot = when (val frame = uiCapture.rootFrame) {
-                is CapturedHardwareBufferFrame -> importHardwareBufferRootFrame(frame)
-                is CapturedTextureFrame -> {
-                    val texture = frame.takeTexture()
-                    frame.close()
-                    texture?.let {
-                        OwnedGlTexture(
-                            texture = it,
-                            releaseTexture = Texture2D::destroy
-                        )
-                    }
-                }
-            }
+            val importedRoot = importHardwareBufferRootFrame(uiCapture.rootFrame as CapturedHardwareBufferFrame)
             metrics.recordRootImport(uiCapture.metricsFrame, startedNanos, System.nanoTime())
             importedRoot?.toPreparedSceneRoot(uiCapture)
         }
@@ -707,18 +647,6 @@ internal class SceneGlOwner(
             metrics.recordClipImport(uiCapture.metricsFrame, startedNanos, System.nanoTime())
         }
     }
-
-    // One callback for both present backends: draw() runs the pipeline, which acquires the
-    // scene buffer, renders, and presents (blit pass or HW hand-off) via the ScenePresenter.
-    private class SceneRenderCallback : GLRenderer.RenderCallback {
-        @Volatile
-        var target: SceneRenderTarget? = null
-
-        @OnGlThread
-        override fun onDrawFrame(eglManager: EGLManager) {
-            target?.draw()
-        }
-    }
 }
 
 private data class GlFrame(
@@ -758,7 +686,7 @@ private fun OwnedGlTexture.toPreparedSceneRoot(
         rootCaptureDurationNanos = uiCapture.rootCaptureDurationNanos,
         frameBudgetNanos = uiCapture.frameBudgetNanos,
         metricsFrame = uiCapture.metricsFrame,
-        slots = uiCapture.slots,
+        slot = uiCapture.slot,
         releaseTexture = releaseTexture
     )
 }
@@ -769,7 +697,7 @@ private data class PreparedSceneRoot(
     val rootCaptureDurationNanos: Long,
     val frameBudgetNanos: Long,
     val metricsFrame: SceneMetricsFrame?,
-    val slots: List<SceneSlotDeclaration>,
+    val slot: SceneSlotDeclaration,
     val releaseTexture: (Texture2D) -> Unit
 ) {
     fun applyTo(
@@ -781,7 +709,7 @@ private data class PreparedSceneRoot(
             rootCaptureDurationNanos = rootCaptureDurationNanos,
             frameBudgetNanos = frameBudgetNanos,
             metricsFrame = metricsFrame,
-            slots = slots,
+            slot = slot,
             releaseTexture = releaseTexture
         )
     }

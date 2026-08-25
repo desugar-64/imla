@@ -14,7 +14,7 @@ internal data class SceneGlRenderFrame(
     val rootTextureFlipYForScreen: Boolean,
     val rootCaptureDurationNanos: Long,
     val frameBudgetNanos: Long,
-    val slots: List<SceneGlRenderSlot>,
+    val slot: SceneGlRenderSlot,
     val metricsFrame: SceneMetricsFrame?
 )
 
