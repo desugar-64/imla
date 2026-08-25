@@ -31,7 +31,7 @@ All metrics show **MAXIMUM execution times** (MaxMs suffix). Lower is better.
 
 - **RenderingPipeline#renderAllMaxMs**: Overall pipeline (⚠️ > 20ms = critical)
 - **GraphicsLayerRenderer*MaxMs**: UI layer conversion (⚠️ > 5ms = bottleneck)
-- **GaussianBlurEffectMaxMs**: Blur performance (⚠️ > 10ms = slow)
+- **SceneBackdropBlurPassMaxMs**: Blur performance (⚠️ > 10ms = slow)
 - **gl*MaxMs**: OpenGL operations (⚠️ > 2ms = inefficient)
 
 ## Detailed Analysis

@@ -69,7 +69,7 @@ import org.junit.runner.RunWith
  * 📈 Key Metrics:
  * - RenderingPipeline#renderAllMaxMs: Overall pipeline (⚠️ > 20ms = critical)
  * - GraphicsLayerRenderer*MaxMs: UI layer conversion (⚠️ > 5ms = bottleneck)
- * - GaussianBlurEffect*MaxMs: Blur performance (⚠️ > 10ms = slow)
+ * - SceneBackdropBlurPass*MaxMs: Blur performance (⚠️ > 10ms = slow)
  * - gl*MaxMs: OpenGL operations (⚠️ > 2ms = inefficient)
  *
  * 📋 Perfetto Trace Analysis:
@@ -167,7 +167,9 @@ class ImlaBenchmark {
         // All static trace sections in the project (dynamic traces with string interpolation are tracked via wildcard in scripts).
         // Full trace inventory (used by scripts and trace analyzer)
         private val TRACE_SECTIONS = listOf(
-            "GaussianBlurEffect*",
+            "SceneBackdropBlurPass*",
+            "SceneBackdropPreparePass*",
+            "SceneBackdropCompositePass*",
             "GraphicsLayerRenderer#copyTextureToFramebuffer",
             "GraphicsLayerRenderer#renderGraphicsLayer",
             "GraphicsLayerRenderer#updateGraphicsLayer",

@@ -105,11 +105,10 @@
   the pass can release pooled storage independently of the sampling handle. Both
   live in `internal/render/gl/SceneBackdropEffectPasses.kt`.
 - Backdrop blur runs in the live path: the passes in
-  `SceneBackdropEffectPasses.kt`, `SceneBackdropOperation.Blur`,
-  `GaussianBlurEffect`, and `BackdropCompositeShaderEffect`; `SceneRenderer`
-  handles backdrop clip and progressive mask. Atlas grouping is not implemented
-  yet (it would need to integrate with the bucketed capture buffers used for
-  resizable content).
+  `SceneBackdropEffectPasses.kt` and `SceneBackdropOperation.Blur`;
+  `SceneRenderer` handles backdrop clip and progressive mask. Atlas grouping is
+  not implemented yet (it would need to integrate with the bucketed capture
+  buffers used for resizable content).
 
 ## Goal Protocol
 - Keep goals narrow and progressive. Include explicit non-goals, verification,
