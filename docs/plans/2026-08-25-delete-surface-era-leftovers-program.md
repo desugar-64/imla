@@ -15,7 +15,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 ### Arm the program
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on her explicit go.
-- [ ] On her go, arm a `/goal` with this exact text. "docs/plans/2026-08-25-delete-surface-era-leftovers-program.md. PR order pr-dead-engine, pr-drop-st, pr-present-types, pr-one-slot, pr-egl-pump, pr-cmdbuf-design. Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. The operator lands the Graphite stack. Done when every PR box is checked and the operator has landed the stack."
+- [x] On her go, arm a `/goal` with this exact text. "docs/plans/2026-08-25-delete-surface-era-leftovers-program.md. PR order pr-dead-engine, pr-drop-st, pr-present-types, pr-one-slot, pr-egl-pump, pr-cmdbuf-design. Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. The operator lands the Graphite stack. Done when every PR box is checked and the operator has landed the stack."
 - [ ] Read these from trunk at program start. Re-read them at every tick.
   - [ ] `git show origin/main:AGENTS.md`
   - [ ] `git show origin/main:.agents/skills/imla_adb_screenshot_half/SKILL.md`
@@ -25,7 +25,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `git show origin/main:pstack/skills/poteto-mode/playbooks/autopilot-stack.md`
   - [ ] `git show origin/main:pstack/skills/swarm/SKILL.md`
   - [ ] `git show origin/main:pstack/skills/poteto-mode/playbooks/opening-a-pr.md`
-- [ ] Arm the 30-minute audit tick. In a local session, a real terminal `/loop`. In a cloud root, a cloud-sleeper wake chain. Never leave the cadence to memory.
+- [x] Arm the 30-minute audit tick. In a local session, a real terminal `/loop`. In a cloud root, a cloud-sleeper wake chain. Never leave the cadence to memory.
 - [ ] Use this tick prompt, verbatim. "Re-read the execution playbook from trunk and the armed /goal. Audit the operation against both and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then send the operator a status message, whether or not anything changed, with the queue table of PR, owner, state, and head SHA, the verdicts since the last tick, what merged, open operator gates, and blockers."
 - [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once.
 
@@ -44,8 +44,8 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 ### PR mechanics, for every PR
 
-- [ ] Open the PR ready, never draft, with `gh pr create` and `draft: false`, or with Graphite `gt` for a stack.
-- [ ] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on. Commands are `./gradlew -q compileDebugKotlin` and `./gradlew -q :imla:build`.
+- [x] Open the PR ready, never draft, with `gh pr create` and `draft: false`, or with Graphite `gt` for a stack.
+- [x] Run the repo's lint and typecheck once before the PR-facing push. Push with hooks on. Commands are `./gradlew -q compileDebugKotlin` and `./gradlew -q :imla:build`.
 - [ ] Run `/deslop` before each commit and `/no-comments` before review.
 - [ ] Triage every Bugbot and security-reviewer comment per `../references/bugbot-triage.md`.
 - [ ] Rebase onto current trunk before babysit and again before the merge-ready report.
@@ -71,51 +71,51 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/EffectPipeline.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianBlurEffect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianKernel.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianBlurKernelShaderProgram.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessEffect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/EffectContext.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/Effect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/SizedFramebuffer.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessGeometry.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/preprocess/PreProcessFilter.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/composite/BackdropCompositeShaderEffect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/blend/PostBlendEffect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/PostProcessingEffect.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/SinglePassQuadExecutor.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/noise/BackdropCompositeSamplingOrigins.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/framebuffer/FramebufferPool.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/framebuffer/BumpAllocatorPool.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/camera/OrthographicCameraController.kt`.
-- [ ] Delete `imla/src/main/assets/shader/gaussian_blur.vert`.
-- [ ] Delete `imla/src/main/assets/shader/gaussian_blur_kernel.frag`.
-- [ ] Delete `imla/src/main/assets/shader/noise_blend_quad.frag`.
-- [ ] Edit `AGENTS.md`.
-- [ ] Edit `benchmark/README.md`.
-- [ ] Delete `scripts/gaussian_trace_query.py`.
-- [ ] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessGeometryTest.kt`.
-- [ ] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianKernelTest.kt`.
-- [ ] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/noise/BackdropCompositeSamplingOriginsTest.kt`.
-- [ ] Edit `benchmark/src/main/java/dev/serhiiyaremych/benchmark/ImlaBenchmark.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/EffectPipeline.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianBlurEffect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianKernel.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianBlurKernelShaderProgram.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessEffect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/EffectContext.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/Effect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/SizedFramebuffer.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessGeometry.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/preprocess/PreProcessFilter.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/composite/BackdropCompositeShaderEffect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/blend/PostBlendEffect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/PostProcessingEffect.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/SinglePassQuadExecutor.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/processing/noise/BackdropCompositeSamplingOrigins.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/framebuffer/FramebufferPool.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/framebuffer/BumpAllocatorPool.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/camera/OrthographicCameraController.kt`.
+- [x] Delete `imla/src/main/assets/shader/gaussian_blur.vert`.
+- [x] Delete `imla/src/main/assets/shader/gaussian_blur_kernel.frag`.
+- [x] Delete `imla/src/main/assets/shader/noise_blend_quad.frag`.
+- [x] Edit `AGENTS.md`.
+- [x] Edit `benchmark/README.md`.
+- [x] Delete `scripts/gaussian_trace_query.py`.
+- [x] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/effects/PreProcessGeometryTest.kt`.
+- [x] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/effects/GaussianKernelTest.kt`.
+- [x] Delete `imla/src/test/java/dev/serhiiyaremych/imla/internal/render/processing/noise/BackdropCompositeSamplingOriginsTest.kt`.
+- [x] Edit `benchmark/src/main/java/dev/serhiiyaremych/benchmark/ImlaBenchmark.kt`.
 
 **Build.**
 
-- [ ] Grep `EffectPipeline`, `GaussianBlurEffect`, `PostBlendEffect`, `PreProcessFilter`, `FramebufferPool`, and `OrthographicCameraController` from the repo root. Delete only after production callers outside those files are zero.
-- [ ] Keep `FramebufferLendingPool`, `QuadBatchRenderer`, `SimpleQuadRenderer`, `Renderer2D`, `SceneBackdropEffectPasses`, and `SceneRenderPipeline`.
-- [ ] Replace `GaussianBlurEffect*` names in `ImlaBenchmark.kt` and `benchmark/README.md` so they do not look like a live pass.
-- [ ] Fix the `AGENTS.md` renderer contract so live blur is only `SceneBackdropEffectPasses`. Remove `GaussianBlurEffect` and `BackdropCompositeShaderEffect` from that sentence.
+- [x] Grep `EffectPipeline`, `GaussianBlurEffect`, `PostBlendEffect`, `PreProcessFilter`, `FramebufferPool`, and `OrthographicCameraController` from the repo root. Delete only after production callers outside those files are zero.
+- [x] Keep `FramebufferLendingPool`, `QuadBatchRenderer`, `SimpleQuadRenderer`, `Renderer2D`, `SceneBackdropEffectPasses`, and `SceneRenderPipeline`.
+- [x] Replace `GaussianBlurEffect*` names in `ImlaBenchmark.kt` and `benchmark/README.md` so they do not look like a live pass.
+- [x] Fix the `AGENTS.md` renderer contract so live blur is only `SceneBackdropEffectPasses`. Remove `GaussianBlurEffect` and `BackdropCompositeShaderEffect` from that sentence.
 
 **You see.**
 
-- [ ] `./gradlew -q :imla:build` exits 0.
-- [ ] `rg EffectPipeline imla/src/main` prints nothing.
+- [x] `./gradlew -q :imla:build` exits 0.
+- [x] `rg EffectPipeline imla/src/main` prints nothing.
 - [ ] Showcase still shows glass after install.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Remaining `imla` JVM tests still pass after the dead tests are gone. Run `./gradlew -q :imla:test`.
+- [x] Remaining `imla` JVM tests still pass after the dead tests are gone. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
@@ -152,40 +152,40 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneCanvasFrameRenderer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/GraphicsLayerCapture.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneProgressiveMaskCache.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneClipShapeCache.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/CapturedLayerFrame.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/Texture.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/opengl/OpenGLTexture2D.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/Renderer2D.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneSurfaceTextureCapture.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SurfaceTextureRenderer.kt`.
-- [ ] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/CanvasTextureCapture.kt`.
-- [ ] Delete `imla/src/main/assets/shader/simple_ext_quad.frag`.
-- [ ] Delete `imla/src/main/assets/shader/external_quad.frag` after OES constructors are gone.
-- [ ] Edit `app/src/main/java/dev/serhiiyaremych/imla/CaptureFidelityScene.kt` only if compile fails. Prefer leaving the demo.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneCanvasFrameRenderer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/GraphicsLayerCapture.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneProgressiveMaskCache.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/resources/SceneClipShapeCache.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/CapturedLayerFrame.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/Texture.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/opengl/OpenGLTexture2D.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/Renderer2D.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneSurfaceTextureCapture.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SurfaceTextureRenderer.kt`.
+- [x] Delete `imla/src/main/java/dev/serhiiyaremych/imla/internal/capture/CanvasTextureCapture.kt`.
+- [x] Delete `imla/src/main/assets/shader/simple_ext_quad.frag`.
+- [x] Delete `imla/src/main/assets/shader/external_quad.frag` after OES constructors are gone.
+- [x] Edit `app/src/main/java/dev/serhiiyaremych/imla/CaptureFidelityScene.kt` only if compile fails. Prefer leaving the demo.
 
 **Build.**
 
-- [ ] Stop passing `glOwner::createCanvasTextureCapture` from `SceneRenderer` into backdrop, slot, mask, and clip captures.
-- [ ] Remove `CanvasTextureCaptureFactory` from `SceneCanvasFrameRenderer`, `GraphicsLayerCapture`, `SceneProgressiveMaskCache`, and `SceneClipShapeCache`.
-- [ ] Delete `kickTextureCapture`, `captureToTexture`, `CapturedTextureFrame`, the `importCapturedFrame` texture branch, and `executeWithGlResources`. That helper is only wired from `createCanvasTextureCapture`.
-- [ ] Delete `TEXTURE_EXTERNAL_OES` from `Texture.Target`, `OpenGLTexture2D`, and `Renderer2D` after grep shows no remaining constructors.
-- [ ] Leave `CaptureFidelityScene` in the app unless the operator later drops issue 13.
+- [x] Stop passing `glOwner::createCanvasTextureCapture` from `SceneRenderer` into backdrop, slot, mask, and clip captures.
+- [x] Remove `CanvasTextureCaptureFactory` from `SceneCanvasFrameRenderer`, `GraphicsLayerCapture`, `SceneProgressiveMaskCache`, and `SceneClipShapeCache`.
+- [x] Delete `kickTextureCapture`, `captureToTexture`, `CapturedTextureFrame`, the `importCapturedFrame` texture branch, and `executeWithGlResources`. That helper is only wired from `createCanvasTextureCapture`.
+- [x] Delete `TEXTURE_EXTERNAL_OES` from `Texture.Target`, `OpenGLTexture2D`, and `Renderer2D` after grep shows no remaining constructors.
+- [x] Leave `CaptureFidelityScene` in the app unless the operator later drops issue 13.
 
 **You see.**
 
-- [ ] `./gradlew -q :imla:build` exits 0.
-- [ ] `rg CanvasTextureCapture imla/src/main` prints nothing.
+- [x] `./gradlew -q :imla:build` exits 0.
+- [x] `rg CanvasTextureCapture imla/src/main` prints nothing.
 - [ ] Showcase glass is not Y-flipped. Mask and clip still line up.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Remaining capture and importer JVM tests still pass. Run `./gradlew -q :imla:test`.
+- [x] Remaining capture and importer JVM tests still pass. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
@@ -226,38 +226,38 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderPipeline.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderBuffer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneRenderTarget.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSourceModifier.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSlotModifier.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/scheduler/SceneFrameRequest.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderPipeline.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderBuffer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneRenderTarget.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSourceModifier.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/modifier/SceneSlotModifier.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/scheduler/SceneFrameRequest.kt`.
 - [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/metrics/SceneMetrics.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneBackdropEffectPasses.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneBackdropEffectPasses.kt`.
 
 **Build.**
 
-- [ ] Inline `HardwareBitmapPresenter`. Delete `ScenePresenter`.
-- [ ] Delete `SceneRenderBuffer.Backing.Plain` and its `when` branches.
-- [ ] Stop taking `requiresStencil` on acquire. Every HW buffer already has a stencil RBO.
-- [ ] Delete `SceneRenderer.attachedSize` and `SceneRenderTarget.resize`.
-- [ ] Rename `hasPresentTarget`, `ensureGlTarget`, `detachPresentTarget`, and `SceneFrameDropReason.NoRenderTarget` to GL-session words.
-- [ ] Drop unused `SceneFrameDropReason` values `Superseded` and `SourceDetached`, or start recording mailbox displace as `Superseded`. Do not leave dead enum members that look load-bearing.
-- [ ] Delete `BackdropInput.accumulatedScene`.
-- [ ] Fix the `SceneRenderCallback` comment that still mentions blit. Update `SceneFrameRequest` KDoc so it does not claim a frame scheduler.
+- [x] Inline `HardwareBitmapPresenter`. Delete `ScenePresenter`.
+- [x] Delete `SceneRenderBuffer.Backing.Plain` and its `when` branches.
+- [x] Stop taking `requiresStencil` on acquire. Every HW buffer already has a stencil RBO.
+- [x] Delete `SceneRenderer.attachedSize` and `SceneRenderTarget.resize`.
+- [x] Rename `hasPresentTarget`, `ensureGlTarget`, `detachPresentTarget`, and `SceneFrameDropReason.NoRenderTarget` to GL-session words.
+- [x] Drop unused `SceneFrameDropReason` values `Superseded` and `SourceDetached`, or start recording mailbox displace as `Superseded`. Do not leave dead enum members that look load-bearing.
+- [x] Delete `BackdropInput.accumulatedScene`.
+- [x] Fix the `SceneRenderCallback` comment that still mentions blit. Update `SceneFrameRequest` KDoc so it does not claim a frame scheduler.
 
 **You see.**
 
-- [ ] `./gradlew -q compileDebugKotlin` exits 0.
-- [ ] `rg interface ScenePresenter` prints nothing.
+- [x] `./gradlew -q compileDebugKotlin` exits 0.
+- [x] `rg interface ScenePresenter` prints nothing.
 - [ ] `rg hasPresentTarget` prints nothing.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Remaining renderer JVM tests still pass after the rename. Run `./gradlew -q :imla:test`.
+- [x] Remaining renderer JVM tests still pass after the rename. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
@@ -294,25 +294,25 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/model/UiSceneCapture.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/model/UiSceneCapture.kt`.
 - [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/layer/model/SceneSlotDeclaration.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlRenderFrame.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/GlStore.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderPipeline.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlRenderFrame.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/GlStore.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/SceneRenderPipeline.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/pipeline/ScenePresenter.kt`.
 
 **Build.**
 
-- [ ] Change `assembleSnapshot` so a request holds one slot, not `listOf(oneSlot)`.
-- [ ] Change `SceneGlOwner.submit`, `GlStore`, and present so they take that slot. Delete `slots.firstOrNull()`.
-- [ ] Fail compile if a second declaration would composite into the first layer bitmap. Do not keep a silent N-slot list.
+- [x] Change `assembleSnapshot` so a request holds one slot, not `listOf(oneSlot)`.
+- [x] Change `SceneGlOwner.submit`, `GlStore`, and present so they take that slot. Delete `slots.firstOrNull()`.
+- [x] Fail compile if a second declaration would composite into the first layer bitmap. Do not keep a silent N-slot list.
 
 **You see.**
 
-- [ ] `./gradlew -q compileDebugKotlin` exits 0.
-- [ ] `rg slots.firstOrNull imla/src/main` prints nothing.
+- [x] `./gradlew -q compileDebugKotlin` exits 0.
+- [x] `rg slots.firstOrNull imla/src/main` prints nothing.
 - [ ] Two `effectLayer`s on one source still draw two bitmaps.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -358,26 +358,26 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
-- [ ] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneRenderTarget.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneGlOwner.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/SceneRenderer.kt`.
+- [x] Edit `imla/src/main/java/dev/serhiiyaremych/imla/internal/render/gl/SceneRenderTarget.kt`.
 
 **Build.**
 
-- [ ] Keep one-in-flight coalescing via `presentScheduled`.
-- [ ] Keep detach cancellation and the attached-session token modifiers already use.
-- [ ] Keep render-complete callbacks used by metrics.
-- [ ] Replace `createRenderTarget(64, 64)` plus `requestRender` with `GLRenderer.execute` for the draw kick. Do not rewrite `SceneGlOwner` into a new owner.
+- [x] Keep one-in-flight coalescing via `presentScheduled`.
+- [x] Keep detach cancellation and the attached-session token modifiers already use.
+- [x] Keep render-complete callbacks used by metrics.
+- [x] Replace `createRenderTarget(64, 64)` plus `requestRender` with `GLRenderer.execute` for the draw kick. Do not rewrite `SceneGlOwner` into a new owner.
 
 **You see.**
 
-- [ ] `./gradlew -q compileDebugKotlin` exits 0.
+- [x] `./gradlew -q compileDebugKotlin` exits 0.
 - [ ] `rg EGL_PLACEHOLDER_SIZE` prints nothing.
 - [ ] A Perfetto smoke shows the GL context current on `ImlaSceneGL` during render.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Remaining GL owner JVM tests still pass. Run `./gradlew -q :imla:test`.
+- [x] Remaining GL owner JVM tests still pass. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
@@ -418,25 +418,25 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Files.**
 
-- [ ] Create `docs/plans/2026-08-25-command-buffer-gpu-api.md`.
+- [x] Create `docs/plans/2026-08-25-command-buffer-gpu-api.md`.
 
 **Build.**
 
-- [ ] List every live GL call in order from `SceneGlOwner.draw` through present. Bind, clear, draw, fence. No type tour.
-- [ ] Sketch the same frame as a WebGPU command encoder in that file.
-- [ ] Name live steps with no WebGPU equivalent, including EGLImage import and `glCopyImageSubData` if they appear.
-- [ ] Compare two paper encoder shapes. Do not land a throwaway encoder in this PR.
-- [ ] Keep capture, Compose, and `drawImage` present outside the encoder.
+- [x] List every live GL call in order from `SceneGlOwner.draw` through present. Bind, clear, draw, fence. No type tour.
+- [x] Sketch the same frame as a WebGPU command encoder in that file.
+- [x] Name live steps with no WebGPU equivalent, including EGLImage import and `glCopyImageSubData` if they appear.
+- [x] Compare two paper encoder shapes. Do not land a throwaway encoder in this PR.
+- [x] Keep capture, Compose, and `drawImage` present outside the encoder.
 
 **You see.**
 
-- [ ] The design file exists under `docs/plans/`.
-- [ ] `./gradlew -q compileDebugKotlin` still exits 0 with no Kotlin edits required.
-- [ ] The file names `SceneRenderPipeline` as the one encoder caller.
+- [x] The design file exists under `docs/plans/`.
+- [x] `./gradlew -q compileDebugKotlin` still exits 0 with no Kotlin edits required.
+- [x] The file names `SceneRenderPipeline` as the one encoder caller.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Library tests still pass because this PR is docs only. Run `./gradlew -q :imla:test`.
+- [x] Library tests still pass because this PR is docs only. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
