@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.os.Trace
 import android.view.View
 import androidx.compose.runtime.Composable
@@ -222,12 +223,6 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    /**
-     * Capture + GL + wrap, blocking this call until the hardware bitmap is
-     * installed. Called from the source [OnDrawListener] after HWUI draw so
-     * HardwareRenderer is not fighting the window RenderThread. The next
-     * Compose draw `drawImage`s the result (~1 frame of lag).
-     */
     @MainThread
     internal fun presentSynchronously(
         layer: GraphicsLayer,
@@ -249,28 +244,76 @@ internal class SceneRenderer internal constructor(
         pruneSlotCapturesTo(liveSlotIds)
         pruneBackdropCapturesTo(liveSlotIds)
         prunePresentedTo(liveSlotIds)
-        val sourceBounds = IntRect(0, 0, size.width, size.height)
         rootCaptureLayer = layer
         try {
+            val jobs = mutableListOf<SyncPresentJob>()
+            val sourceBounds = IntRect(0, 0, size.width, size.height)
             slots.forEach { slot ->
                 val crop = slot.geometry.rootBounds.intersect(sourceBounds)
                 if (crop.isEmpty || crop.width <= 0 || crop.height <= 0) return@forEach
-                presentSlotSynchronously(
-                    RootCaptureRequest(
-                        layer = layer,
-                        size = IntSize(crop.width, crop.height),
-                        cropOffset = Offset(crop.left.toFloat(), crop.top.toFloat()),
-                        density = density,
-                        layoutDirection = layoutDirection,
-                        rootGeneration = rootGeneration,
-                        rootRecordedNanos = rootRecordedNanos,
-                        slot = slot,
-                        liveSlotIds = liveSlotIds,
-                        flushStartedNanos = flushStartedNanos,
-                        vsyncTimeNanos = vsyncTimeNanos,
-                        kickSlotRenders = kickSlotRenders
-                    )
+                val request = RootCaptureRequest(
+                    layer = layer,
+                    size = IntSize(crop.width, crop.height),
+                    cropOffset = Offset(crop.left.toFloat(), crop.top.toFloat()),
+                    density = density,
+                    layoutDirection = layoutDirection,
+                    rootGeneration = rootGeneration,
+                    rootRecordedNanos = rootRecordedNanos,
+                    slot = slot,
+                    liveSlotIds = liveSlotIds,
+                    flushStartedNanos = flushStartedNanos,
+                    vsyncTimeNanos = vsyncTimeNanos,
+                    kickSlotRenders = kickSlotRenders
                 )
+                pendingPresentVsyncBySlot[request.slot.id] =
+                    request.vsyncTimeNanos ?: request.rootRecordedNanos
+                val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
+                recordUiDataFlushAge(request)
+                val captureStartedNanos = System.nanoTime()
+                val started = backdropCapture(request.slot.id).submit(
+                    layer = request.layer,
+                    size = request.size,
+                    density = request.density,
+                    layoutDirection = request.layoutDirection,
+                    bucketPhysicalSize = false,
+                    logicalSize = request.size,
+                    contentOffset = request.cropOffset,
+                    vsyncTimeNanos = request.vsyncTimeNanos,
+                    captureScale = BACKDROP_HARDWARE_CAPTURE_SCALE
+                )
+                if (!started) {
+                    recordRootCaptureMetrics(
+                        success = false,
+                        captureStartedNanos = captureStartedNanos,
+                        captureFinishedNanos = System.nanoTime()
+                    )
+                    return@forEach
+                }
+                jobs += SyncPresentJob(
+                    request = request,
+                    metricsFrame = metricsFrame,
+                    captureStartedNanos = captureStartedNanos
+                )
+            }
+            val deadlineElapsedRealtime = SystemClock.elapsedRealtime() + SYNC_WAIT_TIMEOUT_MS
+            jobs.forEach { job ->
+                val remaining = deadlineElapsedRealtime - SystemClock.elapsedRealtime()
+                val rootFrame = backdropCapture(job.request.slot.id).finish(
+                    remaining.coerceAtLeast(0)
+                )
+                val captureFinishedNanos = System.nanoTime()
+                job.rootFrame = rootFrame
+                job.captureFinishedNanos = captureFinishedNanos
+                recordRootCaptureMetrics(
+                    success = rootFrame != null,
+                    captureStartedNanos = job.captureStartedNanos,
+                    captureFinishedNanos = captureFinishedNanos
+                )
+            }
+            jobs.forEach { job ->
+                if (job.rootFrame != null) {
+                    presentCapturedRootSynchronously(job)
+                }
             }
         } finally {
             rootCaptureLayer = null
@@ -278,38 +321,9 @@ internal class SceneRenderer internal constructor(
     }
 
     @MainThread
-    private fun presentSlotSynchronously(request: RootCaptureRequest) {
-        pendingPresentVsyncBySlot[request.slot.id] =
-            request.vsyncTimeNanos ?: request.rootRecordedNanos
-        val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
-        recordUiDataFlushAge(request)
-        val captureStartedNanos = System.nanoTime()
-        val rootFrame = backdropCapture(request.slot.id).captureBlocking(
-            layer = request.layer,
-            size = request.size,
-            density = request.density,
-            layoutDirection = request.layoutDirection,
-            bucketPhysicalSize = false,
-            logicalSize = request.size,
-            contentOffset = request.cropOffset,
-            vsyncTimeNanos = request.vsyncTimeNanos,
-            timeoutMs = SYNC_WAIT_TIMEOUT_MS,
-            captureScale = BACKDROP_HARDWARE_CAPTURE_SCALE
-        )
-        val captureFinishedNanos = System.nanoTime()
-        if (rootFrame == null) {
-            recordRootCaptureMetrics(
-                success = false,
-                captureStartedNanos = captureStartedNanos,
-                captureFinishedNanos = captureFinishedNanos
-            )
-            return
-        }
-        recordRootCaptureMetrics(
-            success = true,
-            captureStartedNanos = captureStartedNanos,
-            captureFinishedNanos = captureFinishedNanos
-        )
+    private fun presentCapturedRootSynchronously(job: SyncPresentJob) {
+        val rootFrame = job.rootFrame ?: return
+        val request = job.request
         val remappedSlot = request.slot.copy(
             geometry = request.slot.geometry.relativeTo(request.cropOffset)
         )
@@ -317,8 +331,8 @@ internal class SceneRenderer internal constructor(
             rootFrame = rootFrame,
             request = request,
             remappedSlot = remappedSlot,
-            rootCaptureDurationNanos = captureFinishedNanos - captureStartedNanos,
-            metricsFrame = metricsFrame
+            rootCaptureDurationNanos = job.captureFinishedNanos - job.captureStartedNanos,
+            metricsFrame = job.metricsFrame
         )
         val sceneRequest = SceneFrameRequest(
             uiCapture = uiCapture,
@@ -1008,6 +1022,14 @@ private data class RootCaptureRequest(
     val flushStartedNanos: Long,
     val vsyncTimeNanos: Long?,
     val kickSlotRenders: Boolean
+)
+
+private data class SyncPresentJob(
+    val request: RootCaptureRequest,
+    val metricsFrame: SceneMetricsFrame?,
+    val captureStartedNanos: Long,
+    var rootFrame: CapturedLayerFrame? = null,
+    var captureFinishedNanos: Long = 0L
 )
 
 @Composable

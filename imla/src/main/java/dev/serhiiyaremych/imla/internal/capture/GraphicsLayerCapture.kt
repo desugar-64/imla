@@ -56,6 +56,7 @@ internal class GraphicsLayerCapture(
     private var textureCapture: CanvasTextureCapture? = null
     private var latestFrame: CapturedLayerFrame? = null
     private var mailboxGeneration: Long = 0L
+    private var pendingSubmit: PendingHardwareCapture? = null
 
     @MainThread
     fun kickCapture(
@@ -111,13 +112,8 @@ internal class GraphicsLayerCapture(
         }
     }
 
-    /**
-     * Records [layer] and blocks the caller until the HardwareRenderer crop (or
-     * pre-Q texture capture) is ready. ImageReader still completes on
-     * [captureThread]; this waits on a latch instead of posting back to main.
-     */
     @MainThread
-    fun captureBlocking(
+    fun submit(
         layer: GraphicsLayer,
         size: IntSize,
         density: Density,
@@ -126,11 +122,11 @@ internal class GraphicsLayerCapture(
         logicalSize: IntSize,
         contentOffset: Offset,
         vsyncTimeNanos: Long?,
-        timeoutMs: Long = MAIN_THREAD_DRAW_WAIT_TIMEOUT_MS,
         captureScale: Float = 1f
-    ): CapturedLayerFrame? {
+    ): Boolean {
         checkMainThread()
-        if (size == IntSize.Zero) return null
+        if (size == IntSize.Zero) return false
+        if (pendingSubmit != null) return false
 
         val contentSize = size.scaledBy(captureScale)
         val sizes = CaptureSizes(
@@ -142,41 +138,59 @@ internal class GraphicsLayerCapture(
             )
         )
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            captureHardwareBufferBlocking(
+            submitHardwareBuffer(
                 layer = layer,
                 sizes = sizes,
                 captureScale = captureScale,
                 density = density,
                 layoutDirection = layoutDirection,
                 contentOffset = contentOffset,
-                vsyncTimeNanos = vsyncTimeNanos,
-                timeoutMs = timeoutMs
+                vsyncTimeNanos = vsyncTimeNanos
             )
         } else {
-            captureToTexture(
+            val frame = captureToTexture(
                 layer = layer,
                 sizes = sizes,
                 captureScale = captureScale,
                 density = density,
                 layoutDirection = layoutDirection,
                 contentOffset = contentOffset
-            )?.also(::publishLatestFrame)
-            takeLatestFrame()
+            )
+            pendingSubmit = PendingHardwareCapture(
+                latch = CountDownLatch(0),
+                held = AtomicReference(frame)
+            )
+            true
         }
     }
 
+    @MainThread
+    fun finish(timeoutMs: Long): CapturedLayerFrame? {
+        checkMainThread()
+        val pending = pendingSubmit ?: return null
+        pendingSubmit = null
+        if (pending.latch.count > 0) {
+            val completed = pending.latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+            if (!completed) {
+                mailboxGeneration++
+                pending.held.getAndSet(null)?.close()
+                return null
+            }
+        }
+        return pending.held.getAndSet(null)
+    }
+
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun captureHardwareBufferBlocking(
+    private fun submitHardwareBuffer(
         layer: GraphicsLayer,
         sizes: CaptureSizes,
         captureScale: Float,
         density: Density,
         layoutDirection: LayoutDirection,
         contentOffset: Offset,
-        vsyncTimeNanos: Long?,
-        timeoutMs: Long
-    ): CapturedLayerFrame? {
-        val bufferSize = ensurePlatformRenderers(size = sizes.capture) ?: return null
+        vsyncTimeNanos: Long?
+    ): Boolean {
+        val bufferSize = ensurePlatformRenderers(size = sizes.capture) ?: return false
         val generation = mailboxGeneration
         val held = AtomicReference<CapturedLayerFrame?>(null)
         val latch = CountDownLatch(1)
@@ -210,16 +224,12 @@ internal class GraphicsLayerCapture(
                 latch.countDown()
             }
         )
-        if (!started) return null
-        val completed = latch.await(timeoutMs, TimeUnit.MILLISECONDS)
-        if (!completed) {
-            mailboxGeneration++
-            held.getAndSet(null)?.close()
-            return null
-        }
-        val frame = held.get() ?: return null
-        publishLatestFrame(frame)
-        return takeLatestFrame()
+        if (!started) return false
+        pendingSubmit = PendingHardwareCapture(
+            latch = latch,
+            held = held
+        )
+        return true
     }
 
     /**
@@ -372,6 +382,8 @@ internal class GraphicsLayerCapture(
 
     fun release() {
         mailboxGeneration++
+        pendingSubmit?.let { it.held.getAndSet(null)?.close() }
+        pendingSubmit = null
         latestFrame?.close()
         latestFrame = null
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -599,6 +611,11 @@ internal class GraphicsLayerCapture(
         val logical: IntSize,
         val content: IntSize,
         val capture: IntSize
+    )
+
+    private data class PendingHardwareCapture(
+        val latch: CountDownLatch,
+        val held: AtomicReference<CapturedLayerFrame?>
     )
 
     @RequiresApi(Build.VERSION_CODES.Q)
