@@ -1,5 +1,6 @@
 package dev.serhiiyaremych.imla.internal.render.gl.pipeline
 
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.tracing.trace
@@ -16,6 +17,7 @@ import dev.serhiiyaremych.imla.internal.metrics.SceneRenderMetricsLog
 
 private const val TAG = "SceneRenderPipeline"
 
+@RequiresApi(29)
 internal class SceneRenderPipeline(
     private val presenter: HardwareBitmapPresenter,
     private val noisePass: SceneNoisePass,

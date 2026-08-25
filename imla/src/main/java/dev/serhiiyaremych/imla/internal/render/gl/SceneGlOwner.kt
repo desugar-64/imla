@@ -105,7 +105,9 @@ internal class SceneGlOwner(
         presentScheduled.set(false)
         glRenderer.execute {
             threadGuard.bindCurrentThread()
-            renderPipeline?.release()
+            if (Build.VERSION.SDK_INT >= 29) {
+                renderPipeline?.release()
+            }
             glStore.destroy()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 capturedFrameImporter?.close()
@@ -171,7 +173,9 @@ internal class SceneGlOwner(
                 phase = "gl.onDrawFrame.total",
                 details = "slot=${frame.slot.id.value}"
             ) {
-                requireNotNull(renderPipeline).render(frame)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    requireNotNull(renderPipeline).render(frame)
+                }
             }
         }
         val finishedNanos = System.nanoTime()
@@ -230,10 +234,14 @@ internal class SceneGlOwner(
         initializeGlRenderers(context)
 
         val shaderPrograms = createSceneShaderPrograms(context)
-        val pipeline = createRenderPipeline(
-            context = context,
-            shaderPrograms = shaderPrograms
-        )
+        val pipeline = if (Build.VERSION.SDK_INT >= 29) {
+            createRenderPipeline(
+                context = context,
+                shaderPrograms = shaderPrograms
+            )
+        } else {
+            error("GL present pipeline requires API 29")
+        }
 
         graphicsContext = context
         renderPipeline = pipeline
@@ -266,6 +274,7 @@ internal class SceneGlOwner(
         )
     }
 
+    @RequiresApi(29)
     private fun createRenderPipeline(
         context: GraphicsContext,
         shaderPrograms: SceneShaderPrograms
