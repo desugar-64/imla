@@ -318,10 +318,9 @@ internal class SceneMetrics {
  * Average duration values use a small rolling window of recent samples. `latest*` values expose
  * the newest sample for quick spike detection. All durations are milliseconds.
  *
- * @property submittedFrames root snapshots handed from the frame scheduler to GL.
+ * @property submittedFrames root snapshots handed from the UI capture path to GL.
  * @property renderedFrames GL render-target completion callbacks observed after swap/flush.
- * @property droppedFrames captured root snapshots closed before GL import, including scheduler
- *   supersedes and output lifecycle misses.
+ * @property droppedFrames captured root snapshots closed before GL import.
  * @property renderRequestPacedFrames captured snapshots intentionally closed while a previous
  *   GLRenderer request callback is still in flight.
  * @property captureFailures root capture attempts that did not produce a hardware buffer frame.
