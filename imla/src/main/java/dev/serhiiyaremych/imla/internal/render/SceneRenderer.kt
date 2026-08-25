@@ -100,7 +100,7 @@ internal class SceneRenderer internal constructor(
     private var lastSceneRenderCompleteNanos: Long = 0L
 
     private var frameBudgetNanos: Long = DEFAULT_FRAME_BUDGET_NANOS
-    private var lastPreDrawMeasuredUiDataNanos: Long = 0L
+    private var lastFlushMeasuredUiDataNanos: Long = 0L
     private var lastFrameBuildMeasuredUiDataNanos: Long = 0L
     private var flushSequence: Long = 0L
     private var inFlightBackdropIds = mutableSetOf<SceneSlotId>()
@@ -112,8 +112,6 @@ internal class SceneRenderer internal constructor(
     internal var rootCaptureLayer: GraphicsLayer? = null
         private set
 
-    internal var presentingOutput: Boolean = false
-    private var suppressPresentInvalidate: Boolean = false
     private val pendingPresentVsyncBySlot = mutableMapOf<SceneSlotId, Long>()
     private val drawnPresentVsyncBySlot = mutableMapOf<SceneSlotId, Long>()
 
@@ -176,12 +174,6 @@ internal class SceneRenderer internal constructor(
         )
     }
 
-    internal fun consumePresentingOutput(): Boolean {
-        if (!presentingOutput) return false
-        presentingOutput = false
-        return true
-    }
-
     internal val hasPresentTarget: Boolean
         get() = renderTarget != null
 
@@ -193,7 +185,7 @@ internal class SceneRenderer internal constructor(
         rootGeneration: Long,
         rootRecordedNanos: Long = 0L,
         slots: List<SceneRegisteredSlot> = emptyList(),
-        preDrawStartedNanos: Long = System.nanoTime(),
+        flushStartedNanos: Long = System.nanoTime(),
         vsyncTimeNanos: Long? = null,
         kickSlotRenders: Boolean = true
     ) {
@@ -222,7 +214,7 @@ internal class SceneRenderer internal constructor(
                     rootRecordedNanos = rootRecordedNanos,
                     slot = slot,
                     liveSlotIds = liveSlotIds,
-                    preDrawStartedNanos = preDrawStartedNanos,
+                    flushStartedNanos = flushStartedNanos,
                     vsyncTimeNanos = vsyncTimeNanos,
                     kickSlotRenders = kickSlotRenders
                 )
@@ -245,7 +237,7 @@ internal class SceneRenderer internal constructor(
         rootGeneration: Long,
         rootRecordedNanos: Long = 0L,
         slots: List<SceneRegisteredSlot> = emptyList(),
-        preDrawStartedNanos: Long = System.nanoTime(),
+        flushStartedNanos: Long = System.nanoTime(),
         vsyncTimeNanos: Long? = null,
         kickSlotRenders: Boolean = true
     ) {
@@ -274,7 +266,7 @@ internal class SceneRenderer internal constructor(
                         rootRecordedNanos = rootRecordedNanos,
                         slot = slot,
                         liveSlotIds = liveSlotIds,
-                        preDrawStartedNanos = preDrawStartedNanos,
+                        flushStartedNanos = flushStartedNanos,
                         vsyncTimeNanos = vsyncTimeNanos,
                         kickSlotRenders = kickSlotRenders
                     )
@@ -289,8 +281,8 @@ internal class SceneRenderer internal constructor(
     private fun presentSlotSynchronously(request: RootCaptureRequest) {
         pendingPresentVsyncBySlot[request.slot.id] =
             request.vsyncTimeNanos ?: request.rootRecordedNanos
-        val metricsFrame = metrics.beginRootFrame(request.preDrawStartedNanos)
-        recordUiDataPreDrawAge(request)
+        val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
+        recordUiDataFlushAge(request)
         val captureStartedNanos = System.nanoTime()
         val rootFrame = backdropCapture(request.slot.id).captureBlocking(
             layer = request.layer,
@@ -381,8 +373,8 @@ internal class SceneRenderer internal constructor(
 
     private fun kickRootCapture(request: RootCaptureRequest) {
         flushSequence++
-        val metricsFrame = metrics.beginRootFrame(request.preDrawStartedNanos)
-        recordUiDataPreDrawAge(request)
+        val metricsFrame = metrics.beginRootFrame(request.flushStartedNanos)
+        recordUiDataFlushAge(request)
         val captureStartedNanos = System.nanoTime()
         val slotId = request.slot.id
         pendingPresentVsyncBySlot[slotId] =
@@ -814,8 +806,6 @@ internal class SceneRenderer internal constructor(
         presentedBitmaps.remove(slotId)?.recycle()
         presentedBitmaps[slotId] = bitmap
         presentedImages[slotId] = bitmap.asImageBitmap()
-        if (suppressPresentInvalidate) return
-        presentingOutput = true
         invalidate()
     }
 
@@ -975,12 +965,12 @@ internal class SceneRenderer internal constructor(
         }
     }
 
-    private fun recordUiDataPreDrawAge(request: RootCaptureRequest) {
+    private fun recordUiDataFlushAge(request: RootCaptureRequest) {
         val uiDataNanos = request.latestUiDataNanos()
-        if (uiDataNanos <= lastPreDrawMeasuredUiDataNanos) return
-        lastPreDrawMeasuredUiDataNanos = uiDataNanos
-        metrics.recordUiDataPreDrawAge(
-            ageNanos = request.preDrawStartedNanos - uiDataNanos
+        if (uiDataNanos <= lastFlushMeasuredUiDataNanos) return
+        lastFlushMeasuredUiDataNanos = uiDataNanos
+        metrics.recordUiDataFlushAge(
+            ageNanos = request.flushStartedNanos - uiDataNanos
         )
     }
 
@@ -1015,7 +1005,7 @@ private data class RootCaptureRequest(
     val rootRecordedNanos: Long,
     val slot: SceneRegisteredSlot,
     val liveSlotIds: Set<SceneSlotId>,
-    val preDrawStartedNanos: Long,
+    val flushStartedNanos: Long,
     val vsyncTimeNanos: Long?,
     val kickSlotRenders: Boolean
 )

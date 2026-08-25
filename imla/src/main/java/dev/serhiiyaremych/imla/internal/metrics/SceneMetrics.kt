@@ -24,7 +24,7 @@ internal class SceneMetrics {
     private val mainSlotBookkeepingTime = DurationWindow()
     private val mainProgressiveMaskCaptureTime = DurationWindow()
     private val mainClipShapeCaptureTime = DurationWindow()
-    private val uiDataPreDrawAge = DurationWindow()
+    private val uiDataFlushAge = DurationWindow()
     private val uiDataFrameBuildAge = DurationWindow()
     private val rootCaptureAfterRenderCompleteTime = DurationWindow()
     private val mainPostCaptureWait = DurationWindow()
@@ -49,19 +49,16 @@ internal class SceneMetrics {
     private var submittedFrames = 0L
     private var renderedFrames = 0L
     private var droppedFrames = 0L
-    private var capturePacedFrames = 0L
     private var renderRequestPacedFrames = 0L
-    private var sceneWorkCoalescedFrames = 0L
-    private var rootCaptureDeferredFrames = 0L
     private var captureFailures = 0L
     private var targetSize = IntSize.Zero
     private var dropDebugMarkerPending = false
 
-    fun beginRootFrame(preDrawStartedNanos: Long): SceneMetricsFrame {
+    fun beginRootFrame(flushStartedNanos: Long): SceneMetricsFrame {
         return synchronized(lock) {
             SceneMetricsFrame(
                 id = nextFrameId++,
-                preDrawStartedNanos = preDrawStartedNanos
+                flushStartedNanos = flushStartedNanos
             )
         }
     }
@@ -122,9 +119,9 @@ internal class SceneMetrics {
         }
     }
 
-    fun recordUiDataPreDrawAge(ageNanos: Long) {
+    fun recordUiDataFlushAge(ageNanos: Long) {
         synchronized(lock) {
-            uiDataPreDrawAge.add(ageNanos)
+            uiDataFlushAge.add(ageNanos)
         }
     }
 
@@ -139,7 +136,7 @@ internal class SceneMetrics {
         frame.submittedNanos = submittedNanos
         synchronized(lock) {
             submittedFrames++
-            mainSubmitTime.add(submittedNanos - frame.preDrawStartedNanos)
+            mainSubmitTime.add(submittedNanos - frame.flushStartedNanos)
             mainPostCaptureWait.add(submittedNanos - readyAtNanos)
         }
     }
@@ -159,24 +156,6 @@ internal class SceneMetrics {
             val pending = dropDebugMarkerPending
             dropDebugMarkerPending = false
             pending
-        }
-    }
-
-    fun recordCapturePaced() {
-        synchronized(lock) {
-            capturePacedFrames++
-        }
-    }
-
-    fun recordSceneWorkCoalesced() {
-        synchronized(lock) {
-            sceneWorkCoalescedFrames++
-        }
-    }
-
-    fun recordRootCaptureDeferred() {
-        synchronized(lock) {
-            rootCaptureDeferredFrames++
         }
     }
 
@@ -271,7 +250,7 @@ internal class SceneMetrics {
         synchronized(lock) {
             renderedFrames++
             renderedFrameTimes.add(completedNanos)
-            drawLatency.add(completedNanos - frame.preDrawStartedNanos)
+            drawLatency.add(completedNanos - frame.flushStartedNanos)
         }
     }
 
@@ -288,10 +267,7 @@ internal class SceneMetrics {
                 submittedFrames = submittedFrames,
                 renderedFrames = renderedFrames,
                 droppedFrames = droppedFrames,
-                capturePacedFrames = capturePacedFrames,
                 renderRequestPacedFrames = renderRequestPacedFrames,
-                sceneWorkCoalescedFrames = sceneWorkCoalescedFrames,
-                rootCaptureDeferredFrames = rootCaptureDeferredFrames,
                 captureFailures = captureFailures,
                 targetSize = targetSize,
                 fps = renderedFrameTimes.fps(nowNanos),
@@ -306,9 +282,9 @@ internal class SceneMetrics {
                 latestSlotCaptureCaptured = slotCaptureCaptured.latest(),
                 mainProgressiveMaskCaptureMs = mainProgressiveMaskCaptureTime.averageMs(),
                 mainClipShapeCaptureMs = mainClipShapeCaptureTime.averageMs(),
-                uiDataPreDrawAgeMs = uiDataPreDrawAge.averageMs(),
+                uiDataFlushAgeMs = uiDataFlushAge.averageMs(),
                 uiDataFrameBuildAgeMs = uiDataFrameBuildAge.averageMs(),
-                latestUiDataPreDrawAgeMs = uiDataPreDrawAge.latestMs(),
+                latestUiDataFlushAgeMs = uiDataFlushAge.latestMs(),
                 latestUiDataFrameBuildAgeMs = uiDataFrameBuildAge.latestMs(),
                 rootCaptureAfterRenderCompleteMs = rootCaptureAfterRenderCompleteTime.averageMs(),
                 latestRootCaptureAfterRenderCompleteMs = rootCaptureAfterRenderCompleteTime.latestMs(),
@@ -345,18 +321,13 @@ internal class SceneMetrics {
  * @property submittedFrames root snapshots handed from the frame scheduler to GL.
  * @property renderedFrames GL render-target completion callbacks observed after swap/flush.
  * @property droppedFrames captured root snapshots closed before GL import, including scheduler
- *   supersedes, output lifecycle misses, and presentation pacing.
- * @property capturePacedFrames dirty source ticks skipped before root capture by presentation
- *   cadence pacing.
+ *   supersedes and output lifecycle misses.
  * @property renderRequestPacedFrames captured snapshots intentionally closed while a previous
  *   GLRenderer request callback is still in flight.
- * @property sceneWorkCoalescedFrames dirty source ticks skipped without root capture, snapshot
- *   assembly, GL submission, or final presentation under sustained production pressure.
- * @property rootCaptureDeferredFrames root captures deferred to a later Choreographer callback.
  * @property captureFailures root capture attempts that did not produce a hardware buffer frame.
  * @property targetSize current output surface size in physical pixels.
  * @property fps approximate GL-present FPS from render-complete callbacks in the last second.
- * @property mainSubmitMs average time from source modifier pre-draw to GL queue submission.
+ * @property mainSubmitMs average time from capture flush to GL queue submission.
  * @property mainRootCaptureMs average time spent capturing the root GraphicsLayer to HardwareBuffer.
  * @property mainSlotCaptureMs average time spent capturing slot GraphicsLayers to HardwareBuffers.
  * @property mainSlotDiscoveryMs average time spent scanning slots for capturable content.
@@ -367,9 +338,9 @@ internal class SceneMetrics {
  * @property latestSlotCaptureCaptured latest number of slots that produced a captured frame.
  * @property mainProgressiveMaskCaptureMs average time spent rasterizing changed progressive masks.
  * @property mainClipShapeCaptureMs average time spent rasterizing changed clip shapes.
- * @property uiDataPreDrawAgeMs average max age of UI data at pre-draw flush.
+ * @property uiDataFlushAgeMs average max age of UI data at capture flush.
  * @property uiDataFrameBuildAgeMs average max age of UI data at snapshot assembly.
- * @property latestUiDataPreDrawAgeMs newest max UI data age at pre-draw flush.
+ * @property latestUiDataFlushAgeMs newest max UI data age at capture flush.
  * @property latestUiDataFrameBuildAgeMs newest max UI data age at snapshot assembly.
  * @property rootCaptureAfterRenderCompleteMs average time from GL render-complete callback to the
  *   next root capture start.
@@ -382,12 +353,12 @@ internal class SceneMetrics {
  * @property glClipImportMs average time spent waiting/importing clip shape HardwareBuffers.
  * @property glRenderMs average time spent rendering the scene pipeline into the output surface.
  * @property glFrameMs average GL work for one scene frame: imports and render.
- * @property drawLatencyMs average time from source modifier pre-draw to GL render completion.
+ * @property drawLatencyMs average time from capture flush to GL render completion.
  * @property presentLagMs average time from captured UI vsync to first `drawImage` of that frame.
  * @property latestPresentLagMs newest capture-vsync to first-`drawImage` sample.
- * @property latestMainSubmitMs newest main-thread pre-draw-to-submit sample.
+ * @property latestMainSubmitMs newest main-thread capture-flush-to-submit sample.
  * @property latestGlFrameMs newest GL import-plus-draw sample.
- * @property latestDrawLatencyMs newest pre-draw-to-render-complete sample.
+ * @property latestDrawLatencyMs newest capture-flush-to-render-complete sample.
  * @property featureStats latest rendered frame feature counts.
  * @property resourceStats current global GL resource lifetime counters.
  * @property renderPasses GL-thread render pass issue-wall timings and estimated work volume.
@@ -396,10 +367,7 @@ internal data class SceneMetricsSnapshot(
     val submittedFrames: Long = 0L,
     val renderedFrames: Long = 0L,
     val droppedFrames: Long = 0L,
-    val capturePacedFrames: Long = 0L,
     val renderRequestPacedFrames: Long = 0L,
-    val sceneWorkCoalescedFrames: Long = 0L,
-    val rootCaptureDeferredFrames: Long = 0L,
     val captureFailures: Long = 0L,
     val targetSize: IntSize = IntSize.Zero,
     val fps: Float = 0f,
@@ -414,9 +382,9 @@ internal data class SceneMetricsSnapshot(
     val latestSlotCaptureCaptured: Long = 0L,
     val mainProgressiveMaskCaptureMs: Float = 0f,
     val mainClipShapeCaptureMs: Float = 0f,
-    val uiDataPreDrawAgeMs: Float = 0f,
+    val uiDataFlushAgeMs: Float = 0f,
     val uiDataFrameBuildAgeMs: Float = 0f,
-    val latestUiDataPreDrawAgeMs: Float = 0f,
+    val latestUiDataFlushAgeMs: Float = 0f,
     val latestUiDataFrameBuildAgeMs: Float = 0f,
     val rootCaptureAfterRenderCompleteMs: Float = 0f,
     val latestRootCaptureAfterRenderCompleteMs: Float = 0f,
@@ -477,7 +445,7 @@ internal data class SceneRenderPassSnapshot(
  */
 internal class SceneMetricsFrame internal constructor(
     val id: Long,
-    val preDrawStartedNanos: Long
+    val flushStartedNanos: Long
 ) {
     @Volatile
     internal var submittedNanos: Long = 0L

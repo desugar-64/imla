@@ -91,7 +91,6 @@ private class SceneSlotNode(
     private var currentView: View? = null
     private var sceneRenderer: SceneRenderer? = null
     private var outOfWindowKickView: View? = null
-    private var presentingOutput: Boolean = false
     private var presentInvalidateId: SceneSlotId? = null
 
     // A slot in a separate window (e.g. a ModalBottomSheet overlay) is invisible
@@ -163,7 +162,6 @@ private class SceneSlotNode(
                 }
                 drawPresentedImage(presented)
                 handle?.id?.let { sceneRenderer?.onPresentedImageDrawn(it) }
-                presentingOutput = false
                 return
             }
         }
@@ -267,7 +265,6 @@ private class SceneSlotNode(
         presentInvalidateId?.let { renderer.setPresentInvalidate(it, null) }
         presentInvalidateId = id
         renderer.setPresentInvalidate(id) {
-            presentingOutput = true
             invalidateDraw()
         }
     }

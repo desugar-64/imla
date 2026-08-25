@@ -69,7 +69,6 @@ private class SceneSourceNode : Modifier.Node(),
     private var presentInProgress: Boolean = false
 
     private val onDrawListener = ViewTreeObserver.OnDrawListener {
-        sceneRenderer?.consumePresentingOutput()
         presentAfterHwuiDraw()
     }
 
@@ -154,7 +153,7 @@ private class SceneSourceNode : Modifier.Node(),
                     rootGeneration = rootGeneration,
                     rootRecordedNanos = recordedNanos,
                     slots = registrySnapshot?.slots.orEmpty(),
-                    preDrawStartedNanos = System.nanoTime(),
+                    flushStartedNanos = System.nanoTime(),
                     vsyncTimeNanos = vsyncFrameTime.latestFrameTimeNanos,
                     kickSlotRenders = true
                 )
@@ -236,7 +235,7 @@ private class SceneSourceNode : Modifier.Node(),
             // interval and offset from Choreographer#doFrame measure how vsync-
             // aligned the capture cadence is. See CapturePacingMetric.
             trace("SceneCaptureKick") {
-                val drawStartedNanos = System.nanoTime()
+                val flushStartedNanos = System.nanoTime()
                 val registrySnapshot = sceneRegistry?.snapshot(rootCoordinates)
                 renderer.onRootDirty(
                     layer = layer,
@@ -246,7 +245,7 @@ private class SceneSourceNode : Modifier.Node(),
                     rootGeneration = rootGeneration,
                     rootRecordedNanos = recordedNanos,
                     slots = registrySnapshot?.slots.orEmpty(),
-                    preDrawStartedNanos = drawStartedNanos,
+                    flushStartedNanos = flushStartedNanos,
                     vsyncTimeNanos = vsyncFrameTime.latestFrameTimeNanos,
                     kickSlotRenders = kickSlotRenders
                 )

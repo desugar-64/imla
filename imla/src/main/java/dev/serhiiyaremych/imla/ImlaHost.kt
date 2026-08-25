@@ -41,9 +41,9 @@ import kotlinx.coroutines.isActive
  * Root of an Imla effect scene. Provides a renderer and layer registry to [content]. Children
  * register through the host; no renderer or OpenGL objects are passed down.
  *
- * On API 29+ the enclosing [effectGroup][Modifier.effectGroup] presents the GL-composited scene
- * as a hardware `Bitmap` in the Compose draw pass. On API 23–28 the group draws its recorded
- * content with no effects (no output surface).
+ * On API 29+ [effectSource][Modifier.effectSource] `drawLayer`s the backdrop through HWUI.
+ * [effectLayer][Modifier.effectLayer] `drawImage`s the hardware bitmap. On API 23–28 the
+ * group draws its recorded content with no effects.
  *
  * @param showMetricsOverlay draws a debug metrics overlay over the scene. Disable for production UI.
  */
@@ -155,20 +155,14 @@ private fun SceneMetricsOverlayState.formatOverlayText(expanded: Boolean): Strin
 }
 
 private fun SceneMetricsOverlayState.formatCollapsedOverlayText(): String {
-    val pressureSkips = if (snapshot.sceneWorkCoalescedFrames > 0L) {
-        "  Skip ${snapshot.sceneWorkCoalescedFrames}"
-    } else {
-        ""
-    }
     return String.format(
         Locale.US,
-        "Scene %.1ffps  CPU %.1fms  GL %.1fms  Lag %.1ff %.0fms%s",
+        "Scene %.1ffps  CPU %.1fms  GL %.1fms  Lag %.1ff %.0fms",
         snapshot.fps,
         snapshot.mainSubmitMs,
         snapshot.glFrameMs,
         presentLagFrames(snapshot),
-        snapshot.presentLagMs,
-        pressureSkips
+        snapshot.presentLagMs
     )
 }
 
@@ -241,8 +235,7 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
                 "Submit -> GL start      %.2f ms\n" +
                 "Frames                  %d rendered / %d submitted\n" +
                 "Drops                   %d\n" +
-                "Pacing                  capture %d   render %d   root %d\n" +
-                "Pressure skips          dirty ticks %d\n" +
+                "Pacing                  render %d\n" +
                 "Capture failures        %d",
         snapshot.fps,
         frameBudgetMs.formatMetricMs(),
@@ -261,8 +254,8 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
         snapshot.mainSlotBookkeepingMs,
         snapshot.mainProgressiveMaskCaptureMs,
         snapshot.mainClipShapeCaptureMs,
-        snapshot.uiDataPreDrawAgeMs,
-        snapshot.latestUiDataPreDrawAgeMs,
+        snapshot.uiDataFlushAgeMs,
+        snapshot.latestUiDataFlushAgeMs,
         snapshot.uiDataFrameBuildAgeMs,
         snapshot.latestUiDataFrameBuildAgeMs,
         snapshot.mainPostCaptureWaitMs,
@@ -328,10 +321,7 @@ private fun SceneMetricsOverlayState.formatExpandedOverlayText(): String {
         snapshot.renderedFrames,
         snapshot.submittedFrames,
         snapshot.droppedFrames,
-        snapshot.capturePacedFrames,
         snapshot.renderRequestPacedFrames,
-        snapshot.rootCaptureDeferredFrames,
-        snapshot.sceneWorkCoalescedFrames,
         snapshot.captureFailures
     )
 }
