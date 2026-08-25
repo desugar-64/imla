@@ -17,16 +17,16 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on her explicit go.
 - [x] On her go, arm a `/goal` with this exact text. "docs/plans/2026-08-25-delete-surface-era-leftovers-program.md. PR order pr-dead-engine, pr-drop-st, pr-present-types, pr-one-slot, pr-egl-pump, pr-cmdbuf-design. Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. The operator lands the Graphite stack. Done when every PR box is checked and the operator has landed the stack."
 - [ ] Read these from trunk at program start. Re-read them at every tick.
-  - [ ] `git show origin/main:AGENTS.md`
-  - [ ] `git show origin/main:.agents/skills/imla_adb_screenshot_half/SKILL.md`
-  - [ ] `git show origin/main:.agents/skills/imla_screenshot_diff/SKILL.md`
-  - [ ] `git show origin/main:.agents/skills/imla_perfetto_feedback/SKILL.md`
-  - [ ] `git show origin/main:.agents/skills/imla_scene_counters/SKILL.md`
+  - [x] `git show origin/main:AGENTS.md`
+  - [x] `git show origin/main:.agents/skills/imla_adb_screenshot_half/SKILL.md`
+  - [x] `git show origin/main:.agents/skills/imla_screenshot_diff/SKILL.md`
+  - [x] `git show origin/main:.agents/skills/imla_perfetto_feedback/SKILL.md`
+  - [x] `git show origin/main:.agents/skills/imla_scene_counters/SKILL.md`
   - [ ] `git show origin/main:pstack/skills/poteto-mode/playbooks/autopilot-stack.md`
   - [ ] `git show origin/main:pstack/skills/swarm/SKILL.md`
   - [ ] `git show origin/main:pstack/skills/poteto-mode/playbooks/opening-a-pr.md`
 - [x] Arm the 30-minute audit tick. In a local session, a real terminal `/loop`. In a cloud root, a cloud-sleeper wake chain. Never leave the cadence to memory.
-- [ ] Use this tick prompt, verbatim. "Re-read the execution playbook from trunk and the armed /goal. Audit the operation against both and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then send the operator a status message, whether or not anything changed, with the queue table of PR, owner, state, and head SHA, the verdicts since the last tick, what merged, open operator gates, and blockers."
+- [x] Use this tick prompt, verbatim. "Re-read the execution playbook from trunk and the armed /goal. Audit the operation against both and fix drift in this tick. Probe every active lane and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then send the operator a status message, whether or not anything changed, with the queue table of PR, owner, state, and head SHA, the verdicts since the last tick, what merged, open operator gates, and blockers."
 - [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once.
 
 ### Spawn owners
