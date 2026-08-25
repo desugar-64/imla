@@ -317,7 +317,7 @@ Each live lane checks out the PR head and drives the installed debug app on seri
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Snapshot and pipeline JVM tests assert one slot per request. Run `./gradlew -q :imla:test`.
+- [x] Snapshot and pipeline JVM tests assert one slot per request. Run `./gradlew -q :imla:test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `grok-4.6-fast-xhigh` at the PR head, per the boot recipe.
 
