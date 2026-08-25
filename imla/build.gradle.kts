@@ -12,12 +12,18 @@ plugins {
 android {
     namespace = "dev.serhiiyaremych.imla"
     compileSdk = 36
+    ndkVersion = "27.3.13750724"
 
     defaultConfig {
         minSdk = 23
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        externalNativeBuild {
+            cmake {
+                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+            }
+        }
     }
 
     buildTypes {
@@ -55,6 +61,11 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = true
+    }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 }
 

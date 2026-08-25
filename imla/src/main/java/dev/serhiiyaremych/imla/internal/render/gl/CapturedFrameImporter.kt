@@ -1,5 +1,6 @@
 package dev.serhiiyaremych.imla.internal.render.gl
 
+import android.hardware.HardwareBuffer
 import android.os.Build
 import android.opengl.GLES30
 import androidx.annotation.RequiresApi
@@ -38,7 +39,6 @@ internal class CapturedFrameImporter(
     // framebuffer + texture every slot every frame (the rotating-cards churn). Mirrors
     // ownedRootTransferFramebuffer. GlStore borrows these; the importer owns/destroys them.
     private val cachedSlotTransferFramebuffers = mutableMapOf<SlotTransferKey, Framebuffer>()
-    private var cachedLegacyRootHardwareBufferTexture: OpenGLHardwareBufferTexture2D? = null
     private val cachedRootHardwareBufferTextures =
         object : LinkedHashMap<Long, CachedHardwareBufferTexture>(
             MAX_ROOT_HARDWARE_BUFFER_TEXTURE_CACHE_SIZE,
@@ -110,8 +110,6 @@ internal class CapturedFrameImporter(
     @OnGlThread
     override fun close() {
         threadGuard.checkCurrentThread()
-        cachedLegacyRootHardwareBufferTexture?.destroy()
-        cachedLegacyRootHardwareBufferTexture = null
         destroyCachedRootHardwareBufferTextures()
         destroyCachedSlotHardwareBufferTextures()
         cachedSlotTransferFramebuffers.values.forEach { it.destroy() }
@@ -142,16 +140,14 @@ internal class CapturedFrameImporter(
                 phase = "graphicsLayer.captureCanvas.syncImport",
                 details = "${source.name} ${frame.size.width}x${frame.size.height}"
             ) {
+                val bufferId = hardwareBufferCacheKey(lease.buffer)
                 val importedTexture = if (source == HardwareBufferTextureSource.Root) {
-                    rootHardwareBufferTextureFor(frame, lease)
+                    rootHardwareBufferTextureFor(frame, lease, bufferId)
                 } else {
-                    slotHardwareBufferTextureFor(frame, lease, source)
+                    slotHardwareBufferTextureFor(frame, lease, source, bufferId)
                 }
                 importedTexture.also {
-                    if (
-                        source != HardwareBufferTextureSource.Root &&
-                        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-                    ) {
+                    if (bufferId == null) {
                         temporaryTexture = importedTexture
                     }
                 }
@@ -183,26 +179,19 @@ internal class CapturedFrameImporter(
     private fun slotHardwareBufferTextureFor(
         frame: CapturedHardwareBufferFrame,
         lease: BufferLease,
-        source: HardwareBufferTextureSource
+        source: HardwareBufferTextureSource,
+        bufferId: Long?
     ): OpenGLHardwareBufferTexture2D? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            return OpenGLHardwareBufferTexture2D.createFromBuffer(
-                hardwareBuffer = lease.buffer,
-                sizePx = frame.size,
-                coordinateOrigin = CoordinateOrigin.TOP_LEFT,
-                source = source
-            )
-        }
-
-        val bufferId = lease.buffer.id
-        val cachedTexture = cachedSlotHardwareBufferTextures[bufferId]
-        if (cachedTexture != null) {
-            if (cachedTexture.size == frame.size) {
-                ShaderStats.recordHardwareBufferSlotTextureReused()
-                return cachedTexture.texture
+        if (bufferId != null) {
+            val cachedTexture = cachedSlotHardwareBufferTextures[bufferId]
+            if (cachedTexture != null) {
+                if (cachedTexture.size == frame.size) {
+                    ShaderStats.recordHardwareBufferSlotTextureReused()
+                    return cachedTexture.texture
+                }
+                cachedTexture.texture.destroy()
+                cachedSlotHardwareBufferTextures.remove(bufferId)
             }
-            cachedTexture.texture.destroy()
-            cachedSlotHardwareBufferTextures.remove(bufferId)
         }
 
         return OpenGLHardwareBufferTexture2D.createFromBuffer(
@@ -211,32 +200,21 @@ internal class CapturedFrameImporter(
             coordinateOrigin = CoordinateOrigin.TOP_LEFT,
             source = source
         )?.also { importedTexture ->
-            cachedSlotHardwareBufferTextures[bufferId] = CachedHardwareBufferTexture(
-                texture = importedTexture,
-                size = frame.size
-            )
+            if (bufferId != null) {
+                cachedSlotHardwareBufferTextures[bufferId] = CachedHardwareBufferTexture(
+                    texture = importedTexture,
+                    size = frame.size
+                )
+            }
             ShaderStats.recordHardwareBufferSlotTextureRecreated()
         }
     }
 
     private fun rootHardwareBufferTextureFor(
         frame: CapturedHardwareBufferFrame,
-        lease: BufferLease
+        lease: BufferLease,
+        bufferId: Long?
     ): OpenGLHardwareBufferTexture2D? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            cachedLegacyRootHardwareBufferTexture?.destroy()
-            cachedLegacyRootHardwareBufferTexture = null
-            return OpenGLHardwareBufferTexture2D.createFromBuffer(
-                hardwareBuffer = lease.buffer,
-                sizePx = frame.size,
-                coordinateOrigin = CoordinateOrigin.TOP_LEFT,
-                source = HardwareBufferTextureSource.Root
-            )?.also { importedTexture ->
-                cachedLegacyRootHardwareBufferTexture = importedTexture
-                ShaderStats.recordHardwareBufferRootTextureRecreated()
-            }
-        }
-
         val rootTextureIterator = cachedRootHardwareBufferTextures.entries.iterator()
         while (rootTextureIterator.hasNext()) {
             val cachedTexture = rootTextureIterator.next().value
@@ -246,15 +224,16 @@ internal class CapturedFrameImporter(
             }
         }
 
-        val bufferId = lease.buffer.id
-        val cachedTexture = cachedRootHardwareBufferTextures[bufferId]
-        if (cachedTexture != null) {
-            if (cachedTexture.size == frame.size) {
-                ShaderStats.recordHardwareBufferRootTextureReused()
-                return cachedTexture.texture
+        if (bufferId != null) {
+            val cachedTexture = cachedRootHardwareBufferTextures[bufferId]
+            if (cachedTexture != null) {
+                if (cachedTexture.size == frame.size) {
+                    ShaderStats.recordHardwareBufferRootTextureReused()
+                    return cachedTexture.texture
+                }
+                cachedTexture.texture.destroy()
+                cachedRootHardwareBufferTextures.remove(bufferId)
             }
-            cachedTexture.texture.destroy()
-            cachedRootHardwareBufferTextures.remove(bufferId)
         }
 
         return OpenGLHardwareBufferTexture2D.createFromBuffer(
@@ -263,10 +242,12 @@ internal class CapturedFrameImporter(
             coordinateOrigin = CoordinateOrigin.TOP_LEFT,
             source = HardwareBufferTextureSource.Root
         )?.also { importedTexture ->
-            cachedRootHardwareBufferTextures[bufferId] = CachedHardwareBufferTexture(
-                texture = importedTexture,
-                size = frame.size
-            )
+            if (bufferId != null) {
+                cachedRootHardwareBufferTextures[bufferId] = CachedHardwareBufferTexture(
+                    texture = importedTexture,
+                    size = frame.size
+                )
+            }
             ShaderStats.recordHardwareBufferRootTextureRecreated()
         }
     }
@@ -417,6 +398,14 @@ internal class CapturedFrameImporter(
 
 private const val MAX_ROOT_HARDWARE_BUFFER_TEXTURE_CACHE_SIZE = 2
 private const val MAX_SLOT_HARDWARE_BUFFER_TEXTURE_CACHE_SIZE = 8
+
+private fun hardwareBufferCacheKey(buffer: HardwareBuffer): Long? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        buffer.id
+    } else {
+        HardwareBufferId.nativePtr(buffer).takeIf { it != 0L }
+    }
+}
 
 private data class CachedHardwareBufferTexture(
     val texture: OpenGLHardwareBufferTexture2D,
